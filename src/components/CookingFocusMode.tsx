@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useRef } from "react";
-import { Meal, MealStep } from "../types";
+import React, { useState, useEffect, useRef, useMemo } from "react";
+import { Meal, MealAddon, MealStep, PantryItem } from "../types";
 import {
   X,
   ChevronLeft,
-  ChevronRight,
+  ChevronDown,
+  ChevronUp,
   Play,
   Pause,
   RotateCcw,
@@ -12,29 +13,131 @@ import {
   ShoppingBag,
   Sparkles,
   ArrowRight,
-  Volume2
+  Volume2,
+  Square,
+  PackageCheck,
+  Minus,
+  Plus,
+  Utensils,
+  Check
 } from "lucide-react";
 import { playChime } from "../utils/sound";
+import { findMatchingPantryItem, getPantryMatchStats } from "../utils/pantryMatch";
+import { getMealExtras } from "../utils/mealExtras";
 
 interface CookingFocusModeProps {
   meal: Meal;
+  pantryItems: PantryItem[];
   onClose: () => void;
   onAddToGrocery: (meal: Meal) => void;
+  onAddMissingToGrocery: (meal: Meal) => void;
+  onAddExtraToGrocery?: (addon: MealAddon, mealTitle: string) => void;
+  onUpdatePantryQuantity: (itemName: string, delta: number) => void;
+  onRemovePantryItem: (itemName: string) => void;
 }
 
 export const CookingFocusMode: React.FC<CookingFocusModeProps> = ({
   meal,
+  pantryItems,
   onClose,
-  onAddToGrocery
+  onAddToGrocery,
+  onAddMissingToGrocery,
+  onAddExtraToGrocery,
+  onUpdatePantryQuantity,
+  onRemovePantryItem
 }) => {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<Record<number, boolean>>({});
   const [timerSecondsLeft, setTimerSecondsLeft] = useState<number>(0);
   const [isTimerRunning, setIsTimerRunning] = useState<boolean>(false);
+  const [showExtras, setShowExtras] = useState<boolean>(false);
+  const [addedExtras, setAddedExtras] = useState<Record<string, boolean>>({});
+  const { addons, sides } = useMemo(() => getMealExtras(meal), [meal]);
   const [isFinished, setIsFinished] = useState<boolean>(false);
+  const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
+  const [usedInSession, setUsedInSession] = useState<Record<string, number>>({});
+
+  const handleAddExtra = (extra: MealAddon) => {
+    if (!onAddExtraToGrocery) return;
+    onAddExtraToGrocery(extra, meal.title);
+    setAddedExtras((prev) => ({ ...prev, [extra.item]: true }));
+  };
 
   const currentStep: MealStep = meal.instructions[currentStepIndex] || meal.instructions[0];
   const timerRef = useRef<number | null>(null);
+
+  const supportsSpeech =
+    typeof window !== "undefined" &&
+    "speechSynthesis" in window &&
+    typeof SpeechSynthesisUtterance !== "undefined";
+
+  // Capture initial matched pantry items for post-meal cleanup so items remain visible even if decremented to 0
+  const initialMatchedPantryNames = useMemo(() => {
+    const seen = new Set<string>();
+    const names: string[] = [];
+    for (const ing of meal.ingredients) {
+      const matched = findMatchingPantryItem(ing, pantryItems);
+      if (matched && !seen.has(matched.name.toLowerCase())) {
+        seen.add(matched.name.toLowerCase());
+        names.push(matched.name);
+      }
+    }
+    return names;
+    // Only compute once when opening this meal so rows don't vanish mid-cleanup
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [meal.id]);
+
+  const pantryMatch = pantryItems.length > 0 ? getPantryMatchStats(meal, pantryItems) : null;
+  const missingCount = pantryMatch ? pantryMatch.totalCount - pantryMatch.matchCount : meal.ingredients.length;
+  const hasPartialMatch = Boolean(pantryMatch && pantryMatch.matchCount > 0 && !pantryMatch.isFullMatch);
+
+  const stopSpeech = () => {
+    if (supportsSpeech) {
+      window.speechSynthesis.cancel();
+    }
+    setIsSpeaking(false);
+  };
+
+  const toggleSpeakStep = () => {
+    if (!supportsSpeech || !currentStep) return;
+    if (isSpeaking) {
+      stopSpeech();
+      return;
+    }
+
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(
+      `Step ${currentStep.stepNumber}: ${currentStep.title}. ${currentStep.instruction}`
+    );
+    utterance.rate = 0.95;
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = () => setIsSpeaking(false);
+    setIsSpeaking(true);
+    window.speechSynthesis.speak(utterance);
+  };
+
+  // Stop speech when changing steps, finishing, or closing
+  useEffect(() => {
+    stopSpeech();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentStepIndex, isFinished]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        stopSpeech();
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      if (supportsSpeech) {
+        window.speechSynthesis.cancel();
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Sync timer when step changes
   useEffect(() => {
@@ -94,7 +197,6 @@ export const CookingFocusMode: React.FC<CookingFocusModeProps> = ({
   };
 
   const handleNext = () => {
-    // mark current step done
     setCompletedSteps((prev) => ({ ...prev, [currentStepIndex]: true }));
     if (currentStepIndex < meal.instructions.length - 1) {
       setCurrentStepIndex((prev) => prev + 1);
@@ -116,12 +218,47 @@ export const CookingFocusMode: React.FC<CookingFocusModeProps> = ({
     return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
   };
 
+  const handleUseOne = (itemName: string) => {
+    onUpdatePantryQuantity(itemName, -1);
+    setUsedInSession((prev) => ({
+      ...prev,
+      [itemName]: (prev[itemName] || 0) + 1
+    }));
+  };
+
+  const handleUseAllOfItem = (itemName: string, currentQty: number) => {
+    onRemovePantryItem(itemName);
+    setUsedInSession((prev) => ({
+      ...prev,
+      [itemName]: (prev[itemName] || 0) + currentQty
+    }));
+  };
+
+  const uncleanedActiveItems = initialMatchedPantryNames.filter((name) => {
+    const liveItem = pantryItems.find((p) => p.name.toLowerCase() === name.toLowerCase());
+    return Boolean(liveItem && liveItem.quantity > 0 && !(usedInSession[name] > 0));
+  });
+
+  const handleUseOneOfEach = () => {
+    uncleanedActiveItems.forEach((name) => {
+      handleUseOne(name);
+    });
+  };
+
   return (
-    <div className="fixed inset-0 z-50 bg-stone-900/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+    <div
+      className="fixed inset-0 z-50 bg-stone-900/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-y-auto"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          stopSpeech();
+          onClose();
+        }
+      }}
+    >
       <div className="bg-stone-50 text-stone-900 w-full max-w-2xl rounded-2xl shadow-2xl border border-stone-200 overflow-hidden flex flex-col max-h-[92vh]">
         
         {/* Header bar */}
-        <div className="bg-emerald-900 text-white px-5 py-4 flex items-center justify-between">
+        <div className="bg-emerald-900 text-white px-5 py-4 flex items-center justify-between gap-2">
           <div className="flex items-center space-x-3">
             <span className="bg-emerald-800 text-emerald-100 text-xs font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full">
               Cooking Focus Mode
@@ -132,16 +269,36 @@ export const CookingFocusMode: React.FC<CookingFocusModeProps> = ({
           </div>
 
           <div className="flex items-center space-x-2">
+            {hasPartialMatch ? (
+              <button
+                onClick={() => onAddMissingToGrocery(meal)}
+                className="text-xs bg-emerald-700 hover:bg-emerald-600 text-white px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors font-semibold"
+                title={`Add only ${missingCount} missing items to Walmart list`}
+              >
+                <ShoppingBag className="w-3.5 h-3.5" />
+                <span>Add Missing ({missingCount})</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => onAddToGrocery(meal)}
+                className="text-xs bg-emerald-800/80 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors"
+                title={
+                  pantryMatch?.isFullMatch
+                    ? "All ingredients are in your pantry — tap to add restock items to Walmart list"
+                    : "Add ingredients to Walmart list"
+                }
+              >
+                <ShoppingBag className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">
+                  {pantryMatch?.isFullMatch ? "Restock List" : "Walmart List"}
+                </span>
+              </button>
+            )}
             <button
-              onClick={() => onAddToGrocery(meal)}
-              className="text-xs bg-emerald-800/80 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors"
-              title="Add ingredients to Walmart list"
-            >
-              <ShoppingBag className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Walmart List</span>
-            </button>
-            <button
-              onClick={onClose}
+              onClick={() => {
+                stopSpeech();
+                onClose();
+              }}
               className="p-1.5 hover:bg-emerald-800 rounded-lg text-emerald-200 hover:text-white transition-colors"
               aria-label="Close cooking mode"
             >
@@ -163,7 +320,7 @@ export const CookingFocusMode: React.FC<CookingFocusModeProps> = ({
         {/* Main Step Body */}
         <div className="p-6 sm:p-8 flex-1 overflow-y-auto">
           {isFinished ? (
-            <div className="text-center py-8 space-y-5">
+            <div className="text-center py-4 space-y-5">
               <div className="w-16 h-16 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center mx-auto shadow-inner">
                 <Sparkles className="w-9 h-9" />
               </div>
@@ -171,10 +328,91 @@ export const CookingFocusMode: React.FC<CookingFocusModeProps> = ({
                 <h2 className="text-2xl sm:text-3xl font-bold text-stone-900">
                   You did it! Meal complete.
                 </h2>
-                <p className="text-stone-600 mt-2 max-w-md mx-auto text-base">
+                <p className="text-stone-600 mt-2 max-w-md mx-auto text-sm sm:text-base">
                   No thinking, no stress, no burnt pans. Sit down and enjoy your warm, nutritious food!
                 </p>
               </div>
+
+              {/* Quantity-Aware 1-Tap Pantry Cleanup */}
+              {initialMatchedPantryNames.length > 0 && (
+                <div className="bg-white border border-emerald-200 rounded-2xl p-4 sm:p-5 text-left max-w-md mx-auto shadow-sm space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <PackageCheck className="w-4 h-4 text-emerald-700" />
+                      <span className="text-xs font-bold uppercase tracking-wider text-emerald-900">
+                        Quick Pantry Cleanup
+                      </span>
+                    </div>
+                    {uncleanedActiveItems.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleUseOneOfEach}
+                        className="text-xs font-semibold bg-emerald-700 hover:bg-emerald-800 text-white px-2.5 py-1 rounded-lg transition-colors"
+                      >
+                        Used 1 of each ({uncleanedActiveItems.length})
+                      </button>
+                    )}
+                  </div>
+
+                  <p className="text-xs text-stone-500">
+                    Tap <strong>-1 Used</strong> to subtract 1 from your pantry count. Items with extras stay in your pantry until they reach 0.
+                  </p>
+
+                  <ul className="space-y-2">
+                    {initialMatchedPantryNames.map((name) => {
+                      const liveItem = pantryItems.find(
+                        (p) => p.name.toLowerCase() === name.toLowerCase()
+                      );
+                      const remainingQty = liveItem ? liveItem.quantity : 0;
+                      const usedCount = usedInSession[name] || 0;
+
+                      return (
+                        <li
+                          key={name}
+                          className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-stone-50 border border-stone-200 text-xs"
+                        >
+                          <div className="min-w-0">
+                            <div className="font-semibold text-stone-900 truncate">{name}</div>
+                            <div className="text-[11px] text-stone-500">
+                              {remainingQty > 0
+                                ? `${remainingQty} left in pantry${usedCount > 0 ? ` (used ${usedCount})` : ""}`
+                                : "Used up (removed from pantry)"}
+                            </div>
+                          </div>
+
+                          {remainingQty > 0 ? (
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => handleUseOne(name)}
+                                className="bg-white hover:bg-emerald-50 text-emerald-800 border border-emerald-300 font-semibold px-2.5 py-1.5 rounded-lg flex items-center gap-1 transition-colors"
+                              >
+                                <Minus className="w-3 h-3" />
+                                <span>1 Used</span>
+                              </button>
+                              {remainingQty > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleUseAllOfItem(name, remainingQty)}
+                                  className="text-stone-500 hover:text-rose-700 hover:bg-rose-50 px-2 py-1.5 rounded-lg border border-stone-200 transition-colors"
+                                  title="All gone"
+                                >
+                                  All gone
+                                </button>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-emerald-700 font-semibold px-2 py-1">
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              <span>Updated</span>
+                            </span>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              )}
 
               <div className="bg-white border border-stone-200 rounded-xl p-4 text-left max-w-md mx-auto shadow-sm">
                 <div className="text-xs font-bold uppercase tracking-wider text-emerald-800 mb-1">
@@ -183,10 +421,21 @@ export const CookingFocusMode: React.FC<CookingFocusModeProps> = ({
                 <p className="text-sm text-stone-700">{meal.whyItWorks}</p>
               </div>
 
-              <div className="pt-3 flex justify-center gap-3">
+              <div className="pt-2 flex flex-wrap justify-center gap-3">
                 <button
-                  onClick={onClose}
-                  className="bg-emerald-700 hover:bg-emerald-800 text-white font-medium px-6 py-3 rounded-xl shadow transition-colors"
+                  type="button"
+                  onClick={() => setIsFinished(false)}
+                  className="bg-white hover:bg-stone-100 text-stone-700 border border-stone-300 font-medium px-4 py-3 rounded-xl transition-colors flex items-center gap-1.5 text-sm"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  <span>Back to Steps</span>
+                </button>
+                <button
+                  onClick={() => {
+                    stopSpeech();
+                    onClose();
+                  }}
+                  className="bg-emerald-700 hover:bg-emerald-800 text-white font-medium px-6 py-3 rounded-xl shadow transition-colors text-sm"
                 >
                   Return to Meals
                 </button>
@@ -195,15 +444,40 @@ export const CookingFocusMode: React.FC<CookingFocusModeProps> = ({
           ) : (
             <div className="space-y-6">
               
-              {/* Step indicator and title */}
+              {/* Step indicator, Read Aloud, and title */}
               <div>
-                <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-stone-500 mb-1.5">
+                <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-stone-500 mb-1.5 gap-2">
                   <span>Step {currentStep.stepNumber} of {meal.instructions.length}</span>
-                  <span>{meal.title}</span>
+                  <span className="truncate">{meal.title}</span>
                 </div>
-                <h3 className="text-xl sm:text-2xl font-bold text-stone-900 tracking-tight">
-                  {currentStep.title}
-                </h3>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <h3 className="text-xl sm:text-2xl font-bold text-stone-900 tracking-tight">
+                    {currentStep.title}
+                  </h3>
+                  {supportsSpeech && (
+                    <button
+                      type="button"
+                      onClick={toggleSpeakStep}
+                      className={`text-xs font-semibold px-3 py-1.5 rounded-lg border flex items-center gap-1.5 transition-colors shrink-0 ${
+                        isSpeaking
+                          ? "bg-emerald-700 text-white border-emerald-700"
+                          : "bg-white hover:bg-stone-100 text-stone-700 border-stone-300"
+                      }`}
+                    >
+                      {isSpeaking ? (
+                        <>
+                          <Square className="w-3.5 h-3.5 fill-current" />
+                          <span>Stop Reading</span>
+                        </>
+                      ) : (
+                        <>
+                          <Volume2 className="w-3.5 h-3.5 text-emerald-700" />
+                          <span>Read Step</span>
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* The big step instruction card */}
@@ -318,6 +592,103 @@ export const CookingFocusMode: React.FC<CookingFocusModeProps> = ({
                     </button>
                   ))}
                 </div>
+              </div>
+
+              {/* Optional: Take it a step further & Easy side pairings */}
+              <div className="pt-1 border-t border-stone-200">
+                <button
+                  type="button"
+                  onClick={() => setShowExtras((prev) => !prev)}
+                  className="w-full flex items-center justify-between text-xs font-semibold text-emerald-900 bg-emerald-50/70 hover:bg-emerald-100/70 border border-emerald-200 px-3.5 py-2.5 rounded-xl transition-colors"
+                >
+                  <span className="flex items-center gap-2">
+                    <Utensils className="w-3.5 h-3.5 text-emerald-700" />
+                    <span>Optional: Take it a step further &amp; easy side pairings</span>
+                  </span>
+                  {showExtras ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </button>
+
+                {showExtras && (
+                  <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="bg-amber-50/60 border border-amber-200 rounded-xl p-3 space-y-2">
+                      <div className="text-[11px] font-bold uppercase tracking-wider text-amber-900">
+                        Optional Add-Ins
+                      </div>
+                      <ul className="space-y-2">
+                        {addons.map((addon, idx) => (
+                          <li key={idx} className="text-xs text-stone-700 flex items-start justify-between gap-2">
+                            <div>
+                              <strong className="text-stone-900">{addon.item}:</strong> {addon.howToUse}
+                            </div>
+                            {onAddExtraToGrocery && (
+                              <button
+                                type="button"
+                                onClick={() => handleAddExtra(addon)}
+                                className={`shrink-0 text-[11px] font-semibold border px-2 py-0.5 rounded-md flex items-center gap-0.5 transition-colors ${
+                                  addedExtras[addon.item]
+                                    ? "bg-emerald-700 text-white border-emerald-700"
+                                    : "bg-white hover:bg-amber-100 text-amber-900 border-amber-300"
+                                }`}
+                                title={`Add ${addon.item} to Walmart list`}
+                              >
+                                {addedExtras[addon.item] ? (
+                                  <>
+                                    <Check className="w-3 h-3" />
+                                    <span>Added</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Plus className="w-3 h-3" />
+                                    <span>List</span>
+                                  </>
+                                )}
+                              </button>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <div className="bg-emerald-50/60 border border-emerald-200 rounded-xl p-3 space-y-2">
+                      <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-900">
+                        Easy Side Pairings
+                      </div>
+                      <ul className="space-y-2">
+                        {sides.map((side, idx) => (
+                          <li key={idx} className="text-xs text-stone-700 flex items-start justify-between gap-2">
+                            <div>
+                              <strong className="text-stone-900">{side.item}:</strong> {side.howToUse}
+                            </div>
+                            {onAddExtraToGrocery && (
+                              <button
+                                type="button"
+                                onClick={() => handleAddExtra(side)}
+                                className={`shrink-0 text-[11px] font-semibold border px-2 py-0.5 rounded-md flex items-center gap-0.5 transition-colors ${
+                                  addedExtras[side.item]
+                                    ? "bg-emerald-700 text-white border-emerald-700"
+                                    : "bg-white hover:bg-emerald-100 text-emerald-900 border-emerald-300"
+                                }`}
+                                title={`Add ${side.item} to Walmart list`}
+                              >
+                                {addedExtras[side.item] ? (
+                                  <>
+                                    <Check className="w-3 h-3" />
+                                    <span>Added</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Plus className="w-3 h-3" />
+                                    <span>List</span>
+                                  </>
+                                )}
+                              </button>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                )}
               </div>
 
             </div>

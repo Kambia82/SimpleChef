@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { RutMeal } from "../types";
 import { X, Plus, Trash2, ShieldAlert, Sparkles, Check } from "lucide-react";
 
@@ -19,10 +19,24 @@ export const RutManagerModal: React.FC<RutManagerModalProps> = ({
 }) => {
   const [newMealName, setNewMealName] = useState("");
 
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (newMealName.trim()) {
-      onAddRutMeal(newMealName.trim());
+    const cleaned = newMealName.trim();
+    if (cleaned) {
+      const alreadyExists = rutMeals.some(
+        (r) => r.name.toLowerCase() === cleaned.toLowerCase()
+      );
+      if (!alreadyExists) {
+        onAddRutMeal(cleaned);
+      }
       setNewMealName("");
     }
   };
@@ -38,8 +52,13 @@ export const RutManagerModal: React.FC<RutManagerModalProps> = ({
   ];
 
   return (
-    <div className="fixed inset-0 z-50 bg-stone-900/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-2xl w-full max-w-lg border border-stone-200 shadow-xl overflow-hidden flex flex-col">
+    <div
+      className="fixed inset-0 z-50 bg-stone-900/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="bg-white rounded-2xl w-full max-w-lg border border-stone-200 shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
         <div className="bg-stone-100 border-b border-stone-200 px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -48,7 +67,7 @@ export const RutManagerModal: React.FC<RutManagerModalProps> = ({
             </div>
             <div>
               <h2 className="text-lg font-bold text-stone-900">My Repetitive Rut List</h2>
-              <p className="text-xs text-stone-600">The foods you keep eating because memory is fried</p>
+              <p className="text-xs text-stone-600">Everyday defaults you want a break from</p>
             </div>
           </div>
           <button
@@ -63,8 +82,7 @@ export const RutManagerModal: React.FC<RutManagerModalProps> = ({
         {/* Content */}
         <div className="p-6 space-y-5 flex-1 overflow-y-auto">
           <p className="text-sm text-stone-600 leading-relaxed">
-            Whenever your brain gets overwhelmed, you naturally default to the 2-3 items on your Walmart list.
-            Add them here so the app will <strong>never recommend them</strong> and can suggest effortless healthy swaps instead!
+            Add your usual go-to foods here so the app will <strong>never recommend them</strong> and can suggest fresh, effortless meals instead.
           </p>
 
           {/* Form to add */}

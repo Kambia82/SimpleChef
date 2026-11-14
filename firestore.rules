@@ -1,0 +1,281 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global safety net: deny all reads and writes by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidHouseholdCode(id) {
+      return id is string && id.size() >= 6 && id.size() <= 12 && id.matches('^[A-Z0-9]{6,12}$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isHouseholdMember(householdId) {
+      return isSignedIn() && exists(/databases/$(database)/documents/households/$(householdId)/members/$(request.auth.uid));
+    }
+
+    function isHouseholdMemberAfter(householdId) {
+      return isSignedIn() && existsAfter(/databases/$(database)/documents/households/$(householdId)/members/$(request.auth.uid));
+    }
+
+    function isHouseholdOwner(householdId) {
+      return isSignedIn() && get(/databases/$(database)/documents/households/$(householdId)).data.ownerId == request.auth.uid;
+    }
+
+    function isValidPantryList(arr) {
+      return arr is list && arr.size() <= 150 && (
+        arr.size() == 0 || (
+          arr[0] is map &&
+          arr[0].keys().hasAll(['name', 'quantity']) &&
+          arr[0].keys().hasOnly(['name', 'quantity']) &&
+          arr[0].name is string && arr[0].name.size() >= 1 && arr[0].name.size() <= 100 &&
+          arr[0].quantity is number && arr[0].quantity >= 1 && arr[0].quantity <= 999
+        )
+      );
+    }
+
+    function isValidGroceryList(arr) {
+      return arr is list && arr.size() <= 200 && (
+        arr.size() == 0 || (
+          arr[0] is map &&
+          arr[0].keys().hasAll(['id', 'name', 'amount', 'aisle', 'mealTitle', 'completed']) &&
+          arr[0].keys().hasOnly(['id', 'name', 'amount', 'aisle', 'mealTitle', 'completed']) &&
+          arr[0].id is string && arr[0].id.size() >= 1 && arr[0].id.size() <= 128 &&
+          arr[0].name is string && arr[0].name.size() >= 1 && arr[0].name.size() <= 120 &&
+          arr[0].amount is string && arr[0].amount.size() <= 60 &&
+          arr[0].aisle is string && arr[0].aisle.size() <= 40 &&
+          arr[0].mealTitle is string && arr[0].mealTitle.size() <= 120 &&
+          arr[0].completed is bool
+        )
+      );
+    }
+
+    function isValidRutList(arr) {
+      return arr is list && arr.size() <= 100 && (
+        arr.size() == 0 || (
+          arr[0] is map &&
+          arr[0].keys().hasAll(['id', 'name', 'dateAdded']) &&
+          arr[0].keys().hasOnly(['id', 'name', 'category', 'dateAdded']) &&
+          arr[0].id is string && arr[0].id.size() >= 1 && arr[0].id.size() <= 128 &&
+          arr[0].name is string && arr[0].name.size() >= 1 && arr[0].name.size() <= 100 &&
+          arr[0].dateAdded is string && arr[0].dateAdded.size() <= 64
+        )
+      );
+    }
+
+    function isValidFavoritesList(arr) {
+      return arr is list && arr.size() <= 200 && (
+        arr.size() == 0 || (arr[0] is string && arr[0].size() >= 1 && arr[0].size() <= 128)
+      );
+    }
+
+    function isValidCustomMealsList(arr) {
+      return arr is list && arr.size() <= 100 && (
+        arr.size() == 0 || (
+          arr[0] is map &&
+          arr[0].id is string && arr[0].id.size() >= 1 && arr[0].id.size() <= 128 &&
+          arr[0].title is string && arr[0].title.size() >= 1 && arr[0].title.size() <= 120
+        )
+      );
+    }
+
+    function isValidUserAppState(data) {
+      return data.keys().hasAll([
+          'ownerId',
+          'pantryItems',
+          'groceryItems',
+          'rutMeals',
+          'favorites',
+          'customMeals',
+          'householdId',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'ownerId',
+          'pantryItems',
+          'groceryItems',
+          'rutMeals',
+          'favorites',
+          'customMeals',
+          'householdId',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.ownerId is string && isValidId(data.ownerId) && data.ownerId == request.auth.uid &&
+        isValidPantryList(data.pantryItems) &&
+        isValidGroceryList(data.groceryItems) &&
+        isValidRutList(data.rutMeals) &&
+        isValidFavoritesList(data.favorites) &&
+        isValidCustomMealsList(data.customMeals) &&
+        data.householdId is string && data.householdId.size() <= 32 && data.householdId.matches('^$|^[A-Z0-9]{6,12}$') &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidHousehold(data) {
+      return data.keys().hasAll(['ownerId', 'name', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['ownerId', 'name', 'createdAt', 'updatedAt']) &&
+        data.ownerId is string && isValidId(data.ownerId) && data.ownerId == request.auth.uid &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 60 &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidHouseholdMember(data, memberId) {
+      return data.keys().hasAll(['uid', 'role', 'displayName', 'joinedAt']) &&
+        data.keys().hasOnly(['uid', 'role', 'displayName', 'joinedAt']) &&
+        data.uid is string && isValidId(data.uid) && data.uid == memberId && data.uid == request.auth.uid &&
+        data.role is string && data.role.size() <= 16 && (data.role == 'owner' || data.role == 'member') &&
+        data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 60 &&
+        data.joinedAt is timestamp;
+    }
+
+    function isValidHouseholdSharedState(data) {
+      return data.keys().hasAll(['ownerId', 'updatedBy', 'pantryItems', 'groceryItems', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['ownerId', 'updatedBy', 'pantryItems', 'groceryItems', 'createdAt', 'updatedAt']) &&
+        data.ownerId is string && isValidId(data.ownerId) &&
+        data.updatedBy is string && isValidId(data.updatedBy) && data.updatedBy == request.auth.uid &&
+        isValidPantryList(data.pantryItems) &&
+        isValidGroceryList(data.groceryItems) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    // Private per-user meal planner state
+    match /users/{userId}/appState/{stateId} {
+      allow get: if isValidId(userId) && stateId == 'main' && isOwner(userId);
+      allow list: if false;
+      allow create: if isVerifiedUser() &&
+        isValidId(userId) &&
+        stateId == 'main' &&
+        isOwner(userId) &&
+        isValidUserAppState(incoming()) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isVerifiedUser() &&
+        isValidId(userId) &&
+        stateId == 'main' &&
+        isValidUserAppState(incoming()) &&
+        isOwner(userId) &&
+        incoming().ownerId == existing().ownerId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time && (
+          incoming().diff(existing()).affectedKeys().hasOnly(['pantryItems', 'updatedAt']) ||
+          incoming().diff(existing()).affectedKeys().hasOnly(['groceryItems', 'updatedAt']) ||
+          incoming().diff(existing()).affectedKeys().hasOnly(['rutMeals', 'updatedAt']) ||
+          incoming().diff(existing()).affectedKeys().hasOnly(['favorites', 'updatedAt']) ||
+          incoming().diff(existing()).affectedKeys().hasOnly(['customMeals', 'updatedAt']) ||
+          incoming().diff(existing()).affectedKeys().hasOnly(['householdId', 'updatedAt']) ||
+          incoming().diff(existing()).affectedKeys().hasOnly(['pantryItems', 'groceryItems', 'updatedAt']) ||
+          incoming().diff(existing()).affectedKeys().hasOnly(['pantryItems', 'groceryItems', 'householdId', 'updatedAt']) ||
+          incoming().diff(existing()).affectedKeys().hasOnly(['pantryItems', 'groceryItems', 'rutMeals', 'favorites', 'customMeals', 'householdId', 'updatedAt'])
+        );
+      allow delete: if isVerifiedUser() && isValidId(userId) && stateId == 'main' && isOwner(userId);
+    }
+
+    // Optional shared household
+    match /households/{householdId} {
+      allow get: if isValidHouseholdCode(householdId) && isHouseholdMember(householdId);
+      allow list: if false;
+      allow create: if isVerifiedUser() &&
+        isValidHouseholdCode(householdId) &&
+        isValidHousehold(incoming()) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isVerifiedUser() &&
+        isValidHouseholdCode(householdId) &&
+        isValidHousehold(incoming()) &&
+        existing().ownerId == request.auth.uid &&
+        incoming().ownerId == existing().ownerId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['name', 'updatedAt']);
+      allow delete: if isVerifiedUser() &&
+        isValidHouseholdCode(householdId) &&
+        existing().ownerId == request.auth.uid;
+
+      match /members/{memberId} {
+        allow get: if isValidHouseholdCode(householdId) &&
+          isValidId(memberId) &&
+          isSignedIn() && (
+            request.auth.uid == memberId ||
+            isHouseholdMember(householdId)
+          );
+        allow list: if false;
+        allow create: if isVerifiedUser() &&
+          isValidHouseholdCode(householdId) &&
+          isValidId(memberId) &&
+          isValidHouseholdMember(incoming(), memberId) &&
+          incoming().joinedAt == request.time && (
+            (incoming().role == 'owner' &&
+              getAfter(/databases/$(database)/documents/households/$(householdId)).data.ownerId == request.auth.uid) ||
+            (incoming().role == 'member' &&
+              exists(/databases/$(database)/documents/households/$(householdId)))
+          );
+        allow update: if false;
+        allow delete: if isVerifiedUser() &&
+          isValidHouseholdCode(householdId) &&
+          isValidId(memberId) && (
+            request.auth.uid == memberId ||
+            isHouseholdOwner(householdId)
+          );
+      }
+
+      match /sharedState/{stateId} {
+        allow get: if isValidHouseholdCode(householdId) && stateId == 'main' && isHouseholdMember(householdId);
+        allow list: if false;
+        allow create: if isVerifiedUser() &&
+          isValidHouseholdCode(householdId) &&
+          stateId == 'main' &&
+          isValidHouseholdSharedState(incoming()) &&
+          incoming().ownerId == request.auth.uid &&
+          incoming().createdAt == request.time &&
+          incoming().updatedAt == request.time && (
+            isHouseholdMemberAfter(householdId) ||
+            isHouseholdMember(householdId)
+          );
+        allow update: if isVerifiedUser() &&
+          isValidHouseholdCode(householdId) &&
+          stateId == 'main' &&
+          isValidHouseholdSharedState(incoming()) &&
+          isHouseholdMember(householdId) &&
+          incoming().ownerId == existing().ownerId &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().updatedAt == request.time && (
+            incoming().diff(existing()).affectedKeys().hasOnly(['pantryItems', 'updatedBy', 'updatedAt']) ||
+            incoming().diff(existing()).affectedKeys().hasOnly(['groceryItems', 'updatedBy', 'updatedAt']) ||
+            incoming().diff(existing()).affectedKeys().hasOnly(['pantryItems', 'groceryItems', 'updatedBy', 'updatedAt'])
+          );
+        allow delete: if isVerifiedUser() &&
+          isValidHouseholdCode(householdId) &&
+          stateId == 'main' &&
+          isHouseholdOwner(householdId);
+      }
+    }
+  }
+}

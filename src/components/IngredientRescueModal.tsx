@@ -1,42 +1,42 @@
-import React, { useState } from "react";
-import { X, Plus, Sparkles, Loader2, Check } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { X, Plus, Sparkles, Loader2 } from "lucide-react";
+import { PANTRY_STAPLE_GROUPS } from "../data/pantryStaples";
 
 interface IngredientRescueModalProps {
   onRescue: (ingredients: string[]) => Promise<void>;
+  onCancel?: () => void;
   onClose: () => void;
   isLoading: boolean;
 }
 
-const COMMON_STAPLES = [
-  "Tortillas",
-  "Eggs",
-  "Canned Black Beans",
-  "Rotisserie Chicken",
-  "Shredded Cheese",
-  "Salsa",
-  "Frozen Veggies",
-  "Microwave Rice",
-  "Pasta",
-  "Pasta Sauce",
-  "Spinach",
-  "Ground Beef / Turkey",
-  "Sweet Potato",
-  "Kielbasa / Sausage",
-  "Greek Yogurt",
-  "Naan Bread"
-];
-
 export const IngredientRescueModal: React.FC<IngredientRescueModalProps> = ({
   onRescue,
+  onCancel,
   onClose,
   isLoading
 }) => {
   const [selectedIngredients, setSelectedIngredients] = useState<string[]>([]);
   const [customInput, setCustomInput] = useState("");
 
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onCancel?.();
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onCancel, onClose]);
+
   const toggleIngredient = (item: string) => {
-    if (selectedIngredients.includes(item)) {
-      setSelectedIngredients(selectedIngredients.filter((i) => i !== item));
+    const exists = selectedIngredients.some(
+      (i) => i.toLowerCase() === item.toLowerCase()
+    );
+    if (exists) {
+      setSelectedIngredients(
+        selectedIngredients.filter((i) => i.toLowerCase() !== item.toLowerCase())
+      );
     } else {
       setSelectedIngredients([...selectedIngredients, item]);
     }
@@ -44,8 +44,12 @@ export const IngredientRescueModal: React.FC<IngredientRescueModalProps> = ({
 
   const handleAddCustom = (e: React.FormEvent) => {
     e.preventDefault();
-    if (customInput.trim() && !selectedIngredients.includes(customInput.trim())) {
-      setSelectedIngredients([...selectedIngredients, customInput.trim()]);
+    const cleaned = customInput.trim();
+    if (
+      cleaned &&
+      !selectedIngredients.some((i) => i.toLowerCase() === cleaned.toLowerCase())
+    ) {
+      setSelectedIngredients([...selectedIngredients, cleaned]);
       setCustomInput("");
     }
   };
@@ -57,7 +61,15 @@ export const IngredientRescueModal: React.FC<IngredientRescueModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-stone-900/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+    <div
+      className="fixed inset-0 z-50 bg-stone-900/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          onCancel?.();
+          onClose();
+        }
+      }}
+    >
       <div className="bg-white rounded-2xl w-full max-w-lg border border-stone-200 shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
         <div className="bg-stone-100 border-b border-stone-200 px-6 py-4 flex items-center justify-between">
@@ -71,7 +83,10 @@ export const IngredientRescueModal: React.FC<IngredientRescueModalProps> = ({
             </div>
           </div>
           <button
-            onClick={onClose}
+            onClick={() => {
+              onCancel?.();
+              onClose();
+            }}
             className="p-1.5 text-stone-400 hover:text-stone-700 hover:bg-stone-200 rounded-lg transition-colors"
             aria-label="Close modal"
           >
@@ -82,7 +97,7 @@ export const IngredientRescueModal: React.FC<IngredientRescueModalProps> = ({
         {/* Content */}
         <div className="p-6 space-y-5 flex-1 overflow-y-auto">
           <p className="text-sm text-stone-600 leading-relaxed">
-            "I bought random groceries and have no idea how to make a meal out of them." Tap what you have in your kitchen, and we'll do the mental math to give you a dead-simple 3-step meal.
+            Tap whatever ingredients you already have in your kitchen, and we&apos;ll turn them into a simple 3-step meal.
           </p>
 
           {/* Custom Input */}
@@ -131,41 +146,51 @@ export const IngredientRescueModal: React.FC<IngredientRescueModalProps> = ({
             </div>
           )}
 
-          {/* Quick Tap Staples */}
-          <div className="space-y-2">
-            <div className="text-xs font-bold uppercase tracking-wider text-stone-500">
-              Tap items you have on hand:
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {COMMON_STAPLES.map((staple) => {
-                const isSelected = selectedIngredients.includes(staple);
-                return (
-                  <button
-                    key={staple}
-                    type="button"
-                    onClick={() => toggleIngredient(staple)}
-                    className={`text-xs px-3 py-1.5 rounded-xl border font-medium transition-all ${
-                      isSelected
-                        ? "bg-emerald-700 text-white border-emerald-700 shadow-xs"
-                        : "bg-stone-50 text-stone-700 border-stone-200 hover:bg-stone-100 hover:border-stone-300"
-                    }`}
-                  >
-                    {isSelected ? `✓ ${staple}` : staple}
-                  </button>
-                );
-              })}
-            </div>
+          {/* Grouped Quick Tap Staples */}
+          <div className="space-y-4">
+            {PANTRY_STAPLE_GROUPS.map((group) => (
+              <div key={group.label} className="space-y-2">
+                <div className="text-xs font-bold uppercase tracking-wider text-stone-500">
+                  {group.label}:
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {group.items.map((staple) => {
+                    const isSelected = selectedIngredients.some(
+                      (i) => i.toLowerCase() === staple.toLowerCase()
+                    );
+                    return (
+                      <button
+                        key={staple}
+                        type="button"
+                        onClick={() => toggleIngredient(staple)}
+                        className={`text-xs px-2.5 py-1.5 rounded-xl border font-medium transition-all ${
+                          isSelected
+                            ? "bg-emerald-700 text-white border-emerald-700 shadow-xs"
+                            : "bg-stone-50 text-stone-700 border-stone-200 hover:bg-stone-100 hover:border-stone-300"
+                        }`}
+                      >
+                        {isSelected ? `✓ ${staple}` : staple}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 
         {/* Footer */}
         <div className="p-4 bg-stone-50 border-t border-stone-200 flex items-center justify-between gap-3">
           <button
-            onClick={() => setSelectedIngredients([])}
-            disabled={selectedIngredients.length === 0}
+            type="button"
+            onClick={() => {
+              onCancel?.();
+              setSelectedIngredients([]);
+            }}
+            disabled={selectedIngredients.length === 0 && !isLoading}
             className="text-xs text-stone-500 hover:text-stone-800 disabled:opacity-40 font-medium"
           >
-            Clear selection
+            {isLoading ? "Cancel & clear" : "Clear selection"}
           </button>
 
           <button

@@ -1,0 +1,196 @@
+{
+  "entities": {
+    "UserAppState": {
+      "title": "UserAppState",
+      "description": "Private per-user meal planner state including pantry quantities, Walmart list, rut tracker, favorites, custom meals, and optional household link.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Firebase Auth UID of the state owner."
+        },
+        "pantryItems": {
+          "type": "array",
+          "description": "User pantry items with item name and numeric quantity."
+        },
+        "groceryItems": {
+          "type": "array",
+          "description": "User Walmart grocery list items organized by aisle."
+        },
+        "rutMeals": {
+          "type": "array",
+          "description": "Meals the user wants to avoid repeating."
+        },
+        "favorites": {
+          "type": "array",
+          "description": "Saved favorite meal IDs."
+        },
+        "customMeals": {
+          "type": "array",
+          "description": "AI-generated or rescued custom meals saved by the user."
+        },
+        "householdId": {
+          "type": "string",
+          "maxLength": 32,
+          "pattern": "^$|^[A-Z0-9]{6,12}$",
+          "description": "Optional household invite code if sharing pantry and grocery list."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server last update timestamp."
+        }
+      },
+      "required": [
+        "ownerId",
+        "pantryItems",
+        "groceryItems",
+        "rutMeals",
+        "favorites",
+        "customMeals",
+        "householdId",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Household": {
+      "title": "Household",
+      "description": "Optional shared household container identified by a short invite code.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Firebase Auth UID of the user who created the household."
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 60,
+          "description": "Friendly display label for the household."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server last update timestamp."
+        }
+      },
+      "required": ["ownerId", "name", "createdAt", "updatedAt"]
+    },
+    "HouseholdMember": {
+      "title": "HouseholdMember",
+      "description": "Membership record granting access to a shared household.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Firebase Auth UID of the member."
+        },
+        "role": {
+          "type": "string",
+          "enum": ["owner", "member"],
+          "maxLength": 16,
+          "description": "Role within the household."
+        },
+        "displayName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 60,
+          "description": "Non-PII short display name shown to household members."
+        },
+        "joinedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when user joined the household."
+        }
+      },
+      "required": ["uid", "role", "displayName", "joinedAt"]
+    },
+    "HouseholdSharedState": {
+      "title": "HouseholdSharedState",
+      "description": "Shared pantry and Walmart grocery list synced between household members.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Firebase Auth UID of the household creator."
+        },
+        "updatedBy": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Firebase Auth UID of the member who last updated the shared state."
+        },
+        "pantryItems": {
+          "type": "array",
+          "description": "Shared household pantry items with quantities."
+        },
+        "groceryItems": {
+          "type": "array",
+          "description": "Shared household Walmart grocery list items."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server last update timestamp."
+        }
+      },
+      "required": [
+        "ownerId",
+        "updatedBy",
+        "pantryItems",
+        "groceryItems",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/appState/{stateId}": {
+      "schema": {
+        "$ref": "#/entities/UserAppState"
+      },
+      "description": "Private meal planner state for an individual signed-in user."
+    },
+    "/households/{householdId}": {
+      "schema": {
+        "$ref": "#/entities/Household"
+      },
+      "description": "Optional shared household metadata keyed by invite code."
+    },
+    "/households/{householdId}/members/{memberId}": {
+      "schema": {
+        "$ref": "#/entities/HouseholdMember"
+      },
+      "description": "Authorized members of a household."
+    },
+    "/households/{householdId}/sharedState/{stateId}": {
+      "schema": {
+        "$ref": "#/entities/HouseholdSharedState"
+      },
+      "description": "Shared pantry and Walmart grocery list for members of a household."
+    }
+  }
+}

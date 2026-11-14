@@ -21,6 +21,12 @@ export interface MealStep {
   timerSeconds?: number;
 }
 
+export interface MealAddon {
+  item: string;
+  howToUse: string;
+  walmartAisle: WalmartAisle;
+}
+
 export interface Meal {
   id: string;
   title: string;
@@ -33,6 +39,8 @@ export interface Meal {
   whyItWorks: string;
   rutAlternativeNote: string;
   isFavorite?: boolean;
+  optionalAddons?: MealAddon[];
+  sidePairings?: MealAddon[];
 }
 
 export interface RutMeal {
@@ -50,3 +58,9 @@ export interface GroceryItem {
   mealTitle: string;
   completed: boolean;
 }
+
+export interface PantryItem {
+  name: string;
+  quantity: number;
+}
+

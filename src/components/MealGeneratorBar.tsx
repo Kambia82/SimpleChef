@@ -8,31 +8,39 @@ import {
   ShieldAlert,
   ShoppingCart,
   ChefHat,
-  RotateCw
+  PackageCheck
 } from "lucide-react";
 
 interface MealGeneratorBarProps {
   onGenerateMeal: (energy: string) => Promise<void>;
-  isGenerating: boolean;
+  onGenerateBatch: (energy: string) => Promise<void>;
+  generatingMode: "single" | "batch" | null;
   activeFilter: string;
   onSelectFilter: (filter: string) => void;
   rutCount: number;
   groceryCount: number;
+  pantryCount: number;
+  pantryMatchCount: number;
   onOpenRutModal: () => void;
   onOpenGroceryModal: () => void;
   onOpenRescueModal: () => void;
+  onOpenPantryModal: () => void;
 }
 
 export const MealGeneratorBar: React.FC<MealGeneratorBarProps> = ({
   onGenerateMeal,
-  isGenerating,
+  onGenerateBatch,
+  generatingMode,
   activeFilter,
   onSelectFilter,
   rutCount,
   groceryCount,
+  pantryCount,
+  pantryMatchCount,
   onOpenRutModal,
   onOpenGroceryModal,
-  onOpenRescueModal
+  onOpenRescueModal,
+  onOpenPantryModal
 }) => {
   return (
     <div className="bg-white border border-stone-200 rounded-2xl p-4 sm:p-6 shadow-sm space-y-4">
@@ -51,14 +59,27 @@ export const MealGeneratorBar: React.FC<MealGeneratorBarProps> = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {/* Update My Pantry */}
+          <button
+            onClick={onOpenPantryModal}
+            className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold px-3.5 py-2.5 rounded-xl flex items-center gap-1.5 transition-colors shadow-xs"
+            title="Update what you have at home to unlock more meal suggestions"
+          >
+            <PackageCheck className="w-4 h-4 text-emerald-200" />
+            <span>My Pantry</span>
+            <span className="bg-emerald-900 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+              {pantryCount}
+            </span>
+          </button>
+
           {/* Rescue my random ingredients */}
           <button
             onClick={onOpenRescueModal}
             className="bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 text-xs font-semibold px-3.5 py-2.5 rounded-xl flex items-center gap-1.5 transition-colors"
-            title="Bought groceries with no plan? Turn them into a meal"
+            title="Turn ingredients you have into a quick 3-step meal"
           >
             <ChefHat className="w-4 h-4 text-amber-700" />
-            <span>Rescue My Ingredients</span>
+            <span>Quick Ingredient Rescue</span>
           </button>
 
           {/* Rut Tracker */}
@@ -104,6 +125,18 @@ export const MealGeneratorBar: React.FC<MealGeneratorBarProps> = ({
           </button>
 
           <button
+            onClick={() => onSelectFilter("pantry")}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1 transition-colors ${
+              activeFilter === "pantry"
+                ? "bg-emerald-800 text-white"
+                : "bg-emerald-50 text-emerald-900 border border-emerald-200 hover:bg-emerald-100"
+            }`}
+          >
+            <PackageCheck className="w-3 h-3" />
+            <span>Matches My Pantry ({pantryMatchCount})</span>
+          </button>
+
+          <button
             onClick={() => onSelectFilter("microwave")}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1 transition-colors ${
               activeFilter === "microwave"
@@ -140,24 +173,45 @@ export const MealGeneratorBar: React.FC<MealGeneratorBarProps> = ({
           </button>
         </div>
 
-        {/* Big AI Surprise Generator Button */}
-        <button
-          onClick={() => onGenerateMeal(activeFilter)}
-          disabled={isGenerating}
-          className="bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white text-xs sm:text-sm font-semibold px-5 py-2.5 rounded-xl shadow-sm flex items-center justify-center gap-2 transition-all shrink-0"
-        >
-          {isGenerating ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              <span>Thinking for you...</span>
-            </>
-          ) : (
-            <>
-              <Sparkles className="w-4 h-4 text-emerald-200" />
-              <span>Generate Fresh Idea (No Thinking)</span>
-            </>
-          )}
-        </button>
+        {/* Big AI Surprise Generator Buttons */}
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <button
+            onClick={() => onGenerateMeal(activeFilter)}
+            disabled={generatingMode !== null}
+            className="bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white text-xs sm:text-sm font-semibold px-4 py-2.5 rounded-xl shadow-sm flex items-center justify-center gap-2 transition-all"
+          >
+            {generatingMode === "single" ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Thinking...</span>
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-4 h-4 text-emerald-200" />
+                <span>Generate 1 Idea</span>
+              </>
+            )}
+          </button>
+
+          <button
+            onClick={() => onGenerateBatch(activeFilter)}
+            disabled={generatingMode !== null}
+            className="bg-emerald-50 hover:bg-emerald-100 disabled:opacity-50 text-emerald-900 border border-emerald-300 text-xs sm:text-sm font-semibold px-4 py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-all"
+            title="Create 3 brand-new meal ideas across freezer, pantry, and fridge styles"
+          >
+            {generatingMode === "batch" ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-700" />
+                <span>Creating 3 Ideas...</span>
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-3.5 h-3.5 text-emerald-700" />
+                <span>+ 3 Fresh Ideas</span>
+              </>
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );

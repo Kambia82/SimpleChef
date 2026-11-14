@@ -1,12 +1,13 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { GroceryItem, WalmartAisle } from "../types";
-import { X, Check, Copy, Trash2, ShoppingCart, CheckCircle2, Plus } from "lucide-react";
+import { X, Check, Copy, Trash2, ShoppingCart, Plus, PackageCheck } from "lucide-react";
 
 interface GroceryListModalProps {
   items: GroceryItem[];
   onToggleItem: (id: string) => void;
   onRemoveItem: (id: string) => void;
   onClearCompleted: () => void;
+  onMoveCompletedToPantry?: () => void;
   onClearAll: () => void;
   onAddItem: (name: string, aisle: WalmartAisle) => void;
   onClose: () => void;
@@ -27,6 +28,7 @@ export const GroceryListModal: React.FC<GroceryListModalProps> = ({
   onToggleItem,
   onRemoveItem,
   onClearCompleted,
+  onMoveCompletedToPantry,
   onClearAll,
   onAddItem,
   onClose
@@ -34,6 +36,14 @@ export const GroceryListModal: React.FC<GroceryListModalProps> = ({
   const [copied, setCopied] = useState(false);
   const [newItemName, setNewItemName] = useState("");
   const [selectedAisle, setSelectedAisle] = useState<WalmartAisle>("Pantry / Canned");
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
 
   const completedCount = items.filter((i) => i.completed).length;
 
@@ -52,7 +62,7 @@ export const GroceryListModal: React.FC<GroceryListModalProps> = ({
     groupedItems["Pantry / Canned"] = [...(groupedItems["Pantry / Canned"] || []), ...remaining];
   }
 
-  const handleCopy = () => {
+  const handleCopy = async () => {
     if (items.length === 0) return;
 
     let text = "🛒 WALMART EASY MEAL SHOPPING LIST\n";
@@ -65,7 +75,18 @@ export const GroceryListModal: React.FC<GroceryListModalProps> = ({
       });
     });
 
-    navigator.clipboard.writeText(text);
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+    }
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
   };
@@ -79,7 +100,12 @@ export const GroceryListModal: React.FC<GroceryListModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-stone-900/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+    <div
+      className="fixed inset-0 z-50 bg-stone-900/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
       <div className="bg-white rounded-2xl w-full max-w-xl border border-stone-200 shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
         
         {/* Header */}
@@ -238,33 +264,42 @@ export const GroceryListModal: React.FC<GroceryListModalProps> = ({
         </div>
 
         {/* Footer */}
-        {items.length > 0 && (
-          <div className="p-4 bg-stone-50 border-t border-stone-200 flex items-center justify-between">
-            <div className="flex gap-2">
-              {completedCount > 0 && (
-                <button
-                  onClick={onClearCompleted}
-                  className="text-xs text-stone-600 hover:text-stone-900 font-medium px-2 py-1"
-                >
-                  Clear {completedCount} completed
-                </button>
-              )}
+        <div className="p-4 bg-stone-50 border-t border-stone-200 flex items-center justify-between gap-2">
+          <div className="flex flex-wrap gap-2">
+            {items.length > 0 && completedCount > 0 && onMoveCompletedToPantry && (
+              <button
+                onClick={onMoveCompletedToPantry}
+                className="text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-semibold px-2.5 py-1.5 rounded-lg flex items-center gap-1"
+              >
+                <PackageCheck className="w-3.5 h-3.5" />
+                <span>Move {completedCount} to Pantry</span>
+              </button>
+            )}
+            {items.length > 0 && completedCount > 0 && (
+              <button
+                onClick={onClearCompleted}
+                className="text-xs text-stone-600 hover:text-stone-900 font-medium px-2 py-1"
+              >
+                Clear {completedCount} completed
+              </button>
+            )}
+            {items.length > 0 && (
               <button
                 onClick={onClearAll}
                 className="text-xs text-rose-600 hover:text-rose-800 font-medium px-2 py-1"
               >
                 Clear all
               </button>
-            </div>
-
-            <button
-              onClick={onClose}
-              className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold px-4 py-2 rounded-xl transition-colors"
-            >
-              Done
-            </button>
+            )}
           </div>
-        )}
+
+          <button
+            onClick={onClose}
+            className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold px-4 py-2 rounded-xl transition-colors ml-auto"
+          >
+            Done
+          </button>
+        </div>
       </div>
     </div>
   );
