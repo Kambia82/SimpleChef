@@ -10,11 +10,22 @@ import {
   ArrowRight,
   Plus,
   Utensils,
-  Check
+  Check,
+  RefreshCw,
+  AlertTriangle,
+  Snowflake,
+  Refrigerator,
+  Package
 } from "lucide-react";
 import { evaluateMealIngredients } from "../utils/pantryMatch";
 import { getMealExtras } from "../utils/mealExtras";
-import { EFFORT_PRESETS, inferMealRequirements } from "../utils/kitchenProfile";
+import {
+  EFFORT_PRESETS,
+  getEffectiveEquipment,
+  getMealStorageProfile,
+  inferIngredientStorage,
+  inferMealRequirements
+} from "../utils/kitchenProfile";
 
 interface MealCardProps {
   meal: Meal;
@@ -54,9 +65,11 @@ export const MealCard: React.FC<MealCardProps> = ({
   );
 
   const reqs = inferMealRequirements(meal);
+  const storageProfile = getMealStorageProfile(meal);
+  const effectiveEquipment = profile ? Array.from(getEffectiveEquipment(profile)) : undefined;
   const { addons, sides } = getMealExtras(meal, {
-    equipment: profile?.equipment,
-    hasFreezer: profile?.hasFreezer
+    equipment: effectiveEquipment,
+    hasFreezer: profile ? getEffectiveEquipment(profile).has("freezer") : undefined
   });
 
   const handleAddExtra = (extra: MealAddon) => {
@@ -86,13 +99,29 @@ export const MealCard: React.FC<MealCardProps> = ({
     }
   };
 
+  const storageLabel =
+    storageProfile.overall === "freezer"
+      ? "Needs Freezer"
+      : storageProfile.overall === "fridge"
+      ? "Needs Fridge"
+      : "Shelf-Stable";
+
+  const ownedResolutions = evalResult
+    ? evalResult.resolutions.filter((r) => r.tier === "exact" || r.tier === "substitution")
+    : [];
+  const neededResolutions = evalResult
+    ? evalResult.resolutions.filter(
+        (r) => r.tier === "none" || r.tier === "related_not_equivalent"
+      )
+    : [];
+
   return (
     <div
       id={`meal-card-${meal.id}`}
       className="bg-white rounded-2xl border border-stone-200 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between overflow-hidden"
     >
       <div className="p-5 sm:p-6 space-y-3.5">
-        {/* Clean unboxed typographic metadata + single pantry readiness badge + Favorite */}
+        {/* Clean typographic metadata + single readiness callout + Favorite */}
         <div className="flex items-start justify-between gap-2">
           <div className="space-y-1.5 min-w-0">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-stone-500 font-medium">
@@ -104,22 +133,44 @@ export const MealCard: React.FC<MealCardProps> = ({
               <span>{getMethodLabel(meal.category)}</span>
               <span aria-hidden="true">·</span>
               <span>{EFFORT_PRESETS[reqs.effortLevel].label.replace(" Effort", "")}</span>
+              <span aria-hidden="true">·</span>
+              <span
+                className={`inline-flex items-center gap-1 font-semibold ${
+                  storageProfile.isShelfStable
+                    ? "text-emerald-700"
+                    : storageProfile.requiresFreezer
+                    ? "text-sky-700"
+                    : "text-stone-600"
+                }`}
+              >
+                {storageProfile.requiresFreezer ? (
+                  <Snowflake className="w-3 h-3" />
+                ) : storageProfile.requiresFridge ? (
+                  <Refrigerator className="w-3 h-3" />
+                ) : (
+                  <Package className="w-3 h-3" />
+                )}
+                <span>{storageLabel}</span>
+              </span>
             </div>
 
             {evalResult && evalResult.matchCount > 0 && (
               <div>
                 <span
-                  className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold ${
+                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold ${
                     evalResult.isFullMatch
                       ? "bg-emerald-700 text-white"
                       : "bg-emerald-50 text-emerald-900 border border-emerald-200"
                   }`}
                 >
-                  {evalResult.isFullMatch
-                    ? "Ready in pantry"
-                    : evalResult.substitutionCount > 0
-                    ? `Have ${evalResult.exactCount} + ${evalResult.substitutionCount} sub (${evalResult.matchCount}/${evalResult.totalCount})`
-                    : `Have ${evalResult.matchCount}/${evalResult.totalCount} in pantry`}
+                  <Check className="w-3 h-3" />
+                  <span>
+                    {evalResult.isFullMatch
+                      ? `Ready in pantry (${evalResult.totalCount}/${evalResult.totalCount})`
+                      : evalResult.substitutionCount > 0
+                      ? `Have ${evalResult.exactCount} + ${evalResult.substitutionCount} swap · Need ${missingCount}`
+                      : `Have ${evalResult.matchCount}/${evalResult.totalCount} · Need ${missingCount}`}
+                  </span>
                 </span>
               </div>
             )}
@@ -128,13 +179,13 @@ export const MealCard: React.FC<MealCardProps> = ({
           {onToggleFavorite && (
             <button
               onClick={() => onToggleFavorite(meal.id)}
-              className={`p-2 rounded-lg transition-colors shrink-0 ${
+              className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl transition-colors shrink-0 -mr-1.5 -mt-1.5 ${
                 isFavorite
                   ? "text-rose-600 bg-rose-50 hover:bg-rose-100"
                   : "text-stone-400 hover:text-stone-600 hover:bg-stone-100"
               }`}
               title={isFavorite ? "Remove from favorites" : "Save to favorites"}
-              aria-label="Toggle favorite"
+              aria-label={isFavorite ? "Remove from favorites" : "Save to favorites"}
             >
               <Heart className={`w-4 h-4 ${isFavorite ? "fill-rose-500 text-rose-500" : ""}`} />
             </button>
@@ -159,75 +210,167 @@ export const MealCard: React.FC<MealCardProps> = ({
           </div>
         ) : null}
 
-        {/* Ingredients List with 3-tier clarity */}
-        <div className="space-y-2 pt-1">
+        {/* Clear, Always-Visible Ingredient Breakdown (What you need / What you have / Missing) */}
+        <div className="space-y-2.5 pt-1">
           <div className="flex items-center justify-between gap-2">
             <div className="text-xs font-bold uppercase tracking-wider text-stone-600">
               Ingredients ({meal.ingredients.length})
             </div>
-            {evalResult && (
-              <span className="text-[11px] font-semibold text-emerald-700">
-                {missingCount === 0
-                  ? "All covered"
-                  : `Need ${missingCount}`}
+            {evalResult ? (
+              <span
+                className={`text-[11px] font-semibold ${
+                  missingCount === 0 ? "text-emerald-700" : "text-stone-600"
+                }`}
+              >
+                {missingCount === 0 ? "All covered" : `Need ${missingCount} from store`}
+              </span>
+            ) : (
+              <span className="text-[11px] text-stone-500">
+                {storageProfile.isShelfStable ? "All shelf-stable" : storageLabel}
               </span>
             )}
           </div>
-          <ul className="space-y-1.5">
-            {meal.ingredients.map((ing, idx) => {
-              const res = evalResult?.resolutions[idx];
-              const isExact = res?.tier === "exact";
-              const isSub = res?.tier === "substitution";
-              const isRelatedOnly = res?.tier === "related_not_equivalent";
-              return (
-                <li
-                  key={idx}
-                  className="text-xs sm:text-sm text-stone-700 flex items-start justify-between gap-2"
-                >
-                  <div className="flex items-start gap-2 min-w-0">
-                    <span
-                      className={`w-1.5 h-1.5 rounded-full shrink-0 mt-1.5 ${
-                        isExact
-                          ? "bg-emerald-600"
-                          : isSub
-                          ? "bg-teal-500"
-                          : isRelatedOnly
-                          ? "bg-amber-400"
-                          : "bg-stone-300"
-                      }`}
-                    />
-                    <span className="min-w-0">
-                      <strong className="text-stone-900 font-semibold">{ing.amount}</strong>{" "}
-                      {ing.item}
-                      {isExact && res.quantitySufficient && (
-                        <span className="ml-1.5 text-[10px] font-semibold text-emerald-700">
-                          (in pantry)
+
+          {evalResult && ownedResolutions.length > 0 ? (
+            <div className="space-y-2.5">
+              {/* What You Already Have */}
+              <div className="bg-emerald-50/60 border border-emerald-200/70 rounded-xl p-2.5 space-y-1">
+                <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-900">
+                  Already Have ({ownedResolutions.length})
+                </div>
+                <ul className="space-y-1">
+                  {ownedResolutions.map((res, idx) => (
+                    <li
+                      key={`owned-${idx}`}
+                      className="text-xs text-stone-800 flex items-start justify-between gap-2"
+                    >
+                      <div className="flex items-start gap-1.5 min-w-0">
+                        {res.tier === "substitution" ? (
+                          <RefreshCw className="w-3.5 h-3.5 text-teal-700 shrink-0 mt-0.5" />
+                        ) : !res.quantitySufficient ? (
+                          <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+                        ) : (
+                          <Check className="w-3.5 h-3.5 text-emerald-700 shrink-0 mt-0.5" />
+                        )}
+                        <span className="min-w-0">
+                          <strong className="font-semibold text-stone-900">
+                            {res.ingredient.amount}
+                          </strong>{" "}
+                          {res.ingredient.item}
+                          {res.tier === "substitution" && res.matchedItem && (
+                            <span className="ml-1 text-[11px] font-semibold text-teal-800">
+                              — swap: {res.matchedItem.name}
+                            </span>
+                          )}
+                          {res.tier === "exact" && !res.quantitySufficient && (
+                            <span className="ml-1 text-[11px] font-semibold text-amber-800">
+                              — {res.note}
+                            </span>
+                          )}
                         </span>
-                      )}
-                      {isExact && !res.quantitySufficient && (
-                        <span className="ml-1.5 text-[10px] font-semibold text-amber-700">
-                          ({res.note})
-                        </span>
-                      )}
-                      {isSub && (
-                        <span className="ml-1.5 text-[10px] font-semibold text-teal-700">
-                          (sub: {res.matchedItem?.name})
-                        </span>
-                      )}
-                      {isRelatedOnly && (
-                        <span className="ml-1.5 text-[10px] font-medium text-amber-800">
-                          (have {res.matchedItem?.name} — different item)
-                        </span>
-                      )}
-                    </span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* What You Still Need */}
+              {neededResolutions.length > 0 && (
+                <div className="bg-stone-50 border border-stone-200 rounded-xl p-2.5 space-y-1">
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-stone-600">
+                    Still Need ({neededResolutions.length})
                   </div>
-                  <span className="text-[11px] text-stone-400 whitespace-nowrap shrink-0">
-                    {ing.walmartAisle}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
+                  <ul className="space-y-1">
+                    {neededResolutions.map((res, idx) => {
+                      const ingStorage = inferIngredientStorage(res.ingredient);
+                      return (
+                        <li
+                          key={`need-${idx}`}
+                          className="text-xs text-stone-700 flex items-start justify-between gap-2"
+                        >
+                          <div className="flex items-start gap-1.5 min-w-0">
+                            {res.tier === "related_not_equivalent" ? (
+                              <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+                            ) : (
+                              <ShoppingBag className="w-3.5 h-3.5 text-stone-400 shrink-0 mt-0.5" />
+                            )}
+                            <span className="min-w-0">
+                              <strong className="font-semibold text-stone-900">
+                                {res.ingredient.amount}
+                              </strong>{" "}
+                              {res.ingredient.item}
+                              {res.ingredient.optional && (
+                                <span className="ml-1 text-[10px] text-stone-500 italic">
+                                  (optional)
+                                </span>
+                              )}
+                              {res.tier === "related_not_equivalent" && res.matchedItem && (
+                                <span className="ml-1 text-[11px] font-medium text-amber-800">
+                                  — have {res.matchedItem.name} (different)
+                                </span>
+                              )}
+                            </span>
+                          </div>
+                          <span className="text-[11px] text-stone-500 whitespace-nowrap shrink-0">
+                            {res.ingredient.walmartAisle}
+                            {ingStorage === "fridge"
+                              ? " · Fridge"
+                              : ingStorage === "freezer"
+                              ? " · Freezer"
+                              : ""}
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              )}
+            </div>
+          ) : (
+            <ul className="space-y-1.5">
+              {meal.ingredients.map((ing, idx) => {
+                const res = evalResult?.resolutions[idx];
+                const isRelatedOnly = res?.tier === "related_not_equivalent";
+                const ingStorage = inferIngredientStorage(ing);
+                return (
+                  <li
+                    key={idx}
+                    className="text-xs sm:text-sm text-stone-700 flex items-start justify-between gap-2"
+                  >
+                    <div className="flex items-start gap-2 min-w-0">
+                      {isRelatedOnly ? (
+                        <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-1" />
+                      ) : (
+                        <ShoppingBag className="w-3.5 h-3.5 text-stone-400 shrink-0 mt-1" />
+                      )}
+                      <span className="min-w-0">
+                        <strong className="text-stone-900 font-semibold">{ing.amount}</strong>{" "}
+                        {ing.item}
+                        {ing.optional && (
+                          <span className="ml-1 text-[11px] text-stone-500 italic">
+                            (optional)
+                          </span>
+                        )}
+                        {isRelatedOnly && res?.matchedItem && (
+                          <span className="ml-1.5 text-[11px] font-medium text-amber-800">
+                            (have {res.matchedItem.name} — different item)
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                    <span className="text-[11px] text-stone-500 whitespace-nowrap shrink-0">
+                      {ing.walmartAisle}
+                      {ingStorage === "fridge"
+                        ? " · Fridge"
+                        : ingStorage === "freezer"
+                        ? " · Freezer"
+                        : ""}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </div>
 
         {/* Step Preview & Extras */}
@@ -235,7 +378,7 @@ export const MealCard: React.FC<MealCardProps> = ({
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
             <button
               onClick={() => setShowDetails(!showDetails)}
-              className="text-xs text-stone-500 hover:text-stone-800 font-medium flex items-center gap-1 pt-1 transition-colors"
+              className="text-xs text-stone-600 hover:text-stone-900 font-semibold flex items-center gap-1 py-1.5 transition-colors"
             >
               <span>
                 {showDetails ? "Hide steps" : `Preview ${meal.instructions.length} steps`}
@@ -250,7 +393,7 @@ export const MealCard: React.FC<MealCardProps> = ({
             {(addons.length > 0 || sides.length > 0) && (
               <button
                 onClick={() => setShowExtras(!showExtras)}
-                className="text-xs text-emerald-700 hover:text-emerald-900 font-semibold flex items-center gap-1 pt-1 transition-colors"
+                className="text-xs text-emerald-700 hover:text-emerald-900 font-semibold flex items-center gap-1 py-1.5 transition-colors"
               >
                 <Utensils className="w-3 h-3" />
                 <span>{showExtras ? "Hide add-ons" : "Add-ons & sides"}</span>
@@ -300,7 +443,7 @@ export const MealCard: React.FC<MealCardProps> = ({
                           <button
                             type="button"
                             onClick={() => handleAddExtra(addon)}
-                            className={`shrink-0 text-[11px] font-semibold border px-2 py-1 rounded-md flex items-center gap-0.5 transition-colors ${
+                            className={`shrink-0 text-[11px] font-semibold border px-2.5 py-1.5 rounded-md flex items-center gap-0.5 transition-colors ${
                               addedExtras[addon.item]
                                 ? "bg-emerald-700 text-white border-emerald-700"
                                 : "bg-white hover:bg-amber-100 text-amber-900 border-amber-300"
@@ -344,7 +487,7 @@ export const MealCard: React.FC<MealCardProps> = ({
                           <button
                             type="button"
                             onClick={() => handleAddExtra(side)}
-                            className={`shrink-0 text-[11px] font-semibold border px-2 py-1 rounded-md flex items-center gap-0.5 transition-colors ${
+                            className={`shrink-0 text-[11px] font-semibold border px-2.5 py-1.5 rounded-md flex items-center gap-0.5 transition-colors ${
                               addedExtras[side.item]
                                 ? "bg-emerald-700 text-white border-emerald-700"
                                 : "bg-white hover:bg-emerald-100 text-emerald-900 border-emerald-300"
@@ -377,7 +520,7 @@ export const MealCard: React.FC<MealCardProps> = ({
       <div className="p-4 bg-stone-50 border-t border-stone-200 flex items-center gap-2">
         <button
           onClick={() => onCook(meal)}
-          className="flex-1 bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-semibold py-2.5 px-3.5 rounded-xl flex items-center justify-center gap-2 shadow-sm transition-colors"
+          className="flex-1 min-h-[44px] bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-semibold py-2.5 px-3.5 rounded-xl flex items-center justify-center gap-2 shadow-sm transition-colors"
         >
           <ChefHat className="w-4 h-4" />
           <span>Cook Step-by-Step</span>
@@ -387,7 +530,7 @@ export const MealCard: React.FC<MealCardProps> = ({
         {hasPartialMatch && (
           <button
             onClick={() => onAddMissingToGrocery(meal)}
-            className="bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300 text-xs font-semibold py-2.5 px-3 rounded-xl flex items-center justify-center gap-1.5 transition-colors shrink-0"
+            className="min-h-[44px] bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300 text-xs font-semibold py-2.5 px-3 rounded-xl flex items-center justify-center gap-1.5 transition-colors shrink-0"
             title={`Add only the ${missingCount} missing item${missingCount === 1 ? "" : "s"} to Walmart list`}
           >
             <ShoppingBag className="w-3.5 h-3.5 text-emerald-700" />
@@ -397,7 +540,7 @@ export const MealCard: React.FC<MealCardProps> = ({
 
         <button
           onClick={() => onAddToGrocery(meal)}
-          className="bg-white hover:bg-stone-100 text-stone-700 border border-stone-300 text-sm font-medium py-2.5 px-3 rounded-xl flex items-center justify-center transition-colors shrink-0"
+          className="min-w-[44px] min-h-[44px] bg-white hover:bg-stone-100 text-stone-700 border border-stone-300 text-sm font-medium py-2.5 px-3 rounded-xl flex items-center justify-center transition-colors shrink-0"
           title="Add all ingredients to Walmart list"
           aria-label="Add all ingredients to Walmart List"
         >

@@ -129,4 +129,74 @@ describe("Independent Cooking Environment & Effort Engine", () => {
     ).toBe(false);
     expect(fullExtras.sides.some((s) => /toast/i.test(s.item))).toBe(true);
   });
+
+  it("provides >= 25 distinct shelf-stable microwave_only meals across diverse categories without kettle/hot-plate/colander steps", () => {
+    const ids = DEFAULT_MEALS.map((m) => m.id);
+    expect(new Set(ids).size).toBe(ids.length);
+
+    const microOnly = createProfileForEnvironment("microwave_only", {
+      effort: "low",
+      livingSituation: "dorm",
+      sharedKitchen: "available_avoid",
+    });
+    const microEligible = DEFAULT_MEALS.filter(
+      (m) => getMealEligibility(m, microOnly, { effortMatchMode: "any" }).eligible
+    );
+    expect(microEligible.length).toBeGreaterThanOrEqual(25);
+
+    const types = new Set(microEligible.map((m) => m.mealType));
+    expect(types.has("breakfast")).toBe(true);
+    expect(types.has("lunch")).toBe(true);
+    expect(types.has("dinner")).toBe(true);
+    expect(types.has("snack")).toBe(true);
+
+    for (const meal of microEligible) {
+      const steps = meal.instructions.map((s) => s.instruction).join(" ");
+      expect(steps).not.toMatch(/\b(electric kettle|hot plate|colander)\b/i);
+    }
+  });
+
+  it("does not false-reject peanut butter in dairy_free mode and enforces missing fridge in custom profiles", () => {
+    const dairyFreeProfile = createProfileForEnvironment("microwave_only", {
+      effort: "very_low",
+      dietaryRestrictions: ["dairy_free"],
+    });
+    const pbWrap = DEFAULT_MEALS.find((m) => m.id === "dorm-pb-banana-granola-wrap");
+    expect(pbWrap).toBeDefined();
+    expect(
+      getMealEligibility(pbWrap!, dairyFreeProfile, { effortMatchMode: "exact" }).eligible
+    ).toBe(true);
+
+    const customNoFridge: KitchenProfile = {
+      environment: "custom",
+      equipment: ["microwave", "other"],
+      otherEquipmentLabel: "Rice Cooker",
+      hasFreezer: false,
+      effort: "low",
+      varietyPreference: "balanced",
+      dietaryRestrictions: [],
+    };
+    const loadedPotato = DEFAULT_MEALS.find((m) => m.id === "dorm-loaded-baked-potato-broccoli");
+    expect(loadedPotato).toBeDefined();
+    expect(isMealEquipmentCompatible(loadedPotato!, customNoFridge).compatible).toBe(false);
+  });
+
+  it("keeps dorm mode independent and switches stovetop eligibility cleanly with sharedKitchen", () => {
+    const skilletDish = DEFAULT_MEALS.find((m) => m.id === "full-honey-garlic-chicken-broccoli-skillet");
+    expect(skilletDish).toBeDefined();
+
+    const dormAvoid = createProfileForEnvironment("microwave_mini_fridge", {
+      effort: "low",
+      livingSituation: "dorm",
+      sharedKitchen: "available_avoid",
+    });
+    const dormUse = createProfileForEnvironment("microwave_mini_fridge", {
+      effort: "low",
+      livingSituation: "dorm",
+      sharedKitchen: "available_use",
+    });
+
+    expect(getMealEligibility(skilletDish!, dormAvoid, { effortMatchMode: "any" }).eligible).toBe(false);
+    expect(getMealEligibility(skilletDish!, dormUse, { effortMatchMode: "any" }).eligible).toBe(true);
+  });
 });

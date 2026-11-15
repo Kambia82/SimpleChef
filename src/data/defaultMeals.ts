@@ -36,7 +36,7 @@ const BASE_MEALS: Meal[] = [
       }
     ],
     whyItWorks: "Hits the exact takeout buffalo wrap craving in 3 minutes flat with 30g+ of protein and zero pans to clean.",
-    rutAlternativeNote: "Replaces drive-thru wraps or plain snacks with a spicy, filling, high-protein dorm meal."
+    rutAlternativeNote: "Spicy, filling, high-protein dorm wrap you can make in 3 minutes."
   },
   {
     id: "dorm-pepperoni-pizza-quesadilla",
@@ -152,7 +152,7 @@ const BASE_MEALS: Meal[] = [
       }
     ],
     whyItWorks: "Delivers zesty, cheesy Chipotle-bowl vibes while giving your body 20g of protein and fiber in 4 minutes.",
-    rutAlternativeNote: "Turns plain chips and salsa into a real hot burrito bowl."
+    rutAlternativeNote: "Hot cheesy rice-and-bean burrito bowl inspired by chips and salsa."
   },
   {
     id: "dorm-teriyaki-chicken-rice-bowl",
@@ -369,7 +369,7 @@ const BASE_MEALS: Meal[] = [
       }
     ],
     whyItWorks: "Turns 30-cent ramen into a rich, cheesy, 28g-protein noodle bowl without a stove or kettle.",
-    rutAlternativeNote: "Upgrades plain dorm ramen with real egg and chicken so you aren't hungry an hour later."
+    rutAlternativeNote: "Adds egg, chicken, and melted cheddar to classic dorm ramen."
   },
   {
     id: "frozen-meatball-marinara-subs",
@@ -470,7 +470,7 @@ const BASE_MEALS: Meal[] = [
       }
     ],
     whyItWorks: "Zero stove, zero skillet, zero freezer needed—just warm melted protein in 3 minutes.",
-    rutAlternativeNote: "Replaces vending machine snacks or plain chips with a hot cheesy quesadilla."
+    rutAlternativeNote: "Warm, melty high-protein quesadilla made in 3 minutes."
   },
   {
     id: "dorm-microwave-pasta-marinara-bowl",
@@ -566,7 +566,7 @@ const BASE_MEALS: Meal[] = [
       }
     ],
     whyItWorks: "Savory, smoky BBQ sandwiches in 3 minutes with zero freezer needed and over 25g protein.",
-    rutAlternativeNote: "Beats fast-food burgers or cold snacks with almost zero cleanup."
+    rutAlternativeNote: "Savory BBQ chicken sandwich with almost zero cleanup."
   },
   {
     id: "dorm-pb-banana-granola-wrap",
@@ -699,7 +699,7 @@ const BASE_MEALS: Meal[] = [
       }
     ],
     whyItWorks: "Refrigerated pasta cooks in under 4 minutes, and rotisserie chicken is already seasoned and fully cooked. Only 1 pot to wash.",
-    rutAlternativeNote: "Swaps instant noodles for real protein and fresh pasta in the exact same time."
+    rutAlternativeNote: "Fast 10-minute tortellini tossed with rotisserie chicken and jarred pesto."
   },
   {
     id: "sheet-pan-smoked-sausage-veggies",
@@ -1898,6 +1898,1151 @@ const BASE_MEALS: Meal[] = [
     ],
     whyItWorks: "Bubbly baked ziti comfort with rich ricotta pockets and greens baked right in.",
     rutAlternativeNote: "A classic baked pasta casserole worth the extra 15 minutes."
+  },
+  // === Expanded Microwave-Only & Shelf-Stable Dorm Meals (No Fridge, No Freezer, No Kettle) ===
+  {
+    id: "dorm-shelf-apple-cinnamon-pb-oats",
+    title: "3-Minute Apple Cinnamon Peanut Butter Oatmeal Mug",
+    tagline: "Hot rolled oats microwaved with cinnamon, diced apple or applesauce, and creamy peanut butter.",
+    prepMinutes: 1,
+    cookMinutes: 2,
+    category: "microwave",
+    effortLevel: "very_low",
+    requiredEquipment: ["microwave"],
+    requiresFreezer: false,
+    mealType: "breakfast",
+    dietaryTags: ["vegetarian", "dairy_free", "high_protein"],
+    ingredients: [
+      { item: "Quick rolled oats", amount: "1/2 cup", walmartAisle: "Pantry / Canned" },
+      { item: "Apple or unsweetened applesauce cup", amount: "1 small apple or 1 cup", walmartAisle: "Produce" },
+      { item: "Creamy peanut butter", amount: "2 tablespoons", walmartAisle: "Pantry / Canned" },
+      { item: "Ground cinnamon (optional)", amount: "1/2 teaspoon", walmartAisle: "Spices & Condiments", optional: true }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Mix Oats & Water in Mug",
+        instruction: "In a large deep microwave-safe mug or bowl, stir 1/2 cup quick oats, 3/4 cup water, and a pinch of salt.",
+        timerSeconds: 0
+      },
+      {
+        stepNumber: 2,
+        title: "Microwave Until Creamy",
+        instruction: "Microwave on HIGH for 90 seconds (watch closely so it doesn't bubble over). Let sit 30 seconds to thicken.",
+        timerSeconds: 90
+      },
+      {
+        stepNumber: 3,
+        title: "Swirl Peanut Butter & Apple",
+        instruction: "Stir 2 tablespoons creamy peanut butter, diced apple or 1 applesauce cup, and 1/2 teaspoon cinnamon into the hot oats.",
+        timerSeconds: 0
+      }
+    ],
+    whyItWorks: "Warm, filling breakfast made in one mug with ingredients that sit safely in a dorm drawer for weeks.",
+    rutAlternativeNote: "Cozy 3-minute breakfast with slow-burn oats and peanut butter protein."
+  },
+  {
+    id: "dorm-shelf-buffalo-chicken-crunch-wrap",
+    title: "2-Minute Buffalo Chicken Pouch Crunch Wrap",
+    tagline: "Zero microwave or fridge needed—tear-open chicken tossed in buffalo sauce with crushed tortilla chips inside a tortilla.",
+    prepMinutes: 2,
+    cookMinutes: 0,
+    category: "assembly",
+    effortLevel: "very_low",
+    requiredEquipment: [],
+    requiresFreezer: false,
+    mealType: "lunch",
+    dietaryTags: ["dairy_free", "high_protein"],
+    ingredients: [
+      { item: "Tear-open chicken pouch (shelf-stable)", amount: "1 pouch (2.6–5 oz)", walmartAisle: "Meat & Deli" },
+      { item: "Large flour tortilla", amount: "1 tortilla", walmartAisle: "Bakery" },
+      { item: "Buffalo wing sauce", amount: "2 tablespoons", walmartAisle: "Spices & Condiments" },
+      { item: "Tortilla chips", amount: "1 small handful", walmartAisle: "Pantry / Canned" }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Season Chicken on Tortilla",
+        instruction: "Lay 1 large flour tortilla flat on a plate or paper towel. Dump 1 tear-open chicken pouch down the center and drizzle with 2 tablespoons buffalo wing sauce.",
+        timerSeconds: 0
+      },
+      {
+        stepNumber: 2,
+        title: "Add Crunch & Roll Tight",
+        instruction: "Crush 1 small handful of tortilla chips right over the chicken for crunch, fold the ends in, roll up tightly, and eat.",
+        timerSeconds: 0
+      }
+    ],
+    whyItWorks: "No appliances or fridge needed at all, yet delivers bold wing flavor and solid protein.",
+    rutAlternativeNote: "Zero-cook high-protein wrap ready before running to class."
+  },
+  {
+    id: "dorm-shelf-garlic-butter-parm-noodles",
+    title: "4-Minute Garlic Herb Parmesan Noodles",
+    tagline: "Microwave quick noodles until water absorbs, then toss with olive oil, garlic powder, and shelf-stable grated parmesan.",
+    prepMinutes: 1,
+    cookMinutes: 3,
+    category: "microwave",
+    effortLevel: "very_low",
+    requiredEquipment: ["microwave"],
+    requiresFreezer: false,
+    mealType: "dinner",
+    dietaryTags: ["vegetarian"],
+    comfortVariationOf: "Instant ramen",
+    ingredients: [
+      { item: "Ramen noodle brick (discard seasoning pack)", amount: "1 pack", walmartAisle: "Pantry / Canned" },
+      { item: "Olive oil", amount: "1 tablespoon", walmartAisle: "Pantry / Canned" },
+      { item: "Grated parmesan cheese (shelf-stable shaker)", amount: "3 tablespoons", walmartAisle: "Pantry / Canned", storage: "shelf_stable" },
+      { item: "Garlic powder & Italian seasoning", amount: "1/2 teaspoon each", walmartAisle: "Spices & Condiments" }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Cook Noodles in Exact Water",
+        instruction: "Place 1 ramen noodle brick and 1 cup water in a deep microwave-safe bowl. Microwave 2 minutes, flip brick, and microwave 1 more minute until tender.",
+        timerSeconds: 180
+      },
+      {
+        stepNumber: 2,
+        title: "Drain Splash & Toss With Parm",
+        instruction: "Spoon out any extra water leaving about 2 tablespoons in the bowl, then toss with 1 tablespoon olive oil, 3 tablespoons grated parmesan, and 1/2 teaspoon each garlic powder and Italian seasoning.",
+        timerSeconds: 0
+      }
+    ],
+    whyItWorks: "Tastes like cozy café garlic parmesan pasta in 4 minutes from purely shelf-stable dorm staples.",
+    rutAlternativeNote: "A garlic-parmesan twist on basic instant ramen noodles."
+  },
+  {
+    id: "dorm-shelf-loaded-bean-queso-dip",
+    title: "2-Minute Warm Black Bean & Queso Chip Bowl",
+    tagline: "Heat canned black beans, salsa, and jarred queso in 90 seconds for a hearty scoopable dorm snack or light meal.",
+    prepMinutes: 1,
+    cookMinutes: 1,
+    category: "microwave",
+    effortLevel: "very_low",
+    requiredEquipment: ["microwave"],
+    requiresFreezer: false,
+    mealType: "snack",
+    dietaryTags: ["vegetarian", "gluten_free"],
+    comfortVariationOf: "Chips and salsa",
+    ingredients: [
+      { item: "Black beans (canned, drained)", amount: "1/2 cup", walmartAisle: "Pantry / Canned" },
+      { item: "Jarred salsa", amount: "1/3 cup", walmartAisle: "Pantry / Canned" },
+      { item: "Jarred queso dip (shelf-stable)", amount: "1/3 cup", walmartAisle: "Pantry / Canned", storage: "shelf_stable" },
+      { item: "Tortilla chips", amount: "2 handfuls", walmartAisle: "Pantry / Canned" }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Combine & Microwave",
+        instruction: "In a microwave-safe bowl, stir 1/2 cup drained black beans, 1/3 cup jarred salsa, and 1/3 cup jarred queso dip. Cover loosely with a paper towel and microwave 75 seconds until hot.",
+        timerSeconds: 75
+      },
+      {
+        stepNumber: 2,
+        title: "Stir & Scoop",
+        instruction: "Give it a quick stir and scoop directly with 2 handfuls of tortilla chips.",
+        timerSeconds: 0
+      }
+    ],
+    whyItWorks: "Comforting warm nacho dip loaded with real bean protein and fiber in 2 minutes.",
+    rutAlternativeNote: "A warm, filling spin on classic chips and salsa."
+  },
+  {
+    id: "dorm-shelf-apple-pb-granola-plate",
+    title: "2-Minute Apple Slices, Peanut Butter & Granola Crunch",
+    tagline: "Crisp apple slices dipped in peanut butter and crunchy granola—zero microwave, zero fridge needed.",
+    prepMinutes: 2,
+    cookMinutes: 0,
+    category: "assembly",
+    effortLevel: "very_low",
+    requiredEquipment: [],
+    requiresFreezer: false,
+    mealType: "snack",
+    dietaryTags: ["vegetarian", "gluten_free", "dairy_free"],
+    ingredients: [
+      { item: "Crisp apple", amount: "1 medium apple", walmartAisle: "Produce", storage: "shelf_stable" },
+      { item: "Peanut butter", amount: "2 tablespoons", walmartAisle: "Pantry / Canned" },
+      { item: "Crunchy granola", amount: "2 tablespoons", walmartAisle: "Pantry / Canned" }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Slice Apple & Spoon Peanut Butter",
+        instruction: "Cut 1 medium apple into wedges (or eat whole with a spoonful of peanut butter on a plate). Spoon 2 tablespoons peanut butter alongside.",
+        timerSeconds: 0
+      },
+      {
+        stepNumber: 2,
+        title: "Dip & Crunch",
+        instruction: "Dip each apple bite into peanut butter and press into 2 tablespoons of crunchy granola.",
+        timerSeconds: 0
+      }
+    ],
+    whyItWorks: "Refreshing crunch, healthy fats, and sweet energy with zero cleanup.",
+    rutAlternativeNote: "Easy shelf-stable snack between classes."
+  },
+  {
+    id: "dorm-shelf-chili-baked-potato",
+    title: "7-Minute Microwave Chili-Topped Baked Potato",
+    tagline: "Tender microwave-baked russet potato split open and loaded with hot canned beef chili and corn chips.",
+    prepMinutes: 2,
+    cookMinutes: 5,
+    category: "microwave",
+    effortLevel: "low",
+    requiredEquipment: ["microwave"],
+    requiresFreezer: false,
+    mealType: "dinner",
+    dietaryTags: ["gluten_free", "dairy_free", "high_protein"],
+    ingredients: [
+      { item: "Large russet baking potato", amount: "1 large potato", walmartAisle: "Produce", storage: "shelf_stable" },
+      { item: "Canned beef chili with beans (pull-tab)", amount: "1 can (15 oz)", walmartAisle: "Pantry / Canned" },
+      { item: "Fritos or corn tortilla chips", amount: "1 handful", walmartAisle: "Pantry / Canned" },
+      { item: "Hot sauce (optional)", amount: "1 teaspoon", walmartAisle: "Spices & Condiments", optional: true }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Pierce & Microwave Potato",
+        instruction: "Rinse and dry 1 large russet potato, poke 6 holes all around with a fork, and microwave on a microwave-safe plate for 5 to 6 minutes (flipping halfway) until soft when squeezed.",
+        timerSeconds: 300
+      },
+      {
+        stepNumber: 2,
+        title: "Warm Chili in a Bowl",
+        instruction: "Spoon 1 can of beef chili into a microwave-safe bowl, cover lightly with a paper towel, and microwave 90 seconds until steaming.",
+        timerSeconds: 90
+      },
+      {
+        stepNumber: 3,
+        title: "Split, Load & Crunch",
+        instruction: "Cut open the hot potato, spoon the hot beef chili on top, add 1 teaspoon hot sauce if desired, and top with 1 handful of Fritos or tortilla chips.",
+        timerSeconds: 0
+      }
+    ],
+    whyItWorks: "Potatoes store safely in a cool cabinet and make an ultra-filling dinner base for under $3.",
+    rutAlternativeNote: "Hearty baked potato dinner built completely from pantry staples."
+  },
+  {
+    id: "dorm-shelf-cinnamon-pb-sweet-potato",
+    title: "6-Minute Cinnamon Peanut Butter Sweet Potato",
+    tagline: "Fluffy microwaved sweet potato mashed with creamy peanut butter, cinnamon, and crunchy granola.",
+    prepMinutes: 1,
+    cookMinutes: 5,
+    category: "microwave",
+    effortLevel: "low",
+    requiredEquipment: ["microwave"],
+    requiresFreezer: false,
+    mealType: "breakfast",
+    dietaryTags: ["vegetarian", "gluten_free", "dairy_free"],
+    ingredients: [
+      { item: "Medium sweet potato", amount: "1 potato", walmartAisle: "Produce", storage: "shelf_stable" },
+      { item: "Creamy peanut butter", amount: "2 tablespoons", walmartAisle: "Pantry / Canned" },
+      { item: "Crunchy granola", amount: "3 tablespoons", walmartAisle: "Pantry / Canned" },
+      { item: "Ground cinnamon", amount: "1/2 teaspoon", walmartAisle: "Spices & Condiments" }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Microwave Sweet Potato",
+        instruction: "Poke 1 medium sweet potato 5-6 times with a fork and microwave on a plate for 5 to 6 minutes, flipping once, until completely soft.",
+        timerSeconds: 300
+      },
+      {
+        stepNumber: 2,
+        title: "Split, Swirl & Crunch",
+        instruction: "Slice open carefully, scoop in 2 tablespoons creamy peanut butter and 1/2 teaspoon cinnamon so it melts into the potato, then scatter 3 tablespoons crunchy granola on top.",
+        timerSeconds: 0
+      }
+    ],
+    whyItWorks: "Naturally sweet, rich, high-fiber comfort breakfast or snack with zero refrigeration needed.",
+    rutAlternativeNote: "Sweet-savory pantry power meal made in 6 minutes."
+  },
+  {
+    id: "dorm-shelf-southwest-bean-corn-rice",
+    title: "4-Minute Southwest Black Bean, Corn & Rice Bowl",
+    tagline: "90-second rice pouch warmed with canned black beans, sweet corn, jarred salsa, and taco seasoning.",
+    prepMinutes: 1,
+    cookMinutes: 3,
+    category: "microwave",
+    effortLevel: "low",
+    requiredEquipment: ["microwave"],
+    requiresFreezer: false,
+    mealType: "dinner",
+    dietaryTags: ["vegetarian", "gluten_free", "dairy_free", "high_protein"],
+    ingredients: [
+      { item: "Microwave jasmine or brown rice pouch", amount: "1 pouch", walmartAisle: "Pantry / Canned" },
+      { item: "Canned black beans (drained)", amount: "1 cup", walmartAisle: "Pantry / Canned" },
+      { item: "Canned sweet corn (drained)", amount: "1/2 cup", walmartAisle: "Pantry / Canned" },
+      { item: "Jarred salsa", amount: "1/2 cup", walmartAisle: "Pantry / Canned" },
+      { item: "Taco seasoning or cumin", amount: "1 teaspoon", walmartAisle: "Spices & Condiments" }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Heat Rice Pouch",
+        instruction: "Tear a 2-inch vent in 1 pouch of microwave rice and heat 90 seconds on HIGH.",
+        timerSeconds: 90
+      },
+      {
+        stepNumber: 2,
+        title: "Mix Beans, Corn & Salsa",
+        instruction: "Empty the rice into a bowl and stir in 1 cup drained black beans, 1/2 cup drained sweet corn, 1/2 cup jarred salsa, and 1 teaspoon taco seasoning.",
+        timerSeconds: 0
+      },
+      {
+        stepNumber: 3,
+        title: "Microwave Hot & Serve",
+        instruction: "Microwave for 60 to 75 seconds until piping hot, stir, and enjoy.",
+        timerSeconds: 60
+      }
+    ],
+    whyItWorks: "100% shelf-stable, budget-friendly plant-protein bowl ready faster than walking to the dining hall.",
+    rutAlternativeNote: "Colorful, filling burrito bowl from dorm closet cans and pouches."
+  },
+  {
+    id: "dorm-shelf-white-bean-tortilla-soup",
+    title: "4-Minute Dorm Rotel & Black Bean Tortilla Soup",
+    tagline: "Warm tomato-chile broth simmered in a mug or deep bowl with beans and crunchy tortilla chips.",
+    prepMinutes: 1,
+    cookMinutes: 3,
+    category: "microwave",
+    effortLevel: "low",
+    requiredEquipment: ["microwave"],
+    requiresFreezer: false,
+    mealType: "lunch",
+    dietaryTags: ["vegetarian", "gluten_free", "dairy_free"],
+    ingredients: [
+      { item: "Canned diced tomatoes with green chiles (Rotel)", amount: "1 can (10 oz)", walmartAisle: "Pantry / Canned" },
+      { item: "Canned black beans or pinto beans (drained)", amount: "1 cup", walmartAisle: "Pantry / Canned" },
+      { item: "Vegetable or chicken broth (shelf-stable carton)", amount: "1/2 cup", walmartAisle: "Pantry / Canned" },
+      { item: "Ground cumin & garlic powder", amount: "1/2 teaspoon each", walmartAisle: "Spices & Condiments" },
+      { item: "Tortilla chips", amount: "1 handful crushed", walmartAisle: "Pantry / Canned" }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Combine Soup Base in Deep Bowl",
+        instruction: "Pour 1 can diced tomatoes with green chiles, 1 cup drained beans, 1/2 cup broth, and 1/2 teaspoon each cumin and garlic powder into a deep microwave-safe bowl.",
+        timerSeconds: 0
+      },
+      {
+        stepNumber: 2,
+        title: "Microwave Until Steaming",
+        instruction: "Cover loosely with a paper towel and microwave 2 minutes 30 seconds until bubbling hot, stirring once halfway.",
+        timerSeconds: 150
+      },
+      {
+        stepNumber: 3,
+        title: "Top With Crunchy Chips",
+        instruction: "Crush 1 handful of tortilla chips right over the steaming soup and dig in.",
+        timerSeconds: 0
+      }
+    ],
+    whyItWorks: "Warm, zesty soup in one deep bowl with zero kettle or stove needed.",
+    rutAlternativeNote: "Cozy soup lunch made straight from shelf-stable pantry cans."
+  },
+  {
+    id: "dorm-shelf-tuna-mediterranean-wrap",
+    title: "3-Minute Chickpea & Tuna Mediterranean Wrap",
+    tagline: "No heat needed—tuna pouch and canned chickpeas tossed with olive oil, Italian seasoning, and crisp rolled tortillas.",
+    prepMinutes: 3,
+    cookMinutes: 0,
+    category: "assembly",
+    effortLevel: "low",
+    requiredEquipment: [],
+    requiresFreezer: false,
+    mealType: "lunch",
+    dietaryTags: ["dairy_free", "high_protein"],
+    ingredients: [
+      { item: "Tear-open lemon pepper or classic tuna pouch", amount: "1 pouch", walmartAisle: "Pantry / Canned" },
+      { item: "Canned chickpeas (drained)", amount: "1/2 cup", walmartAisle: "Pantry / Canned" },
+      { item: "Olive oil & vinegar (or Italian dressing)", amount: "1.5 tablespoons", walmartAisle: "Pantry / Canned" },
+      { item: "Italian seasoning", amount: "1/2 teaspoon", walmartAisle: "Spices & Condiments" },
+      { item: "Large flour tortillas", amount: "2 tortillas", walmartAisle: "Bakery" }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Mash Chickpeas & Toss Tuna",
+        instruction: "In a bowl, lightly mash 1/2 cup drained chickpeas with a fork, then stir in 1 pouch tuna, 1.5 tablespoons Italian dressing or olive oil, and 1/2 teaspoon Italian seasoning.",
+        timerSeconds: 0
+      },
+      {
+        stepNumber: 2,
+        title: "Fill Tortillas & Roll",
+        instruction: "Divide the chickpea-tuna mix between 2 large flour tortillas, fold the sides in, roll tightly, and enjoy.",
+        timerSeconds: 0
+      }
+    ],
+    whyItWorks: "Zero appliances, zero fridge needed before opening, and 30g+ of lean protein + fiber.",
+    rutAlternativeNote: "Bright, savory cold lunch wrap using long-keeping pantry items."
+  },
+  {
+    id: "dorm-shelf-bbq-black-bean-queso-wrap",
+    title: "3-Minute Warm BBQ Bean & Queso Burrito",
+    tagline: "Canned black beans, BBQ sauce, jarred queso, and crunchy tortilla chips warmed inside a burrito.",
+    prepMinutes: 1,
+    cookMinutes: 2,
+    category: "microwave",
+    effortLevel: "low",
+    requiredEquipment: ["microwave"],
+    requiresFreezer: false,
+    mealType: "lunch",
+    dietaryTags: ["vegetarian", "high_protein"],
+    ingredients: [
+      { item: "Canned black beans (drained)", amount: "3/4 cup", walmartAisle: "Pantry / Canned" },
+      { item: "BBQ sauce", amount: "2 tablespoons", walmartAisle: "Pantry / Canned" },
+      { item: "Jarred queso dip (shelf-stable)", amount: "3 tablespoons", walmartAisle: "Pantry / Canned", storage: "shelf_stable" },
+      { item: "Large flour tortillas", amount: "2 tortillas", walmartAisle: "Bakery" },
+      { item: "Tortilla chips (optional crunch)", amount: "1 small handful", walmartAisle: "Pantry / Canned", optional: true }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Warm BBQ Beans & Queso",
+        instruction: "Stir 3/4 cup drained black beans, 2 tablespoons BBQ sauce, and 3 tablespoons jarred queso in a microwave-safe bowl. Microwave 60 seconds until hot.",
+        timerSeconds: 60
+      },
+      {
+        stepNumber: 2,
+        title: "Wrap & Microwave Brief",
+        instruction: "Spoon warm filling onto 2 flour tortillas, add crushed tortilla chips for crunch if desired, roll into burritos, and microwave 15 seconds seam-side down.",
+        timerSeconds: 15
+      }
+    ],
+    whyItWorks: "Smoky, cheesy, vegetarian protein burritos from 100% shelf-stable items.",
+    rutAlternativeNote: "Hot smoky bean burritos with almost zero prep."
+  },
+  {
+    id: "dorm-shelf-ramen-tuna-chili-crunch",
+    title: "5-Minute Savory Ramen & Chili-Crisp Tuna Bowl",
+    tagline: "Microwave ramen noodles with half seasoning pack, flake in a tuna pouch, soy sauce, and spicy chili oil.",
+    prepMinutes: 1,
+    cookMinutes: 4,
+    category: "microwave",
+    effortLevel: "low",
+    requiredEquipment: ["microwave"],
+    requiresFreezer: false,
+    mealType: "dinner",
+    dietaryTags: ["dairy_free", "high_protein"],
+    comfortVariationOf: "Instant ramen",
+    ingredients: [
+      { item: "Ramen noodle brick", amount: "1 pack", walmartAisle: "Pantry / Canned" },
+      { item: "Tear-open tuna pouch", amount: "1 pouch (2.6 oz)", walmartAisle: "Pantry / Canned" },
+      { item: "Soy sauce", amount: "1 tablespoon", walmartAisle: "Spices & Condiments" },
+      { item: "Sriracha or chili crisp", amount: "1 teaspoon", walmartAisle: "Spices & Condiments" },
+      { item: "Toasted sesame oil", amount: "1 teaspoon", walmartAisle: "Spices & Condiments" }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Microwave Ramen Noodles",
+        instruction: "Place 1 ramen brick and 1.25 cups water in a deep microwave-safe bowl. Microwave 3 minutes, flip brick, and microwave 1 minute more.",
+        timerSeconds: 240
+      },
+      {
+        stepNumber: 2,
+        title: "Drain Extra Water & Toss",
+        instruction: "Pour or spoon off half the hot broth, stir in half the seasoning pack, 1 tablespoon soy sauce, 1 teaspoon sesame oil, 1 teaspoon sriracha, and flake 1 pouch of tuna on top.",
+        timerSeconds: 0
+      }
+    ],
+    whyItWorks: "High-protein noodle bowl that tastes restaurant-spicy and requires zero refrigeration.",
+    rutAlternativeNote: "Quick savory twist on instant ramen."
+  },
+  {
+    id: "dorm-shelf-banana-chia-oat-bowl",
+    title: "4-Minute Creamy Banana Walnut-Crunch Oat Bowl",
+    tagline: "Microwave rolled oats with mashed banana, peanut butter, honey, and crunchy granola for sustained energy.",
+    prepMinutes: 2,
+    cookMinutes: 2,
+    category: "microwave",
+    effortLevel: "low",
+    requiredEquipment: ["microwave"],
+    requiresFreezer: false,
+    mealType: "breakfast",
+    dietaryTags: ["vegetarian", "dairy_free"],
+    ingredients: [
+      { item: "Quick rolled oats", amount: "1/2 cup", walmartAisle: "Pantry / Canned" },
+      { item: "Ripe banana (sliced)", amount: "1 banana", walmartAisle: "Produce", storage: "shelf_stable" },
+      { item: "Peanut butter", amount: "1.5 tablespoons", walmartAisle: "Pantry / Canned" },
+      { item: "Honey or brown sugar", amount: "1 tablespoon", walmartAisle: "Pantry / Canned" },
+      { item: "Crunchy granola", amount: "2 tablespoons", walmartAisle: "Pantry / Canned" }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Mash Half Banana Into Oats",
+        instruction: "In a deep bowl, mash half of 1 banana with a fork, then stir in 1/2 cup oats, 3/4 cup water, and a pinch of salt.",
+        timerSeconds: 0
+      },
+      {
+        stepNumber: 2,
+        title: "Microwave Creamy",
+        instruction: "Microwave on HIGH for 90 seconds to 2 minutes until oats thicken and banana melts in.",
+        timerSeconds: 105
+      },
+      {
+        stepNumber: 3,
+        title: "Top With Peanut Butter & Crunch",
+        instruction: "Swirl in 1.5 tablespoons peanut butter and 1 tablespoon honey, then top with remaining sliced banana and 2 tablespoons granola.",
+        timerSeconds: 0
+      }
+    ],
+    whyItWorks: "Warm mashed banana sweetens the oats naturally while peanut butter keeps you satisfied all morning.",
+    rutAlternativeNote: "Comforting warm oatmeal bowl without needing milk or a fridge."
+  },
+  // === Moderate Effort Shelf-Stable Microwave Meals (4-9 Ingredients, Multi-Step) ===
+  {
+    id: "dorm-shelf-tuscan-chickpea-pasta",
+    title: "8-Minute Microwave Tuscan Chickpea & Marinara Pasta",
+    tagline: "Cook elbow macaroni completely in a deep bowl (zero draining needed), then fold in spiced chickpeas, marinara, and herbs.",
+    prepMinutes: 2,
+    cookMinutes: 6,
+    category: "microwave",
+    effortLevel: "moderate",
+    requiredEquipment: ["microwave"],
+    requiresFreezer: false,
+    mealType: "dinner",
+    dietaryTags: ["vegetarian", "dairy_free", "high_protein"],
+    comfortVariationOf: "Boxed mac & cheese",
+    ingredients: [
+      { item: "Quick-cooking elbow macaroni", amount: "3/4 cup dry", walmartAisle: "Pantry / Canned" },
+      { item: "Canned chickpeas (drained)", amount: "3/4 cup", walmartAisle: "Pantry / Canned" },
+      { item: "Jarred marinara sauce", amount: "2/3 cup", walmartAisle: "Pantry / Canned" },
+      { item: "Olive oil", amount: "1 tablespoon", walmartAisle: "Pantry / Canned" },
+      { item: "Garlic powder & Italian seasoning", amount: "1/2 teaspoon each", walmartAisle: "Spices & Condiments" },
+      { item: "Crushed red pepper flakes (optional)", amount: "1 pinch", walmartAisle: "Spices & Condiments", optional: true }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Microwave Pasta With Absorbed Water",
+        instruction: "In a large deep microwave-safe bowl, combine 3/4 cup dry elbow macaroni, 1 cup water, and a pinch of salt. Microwave 3 minutes, stir well, and microwave 2 minutes more until water is mostly absorbed and pasta is tender.",
+        timerSeconds: 300
+      },
+      {
+        stepNumber: 2,
+        title: "Fold In Chickpeas & Marinara",
+        instruction: "Stir in 3/4 cup drained chickpeas, 2/3 cup jarred marinara sauce, 1 tablespoon olive oil, 1/2 teaspoon garlic powder, and 1/2 teaspoon Italian seasoning.",
+        timerSeconds: 0
+      },
+      {
+        stepNumber: 3,
+        title: "Simmer Together & Finish",
+        instruction: "Cover loosely with a paper towel and microwave 60 seconds so chickpeas and sauce heat through and thicken onto the pasta. Top with red pepper flakes if desired.",
+        timerSeconds: 60
+      }
+    ],
+    whyItWorks: "True one-bowl microwave pasta dinner with zero colander needed and 18g+ plant protein.",
+    rutAlternativeNote: "Hearty Italian-inspired pasta bowl made solely with a dorm microwave."
+  },
+  {
+    id: "dorm-shelf-curried-chickpea-rice-bowl",
+    title: "7-Minute Coconut Curry Chickpea & Corn Rice Bowl",
+    tagline: "Simmer canned chickpeas, sweet corn, jarred curry sauce (or spiced tomato sauce) in a microwave bowl over warm jasmine rice.",
+    prepMinutes: 2,
+    cookMinutes: 5,
+    category: "microwave",
+    effortLevel: "moderate",
+    requiredEquipment: ["microwave"],
+    requiresFreezer: false,
+    mealType: "dinner",
+    dietaryTags: ["vegetarian", "gluten_free", "dairy_free"],
+    ingredients: [
+      { item: "Canned chickpeas (drained)", amount: "1 can (15 oz)", walmartAisle: "Pantry / Canned" },
+      { item: "Jarred tikka masala or curry simmer sauce", amount: "3/4 cup", walmartAisle: "Pantry / Canned" },
+      { item: "Canned sweet corn or diced tomatoes (drained)", amount: "1/2 cup", walmartAisle: "Pantry / Canned" },
+      { item: "Microwave jasmine rice pouch", amount: "1 pouch", walmartAisle: "Pantry / Canned" },
+      { item: "Garlic powder", amount: "1/2 teaspoon", walmartAisle: "Spices & Condiments" }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Simmer Spiced Chickpeas",
+        instruction: "In a deep microwave-safe bowl, mix 1 drained can chickpeas, 3/4 cup curry or tikka simmer sauce, 1/2 cup sweet corn, and 1/2 teaspoon garlic powder. Cover loosely and microwave 2 minutes 30 seconds.",
+        timerSeconds: 150
+      },
+      {
+        stepNumber: 2,
+        title: "Heat Rice Pouch",
+        instruction: "Let chickpeas sit covered 1 minute to thicken while you vent 1 microwave jasmine rice pouch and microwave 90 seconds.",
+        timerSeconds: 90
+      },
+      {
+        stepNumber: 3,
+        title: "Layer & Serve",
+        instruction: "Spoon the hot rice into the bowl alongside or under the steaming curry chickpeas and enjoy.",
+        timerSeconds: 0
+      }
+    ],
+    whyItWorks: "Delivers rich takeout curry flavor in 7 minutes with zero chopping and completely shelf-stable jars.",
+    rutAlternativeNote: "Flavor-packed meatless dinner ready fast in one microwave bowl."
+  },
+  {
+    id: "dorm-shelf-loaded-chicken-tortilla-soup",
+    title: "7-Minute Dorm Chicken & Black Bean Tortilla Soup",
+    tagline: "Build a layered chicken, black bean, corn, and tomato-chile soup inside one microwave bowl and crown with tortilla chips.",
+    prepMinutes: 2,
+    cookMinutes: 5,
+    category: "microwave",
+    effortLevel: "moderate",
+    requiredEquipment: ["microwave"],
+    requiresFreezer: false,
+    mealType: "dinner",
+    dietaryTags: ["gluten_free", "dairy_free", "high_protein"],
+    ingredients: [
+      { item: "Tear-open chicken pouch (shelf-stable)", amount: "1 pouch (5 oz)", walmartAisle: "Meat & Deli" },
+      { item: "Canned black beans (drained)", amount: "3/4 cup", walmartAisle: "Pantry / Canned" },
+      { item: "Canned diced tomatoes with green chiles (Rotel)", amount: "1/2 can (5 oz)", walmartAisle: "Pantry / Canned" },
+      { item: "Canned sweet corn (drained)", amount: "1/3 cup", walmartAisle: "Pantry / Canned" },
+      { item: "Chicken broth (shelf-stable carton)", amount: "1/2 cup", walmartAisle: "Pantry / Canned" },
+      { item: "Taco seasoning or cumin", amount: "1 teaspoon", walmartAisle: "Spices & Condiments" },
+      { item: "Tortilla chips", amount: "1 handful", walmartAisle: "Pantry / Canned" }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Build the Soup Base",
+        instruction: "Combine 3/4 cup drained black beans, 1/2 can Rotel tomatoes, 1/3 cup corn, 1/2 cup chicken broth, and 1 teaspoon taco seasoning in a large deep microwave bowl.",
+        timerSeconds: 0
+      },
+      {
+        stepNumber: 2,
+        title: "Simmer Broth & Veggies",
+        instruction: "Cover loosely with a paper towel and microwave 3 minutes until steaming hot, stirring halfway.",
+        timerSeconds: 180
+      },
+      {
+        stepNumber: 3,
+        title: "Add Chicken & Crunch",
+        instruction: "Stir in 1 tear-open chicken pouch, microwave 60 seconds more until heated through, and top with 1 handful crushed tortilla chips.",
+        timerSeconds: 60
+      }
+    ],
+    whyItWorks: "Tastes slow-simmered with 30g+ protein, fiber, and veggies using 100% shelf-stable ingredients.",
+    rutAlternativeNote: "Hearty Tex-Mex tortilla soup without touching a stove."
+  },
+  {
+    id: "dorm-shelf-black-bean-queso-potato",
+    title: "8-Minute Loaded Southwest Black Bean & Queso Potato",
+    tagline: "Fluffy microwave russet potato piled with spiced black beans, sweet corn, jarred queso, salsa, and crushed chips.",
+    prepMinutes: 2,
+    cookMinutes: 6,
+    category: "microwave",
+    effortLevel: "moderate",
+    requiredEquipment: ["microwave"],
+    requiresFreezer: false,
+    mealType: "dinner",
+    dietaryTags: ["vegetarian", "gluten_free"],
+    ingredients: [
+      { item: "Large russet baking potato", amount: "1 large potato", walmartAisle: "Produce", storage: "shelf_stable" },
+      { item: "Canned black beans (drained)", amount: "1/2 cup", walmartAisle: "Pantry / Canned" },
+      { item: "Canned sweet corn (drained)", amount: "1/3 cup", walmartAisle: "Pantry / Canned" },
+      { item: "Jarred queso dip (shelf-stable)", amount: "1/3 cup", walmartAisle: "Pantry / Canned", storage: "shelf_stable" },
+      { item: "Jarred salsa", amount: "3 tablespoons", walmartAisle: "Pantry / Canned" },
+      { item: "Taco seasoning", amount: "1/2 teaspoon", walmartAisle: "Spices & Condiments" }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Bake Potato in Microwave",
+        instruction: "Scrub 1 large russet potato, pierce 6 times with a fork, and microwave 5 to 6 minutes (flipping halfway) until tender when squeezed.",
+        timerSeconds: 300
+      },
+      {
+        stepNumber: 2,
+        title: "Warm Spiced Bean Topping",
+        instruction: "In a small bowl, mix 1/2 cup black beans, 1/3 cup corn, 1/3 cup jarred queso, and 1/2 teaspoon taco seasoning. Microwave 60 seconds until hot.",
+        timerSeconds: 60
+      },
+      {
+        stepNumber: 3,
+        title: "Split, Stuff & Top With Salsa",
+        instruction: "Cut the hot potato open, fluff inside with a fork, spoon the cheesy black bean mixture generously over top, and finish with 3 tablespoons salsa.",
+        timerSeconds: 0
+      }
+    ],
+    whyItWorks: "Multi-layer baked potato dinner completely shelf-stable and under $3 per serving.",
+    rutAlternativeNote: "Filling Tex-Mex baked potato meal with zero refrigeration needed."
+  },
+  {
+    id: "dorm-shelf-chipotle-chicken-rice-burrito-bowl",
+    title: "6-Minute Smoky Chipotle Chicken & Black Bean Burrito Bowl",
+    tagline: "Multi-layered microwave grain bowl with rice, smoky spiced chicken, beans, corn, salsa, and crunchy tortilla strips.",
+    prepMinutes: 2,
+    cookMinutes: 4,
+    category: "microwave",
+    effortLevel: "moderate",
+    requiredEquipment: ["microwave"],
+    requiresFreezer: false,
+    mealType: "dinner",
+    dietaryTags: ["gluten_free", "dairy_free", "high_protein"],
+    ingredients: [
+      { item: "Microwave brown or jasmine rice pouch", amount: "1 pouch", walmartAisle: "Pantry / Canned" },
+      { item: "Tear-open chicken pouch (shelf-stable)", amount: "1 pouch (5 oz)", walmartAisle: "Meat & Deli" },
+      { item: "Canned black beans (drained)", amount: "1/2 cup", walmartAisle: "Pantry / Canned" },
+      { item: "Canned corn (drained)", amount: "1/3 cup", walmartAisle: "Pantry / Canned" },
+      { item: "Jarred salsa & hot sauce", amount: "1/3 cup salsa + 1 tsp hot sauce", walmartAisle: "Pantry / Canned" },
+      { item: "Cumin & garlic powder", amount: "1/2 teaspoon each", walmartAisle: "Spices & Condiments" },
+      { item: "Tortilla chips", amount: "1 handful", walmartAisle: "Pantry / Canned" }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Heat Rice Pouch",
+        instruction: "Vent 1 pouch microwave rice 2 inches and microwave 90 seconds on HIGH.",
+        timerSeconds: 90
+      },
+      {
+        stepNumber: 2,
+        title: "Season Chicken & Bean Layer",
+        instruction: "In a microwave-safe bowl, toss 1 tear-open chicken pouch, 1/2 cup black beans, 1/3 cup corn, 1/2 teaspoon cumin, 1/2 teaspoon garlic powder, and 1 teaspoon hot sauce. Microwave 90 seconds.",
+        timerSeconds: 90
+      },
+      {
+        stepNumber: 3,
+        title: "Build Layered Bowl",
+        instruction: "Fluff the hot rice into your bowl, pile on the spiced chicken and beans, spoon 1/3 cup salsa over top, and crush 1 handful of tortilla chips for crunch.",
+        timerSeconds: 0
+      }
+    ],
+    whyItWorks: "Tastes like a restaurant burrito bowl with over 32g protein using 100% dorm-shelf items.",
+    rutAlternativeNote: "Customizable burrito bowl ready in 6 minutes."
+  },
+  // === Expanded Microwave + Mini-Fridge Dorm Meals (Fridge OK, NO Freezer, NO Stove) ===
+  {
+    id: "dorm-fridge-ham-egg-cheddar-mug",
+    title: "3-Minute Ham, Egg & Cheddar Mug Scramble",
+    tagline: "Fluffy microwaved eggs folded with diced deli ham, melted cheddar, and salsa right inside a large mug.",
+    prepMinutes: 1,
+    cookMinutes: 2,
+    category: "microwave",
+    effortLevel: "very_low",
+    requiredEquipment: ["microwave", "fridge"],
+    requiresFreezer: false,
+    mealType: "breakfast",
+    dietaryTags: ["gluten_free", "high_protein"],
+    ingredients: [
+      { item: "Large eggs", amount: "2 eggs", walmartAisle: "Dairy & Eggs" },
+      { item: "Deli ham or turkey slices (torn)", amount: "2 slices", walmartAisle: "Meat & Deli" },
+      { item: "Shredded cheddar cheese", amount: "1/4 cup", walmartAisle: "Dairy & Eggs" },
+      { item: "Salsa (optional)", amount: "2 tablespoons", walmartAisle: "Pantry / Canned", optional: true }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Whisk Eggs & Ham in Mug",
+        instruction: "Spray or wipe a large microwave-safe mug with a bit of oil/butter. Beat 2 eggs with a fork, stir in 2 torn slices deli ham and a pinch of pepper.",
+        timerSeconds: 0
+      },
+      {
+        stepNumber: 2,
+        title: "Microwave in Two Bursts",
+        instruction: "Microwave 45 seconds, stir briskly with a fork, sprinkle 1/4 cup cheddar cheese on top, and microwave 30 seconds more until set.",
+        timerSeconds: 75
+      }
+    ],
+    whyItWorks: "Hot 20g+ protein breakfast in one mug with almost no dishes.",
+    rutAlternativeNote: "Fast savory breakfast before early classes."
+  },
+  {
+    id: "dorm-fridge-yogurt-apple-pb-bowl",
+    title: "2-Minute Greek Yogurt, Apple & Peanut Butter Bowl",
+    tagline: "Zero freezer needed—creamy Greek yogurt topped with crisp diced apple, peanut butter drizzle, and granola.",
+    prepMinutes: 2,
+    cookMinutes: 0,
+    category: "assembly",
+    effortLevel: "very_low",
+    requiredEquipment: ["fridge"],
+    requiresFreezer: false,
+    mealType: "breakfast",
+    dietaryTags: ["vegetarian", "gluten_free", "high_protein"],
+    ingredients: [
+      { item: "Plain or vanilla Greek yogurt", amount: "1 cup", walmartAisle: "Dairy & Eggs" },
+      { item: "Crisp apple (diced)", amount: "1/2 apple", walmartAisle: "Produce", storage: "shelf_stable" },
+      { item: "Peanut butter", amount: "1 tablespoon", walmartAisle: "Pantry / Canned" },
+      { item: "Crunchy granola", amount: "1/4 cup", walmartAisle: "Pantry / Canned" }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Scoop Yogurt",
+        instruction: "Spoon 1 cup Greek yogurt into a bowl and drizzle 1 tablespoon peanut butter over top.",
+        timerSeconds: 0
+      },
+      {
+        stepNumber: 2,
+        title: "Top With Apple & Granola",
+        instruction: "Scatter 1/2 diced apple and 1/4 cup crunchy granola on top and eat immediately.",
+        timerSeconds: 0
+      }
+    ],
+    whyItWorks: "20g+ protein with zero cooking and no mini-fridge freezer required.",
+    rutAlternativeNote: "Quick no-cook breakfast or post-workout snack."
+  },
+  {
+    id: "dorm-fridge-cottage-pineapple-cup",
+    title: "2-Minute Cottage Cheese & Pineapple Power Cup",
+    tagline: "No-cook sweet-savory high-protein snack bowl—cottage cheese topped with canned pineapple and crunchy granola.",
+    prepMinutes: 2,
+    cookMinutes: 0,
+    category: "assembly",
+    effortLevel: "very_low",
+    requiredEquipment: ["fridge"],
+    requiresFreezer: false,
+    mealType: "snack",
+    dietaryTags: ["vegetarian", "gluten_free", "high_protein"],
+    ingredients: [
+      { item: "Cottage cheese", amount: "1 cup", walmartAisle: "Dairy & Eggs" },
+      { item: "Canned pineapple tidbits or mandarin oranges (drained)", amount: "1/2 cup", walmartAisle: "Pantry / Canned" },
+      { item: "Crunchy granola (optional)", amount: "2 tablespoons", walmartAisle: "Pantry / Canned", optional: true }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Layer Bowl & Eat",
+        instruction: "Spoon 1 cup cottage cheese into a bowl, top with 1/2 cup drained canned pineapple or mandarin oranges and 2 tablespoons granola if desired.",
+        timerSeconds: 0
+      }
+    ],
+    whyItWorks: "Packs 25g+ protein in 2 minutes with zero appliances.",
+    rutAlternativeNote: "Fast high-protein dorm snack that needs only a mini-fridge."
+  },
+  {
+    id: "dorm-fridge-bacon-cheddar-baked-potato",
+    title: "7-Minute Microwave Loaded Bacon & Cheddar Potato",
+    tagline: "Tender microwave potato mashed with butter, cheddar, pre-cooked bacon, and cool Greek yogurt or sour cream.",
+    prepMinutes: 2,
+    cookMinutes: 5,
+    category: "microwave",
+    effortLevel: "low",
+    requiredEquipment: ["microwave", "fridge"],
+    requiresFreezer: false,
+    mealType: "dinner",
+    dietaryTags: ["gluten_free", "high_protein"],
+    ingredients: [
+      { item: "Large russet baking potato", amount: "1 large potato", walmartAisle: "Produce", storage: "shelf_stable" },
+      { item: "Butter", amount: "1 tablespoon", walmartAisle: "Dairy & Eggs" },
+      { item: "Shredded cheddar cheese", amount: "1/3 cup", walmartAisle: "Dairy & Eggs" },
+      { item: "Pre-cooked bacon slices (crumbled)", amount: "3 slices", walmartAisle: "Meat & Deli" },
+      { item: "Sour cream or plain Greek yogurt", amount: "2 tablespoons", walmartAisle: "Dairy & Eggs" }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Microwave Russet Potato",
+        instruction: "Poke 1 large russet potato 6 times with a fork and microwave 5 to 6 minutes (flipping halfway) until tender.",
+        timerSeconds: 300
+      },
+      {
+        stepNumber: 2,
+        title: "Butter, Cheese & Bacon",
+        instruction: "Split the potato open, mash in 1 tablespoon butter, sprinkle 1/3 cup cheddar and 3 crumbled bacon slices, and microwave 25 seconds to melt.",
+        timerSeconds: 25
+      },
+      {
+        stepNumber: 3,
+        title: "Cool Topping",
+        instruction: "Finish with 2 tablespoons sour cream or plain Greek yogurt and black pepper.",
+        timerSeconds: 0
+      }
+    ],
+    whyItWorks: "Steakhouse baked potato comfort with just a microwave and mini-fridge.",
+    rutAlternativeNote: "Classic baked potato comfort in 7 minutes."
+  },
+  {
+    id: "dorm-fridge-italian-sub-melt",
+    title: "3-Minute Hot Italian Pepperoni & Mozzarella Sub",
+    tagline: "Sub roll layered with deli ham, pepperoni, mozzarella, and Italian seasoning warmed until melty.",
+    prepMinutes: 2,
+    cookMinutes: 1,
+    category: "microwave",
+    effortLevel: "very_low",
+    requiredEquipment: ["microwave", "fridge"],
+    requiresFreezer: false,
+    mealType: "lunch",
+    dietaryTags: ["high_protein"],
+    ingredients: [
+      { item: "Sub roll or hoagie bun", amount: "1 roll", walmartAisle: "Bakery" },
+      { item: "Deli ham slices", amount: "4 slices", walmartAisle: "Meat & Deli" },
+      { item: "Sliced pepperoni", amount: "10 slices", walmartAisle: "Meat & Deli" },
+      { item: "Shredded mozzarella cheese", amount: "1/3 cup", walmartAisle: "Dairy & Eggs" },
+      { item: "Italian seasoning or marinara (optional)", amount: "1/2 teaspoon or 2 tbsp", walmartAisle: "Spices & Condiments", optional: true }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Build Italian Sub",
+        instruction: "Open 1 sub roll on a microwave-safe plate. Layer 4 slices deli ham, 10 slices pepperoni, and 1/3 cup shredded mozzarella (plus a sprinkle of Italian seasoning or drizzle of marinara).",
+        timerSeconds: 0
+      },
+      {
+        stepNumber: 2,
+        title: "Microwave Until Melty",
+        instruction: "Wrap loosely in a paper towel and microwave 35 to 45 seconds until cheese melts and meat is warm.",
+        timerSeconds: 40
+      }
+    ],
+    whyItWorks: "Tastes like a hot toasted sub shop sandwich in 3 minutes flat.",
+    rutAlternativeNote: "Hot deli sub option using basic mini-fridge staples."
+  },
+  {
+    id: "dorm-fridge-savory-sausage-potato-egg-scramble",
+    title: "8-Minute Microwave Sausage, Potato & Egg Scramble Bowl",
+    tagline: "Dice 1 small potato and microwave tender with smoked sausage, then scramble in eggs and cheddar in the same bowl.",
+    prepMinutes: 3,
+    cookMinutes: 5,
+    category: "microwave",
+    effortLevel: "moderate",
+    requiredEquipment: ["microwave", "fridge"],
+    requiresFreezer: false,
+    mealType: "breakfast",
+    dietaryTags: ["gluten_free", "high_protein"],
+    ingredients: [
+      { item: "Small russet or Yukon gold potato (finely diced)", amount: "1 small potato", walmartAisle: "Produce", storage: "shelf_stable" },
+      { item: "Pre-cooked smoked sausage or kielbasa (sliced thin)", amount: "1/3 link (about 3 oz)", walmartAisle: "Meat & Deli" },
+      { item: "Large eggs", amount: "2 eggs", walmartAisle: "Dairy & Eggs" },
+      { item: "Shredded cheddar cheese", amount: "1/3 cup", walmartAisle: "Dairy & Eggs" },
+      { item: "Butter or olive oil", amount: "1 teaspoon", walmartAisle: "Dairy & Eggs" },
+      { item: "Garlic powder & black pepper", amount: "1/4 teaspoon each", walmartAisle: "Spices & Condiments" }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Steam Dice Potato & Sausage",
+        instruction: "Toss 1 finely diced potato, 1 teaspoon butter or oil, 1 tablespoon water, and garlic powder in a microwave-safe bowl. Cover with a damp paper towel and microwave 3 minutes until potatoes are fork-tender; stir in 3 oz sliced pre-cooked sausage for the last 45 seconds.",
+        timerSeconds: 180
+      },
+      {
+        stepNumber: 2,
+        title: "Swirl In Eggs & Cheddar",
+        instruction: "Crack 2 eggs straight into the bowl, scramble gently with a fork around the potatoes and sausage, microwave 60 seconds, stir, top with 1/3 cup cheddar, and microwave 25 seconds more until set.",
+        timerSeconds: 85
+      }
+    ],
+    whyItWorks: "A genuine skillet-style breakfast scramble cooked cleanly in one microwave bowl.",
+    rutAlternativeNote: "Hearty, high-protein breakfast bowl for dorm mornings or late nights."
+  },
+  {
+    id: "dorm-fridge-alfredo-chicken-broccoli-mac",
+    title: "8-Minute Microwave Creamy Chicken & Broccoli Pasta",
+    tagline: "Cook macaroni right in a bowl, steam fresh broccoli in the same water, and stir in chicken, Alfredo sauce, and parmesan.",
+    prepMinutes: 2,
+    cookMinutes: 6,
+    category: "microwave",
+    effortLevel: "moderate",
+    requiredEquipment: ["microwave", "fridge"],
+    requiresFreezer: false,
+    mealType: "dinner",
+    dietaryTags: ["high_protein"],
+    comfortVariationOf: "Boxed mac & cheese",
+    ingredients: [
+      { item: "Quick-cooking elbow macaroni", amount: "3/4 cup dry", walmartAisle: "Pantry / Canned" },
+      { item: "Fresh broccoli florets (bite-sized)", amount: "1 cup", walmartAisle: "Produce" },
+      { item: "Pre-cooked shredded chicken", amount: "3/4 cup", walmartAisle: "Meat & Deli" },
+      { item: "Jarred Alfredo sauce", amount: "1/2 cup", walmartAisle: "Pantry / Canned" },
+      { item: "Shredded mozzarella or parmesan", amount: "1/4 cup", walmartAisle: "Dairy & Eggs" },
+      { item: "Garlic powder", amount: "1/4 teaspoon", walmartAisle: "Spices & Condiments" }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Microwave Pasta & Broccoli Together",
+        instruction: "Combine 3/4 cup dry elbow macaroni, 1.1 cups water, and a pinch of salt in a large deep bowl. Microwave 3 minutes, stir in 1 cup bite-sized fresh broccoli florets, and microwave 2 minutes more until pasta and broccoli are tender.",
+        timerSeconds: 300
+      },
+      {
+        stepNumber: 2,
+        title: "Stir In Chicken & Creamy Sauce",
+        instruction: "Drain any extra spoonful of water. Stir in 3/4 cup pre-cooked chicken, 1/2 cup Alfredo sauce, 1/4 cup mozzarella/parmesan, and 1/4 teaspoon garlic powder. Microwave 45 seconds until hot and bubbly.",
+        timerSeconds: 45
+      }
+    ],
+    whyItWorks: "Creamy fettuccine-Alfredo satisfaction in one microwave bowl with veggies and chicken included.",
+    rutAlternativeNote: "Elevated dorm comfort pasta using a mini-fridge and microwave."
+  },
+  {
+    id: "dorm-fridge-greek-chickpea-feta-flatbread",
+    title: "5-Minute Warm Chickpea, Spinach & Feta Naan Fold",
+    tagline: "Warmed garlic chickpeas and wilted spinach piled onto naan flatbread with crumbled feta and ranch or Greek dressing.",
+    prepMinutes: 2,
+    cookMinutes: 3,
+    category: "microwave",
+    effortLevel: "moderate",
+    requiredEquipment: ["microwave", "fridge"],
+    requiresFreezer: false,
+    mealType: "lunch",
+    dietaryTags: ["vegetarian"],
+    ingredients: [
+      { item: "Canned chickpeas (drained)", amount: "3/4 cup", walmartAisle: "Pantry / Canned" },
+      { item: "Naan flatbread", amount: "1-2 flatbreads", walmartAisle: "Bakery" },
+      { item: "Baby spinach", amount: "1 handful", walmartAisle: "Produce" },
+      { item: "Crumbled feta cheese", amount: "1/3 cup", walmartAisle: "Dairy & Eggs" },
+      { item: "Garlic powder & Italian seasoning", amount: "1/2 teaspoon each", walmartAisle: "Spices & Condiments" },
+      { item: "Ranch or Greek dressing", amount: "2 tablespoons", walmartAisle: "Pantry / Canned" }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Warm Spiced Chickpeas & Spinach",
+        instruction: "Put 3/4 cup drained chickpeas, 1/2 teaspoon garlic powder, 1/2 teaspoon Italian seasoning, and 1 teaspoon olive oil or water in a bowl. Microwave 60 seconds, then stir in 1 handful baby spinach for 30 seconds until wilted.",
+        timerSeconds: 90
+      },
+      {
+        stepNumber: 2,
+        title: "Warm Naan & Load Toppings",
+        instruction: "Microwave 1-2 naan flatbreads 15 seconds until soft and pliable. Spoon the warm chickpea spinach mix over top, drizzle with 2 tablespoons dressing, and scatter 1/3 cup crumbled feta.",
+        timerSeconds: 15
+      }
+    ],
+    whyItWorks: "Fresh Mediterranean café flavors made fast without a stove or toaster.",
+    rutAlternativeNote: "Vibrant vegetarian lunch fold using simple mini-fridge items."
+  },
+  // === Extra Limited-Kitchen (Toaster / Air Fryer) Option ===
+  {
+    id: "limited-toaster-avocado-egg-bagel",
+    title: "5-Minute Crispy Toasted Egg & Guacamole Bagel",
+    tagline: "Toasted bagel topped with a microwave-cooked egg, melty cheddar, and single-serve guacamole cup.",
+    prepMinutes: 2,
+    cookMinutes: 3,
+    category: "microwave",
+    effortLevel: "very_low",
+    requiredEquipment: ["toaster", "microwave", "fridge"],
+    requiresFreezer: false,
+    mealType: "breakfast",
+    dietaryTags: ["vegetarian", "high_protein"],
+    ingredients: [
+      { item: "Bagel (sliced)", amount: "1 bagel", walmartAisle: "Bakery" },
+      { item: "Large egg", amount: "2 eggs", walmartAisle: "Dairy & Eggs" },
+      { item: "Shredded cheddar cheese", amount: "1/4 cup", walmartAisle: "Dairy & Eggs" },
+      { item: "Mini guacamole cup", amount: "1 cup (2 oz)", walmartAisle: "Produce" }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Toast Bagel",
+        instruction: "Toast 1 sliced bagel in your toaster or toaster oven until golden brown.",
+        timerSeconds: 120
+      },
+      {
+        stepNumber: 2,
+        title: "Microwave Egg & Cheese",
+        instruction: "Whisk 2 eggs in a small greased microwave bowl, microwave 60 seconds, top with 1/4 cup cheddar for 15 seconds, then stack onto the bagel with 1 mini guacamole cup.",
+        timerSeconds: 75
+      }
+    ],
+    whyItWorks: "Creamy guacamole and hot egg-and-cheese on crispy bagel with minimal cleanup.",
+    rutAlternativeNote: "Café breakfast sandwich using toaster + microwave."
+  },
+  {
+    id: "dorm-shelf-creamy-peanut-chili-ramen",
+    title: "5-Minute Creamy Peanut & Chili-Garlic Ramen",
+    tagline: "Microwave ramen noodles drained and tossed in a silky, spicy peanut-soy sauce—100% shelf-stable.",
+    prepMinutes: 1,
+    cookMinutes: 4,
+    category: "microwave",
+    effortLevel: "low",
+    requiredEquipment: ["microwave"],
+    requiresFreezer: false,
+    mealType: "dinner",
+    dietaryTags: ["vegetarian", "dairy_free", "high_protein"],
+    comfortVariationOf: "Instant ramen",
+    ingredients: [
+      { item: "Ramen noodle brick (discard seasoning pack)", amount: "1 pack", walmartAisle: "Pantry / Canned" },
+      { item: "Creamy peanut butter", amount: "2 tablespoons", walmartAisle: "Pantry / Canned" },
+      { item: "Soy sauce", amount: "1 tablespoon", walmartAisle: "Spices & Condiments" },
+      { item: "Sriracha or hot sauce", amount: "1 teaspoon", walmartAisle: "Spices & Condiments" },
+      { item: "Garlic powder", amount: "1/4 teaspoon", walmartAisle: "Spices & Condiments" }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Cook Noodles in Microwave",
+        instruction: "Place 1 ramen brick and 1.25 cups water in a deep microwave-safe bowl. Microwave 2 minutes, flip brick, and microwave 1.5 minutes more until tender.",
+        timerSeconds: 210
+      },
+      {
+        stepNumber: 2,
+        title: "Whisk Sauce & Toss Hot Noodles",
+        instruction: "Reserve 3 tablespoons hot noodle water in the bowl and pour off the rest. Stir in 2 tablespoons creamy peanut butter, 1 tablespoon soy sauce, 1 teaspoon sriracha, and 1/4 teaspoon garlic powder until glossy.",
+        timerSeconds: 0
+      }
+    ],
+    whyItWorks: "Rich, savory takeout-style peanut noodles made purely from dorm cabinet staples.",
+    rutAlternativeNote: "Creamy spicy noodle bowl inspired by instant ramen."
+  },
+  {
+    id: "dorm-shelf-mediterranean-quinoa-chickpea-bowl",
+    title: "5-Minute Warm Mediterranean Chickpea & Grain Bowl",
+    tagline: "90-second quinoa or brown rice pouch warmed with spiced chickpeas, diced tomatoes, and olive oil.",
+    prepMinutes: 2,
+    cookMinutes: 3,
+    category: "microwave",
+    effortLevel: "moderate",
+    requiredEquipment: ["microwave"],
+    requiresFreezer: false,
+    mealType: "dinner",
+    dietaryTags: ["vegetarian", "gluten_free", "dairy_free", "high_protein"],
+    ingredients: [
+      { item: "Microwave quinoa & brown rice pouch", amount: "1 pouch", walmartAisle: "Pantry / Canned" },
+      { item: "Canned chickpeas (drained)", amount: "3/4 cup", walmartAisle: "Pantry / Canned" },
+      { item: "Canned diced tomatoes (drained)", amount: "1/2 cup", walmartAisle: "Pantry / Canned" },
+      { item: "Olive oil", amount: "1 tablespoon", walmartAisle: "Pantry / Canned" },
+      { item: "Italian seasoning & garlic powder", amount: "1/2 teaspoon each", walmartAisle: "Spices & Condiments" }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Warm Grain Pouch",
+        instruction: "Tear a 2-inch vent in 1 microwave quinoa & brown rice pouch and microwave 90 seconds on HIGH.",
+        timerSeconds: 90
+      },
+      {
+        stepNumber: 2,
+        title: "Simmer Spiced Chickpeas & Tomatoes",
+        instruction: "Empty the rice/quinoa into a bowl, top with 3/4 cup drained chickpeas, 1/2 cup drained diced tomatoes, 1 tablespoon olive oil, and 1/2 teaspoon each Italian seasoning and garlic powder. Microwave 60 seconds and stir.",
+        timerSeconds: 60
+      }
+    ],
+    whyItWorks: "Wholesome Mediterranean grain bowl with fiber, healthy fats, and plant protein that keeps in a drawer.",
+    rutAlternativeNote: "Hearty herb-roasted grain bowl made entirely in the microwave."
+  },
+  {
+    id: "dorm-shelf-tuna-white-bean-crunch-plate",
+    title: "2-Minute Zesty Tuna, White Bean & Chip Bowl",
+    tagline: "Zero microwave or fridge needed—lemon-pepper tuna tossed with canned beans, salsa, and crunchy tortilla chips.",
+    prepMinutes: 2,
+    cookMinutes: 0,
+    category: "assembly",
+    effortLevel: "very_low",
+    requiredEquipment: [],
+    requiresFreezer: false,
+    mealType: "lunch",
+    dietaryTags: ["gluten_free", "dairy_free", "high_protein"],
+    ingredients: [
+      { item: "Tear-open lemon pepper tuna pouch", amount: "1 pouch (2.6 oz)", walmartAisle: "Pantry / Canned" },
+      { item: "Canned white beans or black beans (drained)", amount: "1/2 cup", walmartAisle: "Pantry / Canned" },
+      { item: "Jarred salsa", amount: "1/3 cup", walmartAisle: "Pantry / Canned" },
+      { item: "Tortilla chips", amount: "1.5 handfuls", walmartAisle: "Pantry / Canned" }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Toss Tuna, Beans & Salsa",
+        instruction: "In a bowl, flake 1 tear-open lemon pepper tuna pouch and stir gently with 1/2 cup drained white or black beans and 1/3 cup jarred salsa.",
+        timerSeconds: 0
+      },
+      {
+        stepNumber: 2,
+        title: "Scoop & Eat",
+        instruction: "Scoop straight up with 1.5 handfuls of tortilla chips for a crisp, high-protein no-cook lunch.",
+        timerSeconds: 0
+      }
+    ],
+    whyItWorks: "Takes 2 minutes with zero appliances and packs protein + fiber.",
+    rutAlternativeNote: "Fast, protein-rich lunch bowl you can eat anywhere."
   }
 ];
 

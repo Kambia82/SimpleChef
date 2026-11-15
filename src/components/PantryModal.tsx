@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { X, Plus, Minus, PackageCheck, Sparkles, Loader2, Trash2 } from "lucide-react";
 import { KitchenProfile, PantryItem } from "../types";
 import { PANTRY_STAPLE_GROUPS } from "../data/pantryStaples";
+import { getEffectiveEquipment } from "../utils/kitchenProfile";
 
 interface PantryModalProps {
   pantryItems: PantryItem[];
@@ -48,8 +49,10 @@ export const PantryModal: React.FC<PantryModalProps> = ({
     }
   };
 
-  const hasFridge = profile.equipment.includes("fridge");
-  const title = profile.hasFreezer
+  const effectiveEq = getEffectiveEquipment(profile);
+  const hasFridge = effectiveEq.has("fridge");
+  const hasFreezer = effectiveEq.has("freezer");
+  const title = hasFreezer
     ? "My Pantry, Fridge & Freezer"
     : hasFridge
     ? "My Pantry & Fridge"
@@ -175,7 +178,7 @@ export const PantryModal: React.FC<PantryModalProps> = ({
           {/* Grouped Quick Tap Staples */}
           <div className="space-y-4">
             {PANTRY_STAPLE_GROUPS.filter((group) => {
-              if (!profile.hasFreezer && group.label === "Freezer") return false;
+              if (!hasFreezer && group.label === "Freezer") return false;
               if (!hasFridge && group.label === "Fridge & Deli") return false;
               return true;
             }).map((group) => (

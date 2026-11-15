@@ -16,6 +16,7 @@ import {
   CookingEquipment,
   DietaryRestriction,
   GroceryItem,
+  IngredientStorage,
   Meal,
   PantryItem,
   RutMeal,
@@ -118,8 +119,10 @@ const VALID_EQUIPMENT = new Set<CookingEquipment>([
   "toaster",
   "air_fryer",
   "fridge",
-  "freezer"
+  "freezer",
+  "other"
 ]);
+const VALID_STORAGE = new Set<IngredientStorage>(["shelf_stable", "fridge", "freezer"]);
 const VALID_DIETARY = new Set<DietaryRestriction>([
   "vegetarian",
   "gluten_free",
@@ -327,10 +330,15 @@ export function sanitizeCustomMealsForCloud(items: unknown): Meal[] {
       const item = ing.item.trim().slice(0, 120);
       const amount = ing.amount.trim().slice(0, 60);
       if (!item || !amount) continue;
+      const storage =
+        typeof ing.storage === "string" && VALID_STORAGE.has(ing.storage as IngredientStorage)
+          ? (ing.storage as IngredientStorage)
+          : undefined;
       ingredients.push({
         item,
         amount,
         walmartAisle,
+        ...(storage ? { storage } : {}),
         ...(typeof ing.tip === "string" && ing.tip.trim()
           ? { tip: ing.tip.trim().slice(0, 140) }
           : {}),

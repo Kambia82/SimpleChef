@@ -7,16 +7,22 @@ import {
   CookingEnvironment,
   CookingEquipment,
   DietaryRestriction,
+  DormConstraints,
   KitchenProfile,
+  LivingSituation,
   Meal,
   MealType,
   PantryItem,
+  SharedKitchenPreference,
   VarietyPreference,
 } from "./src/types";
 import {
   EFFORT_PRESETS,
   createProfileForEnvironment,
+  getEffectiveEquipment,
+  isMealDormCompatible,
   isMealEquipmentCompatible,
+  normalizeDormConstraints,
 } from "./src/utils/kitchenProfile";
 import { evaluateMealIngredients } from "./src/utils/pantryMatch";
 import { getMealExtras } from "./src/utils/mealExtras";
@@ -42,6 +48,7 @@ const VALID_EQUIPMENT = new Set<CookingEquipment>([
   "air_fryer",
   "fridge",
   "freezer",
+  "other",
 ]);
 
 const VALID_EFFORTS = new Set<CookingEffort>([
@@ -186,12 +193,45 @@ export function normalizeGenerationRequest(
     )
   );
 
+  const livingSituation: LivingSituation =
+    rawProfile.livingSituation === "dorm" ? "dorm" : "standard";
+
+  const rawDorm =
+    rawProfile.dormConstraints && typeof rawProfile.dormConstraints === "object"
+      ? (rawProfile.dormConstraints as Partial<DormConstraints>)
+      : undefined;
+  const dormConstraints = normalizeDormConstraints(livingSituation, {
+    limitedFridgeSpace: typeof rawDorm?.limitedFridgeSpace === "boolean" ? rawDorm.limitedFridgeSpace : undefined,
+    limitedFreezerSpace: typeof rawDorm?.limitedFreezerSpace === "boolean" ? rawDorm.limitedFreezerSpace : undefined,
+    limitedFoodStorage: typeof rawDorm?.limitedFoodStorage === "boolean" ? rawDorm.limitedFoodStorage : undefined,
+    limitedCounterSpace: typeof rawDorm?.limitedCounterSpace === "boolean" ? rawDorm.limitedCounterSpace : undefined,
+    sharedAppliances: typeof rawDorm?.sharedAppliances === "boolean" ? rawDorm.sharedAppliances : undefined,
+    minimalCookware: typeof rawDorm?.minimalCookware === "boolean" ? rawDorm.minimalCookware : undefined,
+    preferShelfStable: typeof rawDorm?.preferShelfStable === "boolean" ? rawDorm.preferShelfStable : undefined,
+    smallerQuantities: typeof rawDorm?.smallerQuantities === "boolean" ? rawDorm.smallerQuantities : undefined,
+  });
+
+  const sharedKitchen: SharedKitchenPreference =
+    rawProfile.sharedKitchen === "available_use" ||
+    rawProfile.sharedKitchen === "available_avoid"
+      ? rawProfile.sharedKitchen
+      : "none";
+
+  const otherEquipmentLabel =
+    typeof rawProfile.otherEquipmentLabel === "string"
+      ? rawProfile.otherEquipmentLabel.trim().slice(0, 60)
+      : "";
+
   const baseProfile = createProfileForEnvironment(environment, {
     equipment,
     hasFreezer: hasFreezerOverride,
     effort,
     varietyPreference,
     dietaryRestrictions,
+    livingSituation,
+    dormConstraints,
+    sharedKitchen,
+    otherEquipmentLabel,
   });
 
   if (hasFreezerOverride !== undefined) {
@@ -279,9 +319,14 @@ export function getIngredientBoundsForEffort(effort: CookingEffort): {
 }
 
 export function buildEquipmentPromptRules(profile: KitchenProfile): string {
-  const owned = new Set(profile.equipment);
+  const owned = getEffectiveEquipment(profile);
+  const equipmentLabels = Array.from(owned).map((eq) =>
+    eq === "other" && profile.otherEquipmentLabel
+      ? `other (${profile.otherEquipmentLabel})`
+      : eq.replace(/_/g, " ")
+  );
   const availableList =
-    profile.equipment.length > 0 ? profile.equipment.join(", ") : "no cooking appliances (assembly only)";
+    equipmentLabels.length > 0 ? equipmentLabels.join(", ") : "no cooking appliances (assembly only)";
 
   const forbidden: string[] = [];
   if (!owned.has("stove")) forbidden.push("stovetop", "skillet", "frying pan", "burner", "boil in a pot");
@@ -289,24 +334,48 @@ export function buildEquipmentPromptRules(profile: KitchenProfile): string {
   if (!owned.has("toaster")) forbidden.push("toaster", "toaster oven");
   if (!owned.has("air_fryer")) forbidden.push("air fryer");
   if (!owned.has("microwave")) forbidden.push("microwave");
-  if (!owned.has("fridge")) forbidden.push("refrigerated items requiring cold storage if shelf-stable alternatives work");
-  if (!profile.hasFreezer) forbidden.push("frozen foods (no frozen veggies, frozen meatballs, frozen fries, etc.)");
+  if (!owned.has("fridge")) forbidden.push("refrigerated items requiring cold storage");
+  if (!owned.has("freezer")) forbidden.push("frozen foods (no frozen veggies, frozen meatballs, frozen fries, etc.)");
   forbidden.push("electric kettle", "hot plate");
 
   const lines = [
-    `AVAILABLE EQUIPMENT: ${availableList}. Freezer available: ${profile.hasFreezer ? "YES" : "NO"}.`,
+    `AVAILABLE EQUIPMENT: ${availableList}. Freezer available: ${owned.has("freezer") ? "YES" : "NO"}.`,
     `STRICT EQUIPMENT RULE: Every cooking step MUST ONLY use equipment listed above (or zero-heat assembly). NEVER mention or require: ${forbidden.join(", ")}.`,
   ];
 
   if (!owned.has("fridge") && owned.has("microwave")) {
     lines.push(
-      "NO REFRIGERATOR: Prioritize shelf-stable pantry items (canned beans/chili, microwave rice pouches, tear-open chicken or tuna pouches, peanut butter, tortillas, ramen, pasta, oats, shelf-stable jars) and never rely on chilled leftovers."
+      "NO REFRIGERATOR: Prioritize shelf-stable pantry items (canned beans/chili, microwave rice pouches, tear-open chicken or tuna pouches, peanut butter, tortillas, ramen, pasta cooked by absorption in a microwave bowl, oats, shelf-stable jars) and never rely on chilled ingredients or leftovers."
     );
   }
-  if (!profile.hasFreezer) {
+  if (!owned.has("freezer")) {
     lines.push(
       "NO FREEZER: Zero frozen ingredients allowed anywhere in ingredients, optional add-ons, or side pairings."
     );
+  }
+  if (profile.livingSituation === "dorm") {
+    const dc = profile.dormConstraints;
+    const dormNotes: string[] = [];
+    if (dc?.minimalCookware && profile.sharedKitchen !== "available_use") {
+      dormNotes.push("minimal cookware only (microwave-safe mug/bowl/plate only — NO colanders, strainers, pots, pans, or baking sheets)");
+    }
+    if (dc?.preferShelfStable) {
+      dormNotes.push("favor shelf-stable dorm items that store safely in a drawer or bin");
+    }
+    if (dc?.smallerQuantities || dc?.limitedFoodStorage) {
+      dormNotes.push("use compact, single-serving or small-batch quantities");
+    }
+    if (dc?.limitedCounterSpace) {
+      dormNotes.push("minimal prep space (avoid sprawling multi-board prep)");
+    }
+    if (profile.sharedKitchen === "available_avoid") {
+      dormNotes.push("user has a shared hall kitchen but prefers to cook right in their dorm room");
+    } else if (profile.sharedKitchen === "available_use") {
+      dormNotes.push("user is okay using shared dorm kitchen stove/oven");
+    }
+    if (dormNotes.length > 0) {
+      lines.push(`DORM LIVING CONTEXT: ${dormNotes.join("; ")}.`);
+    }
   }
   if (profile.dietaryRestrictions.length > 0) {
     lines.push(
@@ -564,16 +633,21 @@ export function finalizeAndVerifyGeneratedMeal(
       : undefined,
   };
 
-  // Enforce hardware/equipment compatibility strictly
+  // Enforce hardware/equipment and dorm cookware compatibility strictly
   const compat = isMealEquipmentCompatible(candidate, profile);
   if (!compat.compatible) {
     return null;
   }
+  const dormCompat = isMealDormCompatible(candidate, profile);
+  if (!dormCompat.compatible) {
+    return null;
+  }
 
   // Strip incompatible extras (e.g. toaster oven sides for microwave-only users)
+  const effectiveOwned = getEffectiveEquipment(profile);
   const filteredExtras = getMealExtras(candidate, {
-    equipment: profile.equipment,
-    hasFreezer: profile.hasFreezer,
+    equipment: Array.from(effectiveOwned),
+    hasFreezer: effectiveOwned.has("freezer"),
   });
   candidate.optionalAddons = filteredExtras.addons;
   candidate.sidePairings = filteredExtras.sides;
@@ -689,6 +763,7 @@ export function deriveRateLimitKey(opts: {
   remoteAddress?: string;
   userIdHeader?: unknown;
 }): string {
+  // Enforce rate limit strictly on verified connection IP so clients cannot bypass limits by rotating headers
   const safeIp =
     typeof opts.reqIp === "string" && opts.reqIp.trim()
       ? opts.reqIp.trim().slice(0, 64)
@@ -696,11 +771,5 @@ export function deriveRateLimitKey(opts: {
       ? opts.remoteAddress.trim().slice(0, 64)
       : "unknown";
 
-  if (
-    typeof opts.userIdHeader === "string" &&
-    /^[a-zA-Z0-9_-]{4,64}$/.test(opts.userIdHeader.trim())
-  ) {
-    return `uid:${opts.userIdHeader.trim()}:${safeIp}`;
-  }
   return `ip:${safeIp}`;
 }

@@ -14,13 +14,16 @@ import {
   CookingEnvironment,
   CookingEquipment,
   DietaryRestriction,
+  DormConstraints,
   GroceryItem,
   KitchenProfile,
+  LivingSituation,
   Meal,
   MealAddon,
   MealType,
   PantryItem,
   RutMeal,
+  SharedKitchenPreference,
   VarietyPreference,
   WalmartAisle
 } from "./types";
@@ -42,15 +45,21 @@ import {
   normalizePantryList
 } from "./utils/pantryMatch";
 import {
+  DEFAULT_DORM_CONSTRAINTS,
   DEFAULT_KITCHEN_PROFILE,
   EFFORT_PRESETS,
   ENVIRONMENT_PRESETS,
   createProfileForEnvironment,
+  getEffectiveEquipment,
   getMealEligibility,
+  getMealStorageProfile,
+  inferIngredientStorage,
   inferMealRequirements,
-  isMealEquipmentCompatible
+  isMealDormCompatible,
+  isMealEquipmentCompatible,
+  normalizeDormConstraints
 } from "./utils/kitchenProfile";
-import { selectSpotlightMeal } from "./utils/spotlight";
+import { SpotlightAdjustmentAction, selectSpotlightMeal } from "./utils/spotlight";
 import {
   mergeGroceryState,
   mergeOnSignInOfflineToCloud,
@@ -86,12 +95,19 @@ import {
   ShoppingCart,
   ShoppingBag,
   X,
-  AlertCircle
+  AlertCircle,
+  Check,
+  RefreshCw,
+  AlertTriangle,
+  Package,
+  Refrigerator,
+  Snowflake
 } from "lucide-react";
 
 const DEFAULT_ID_SET = new Set(DEFAULT_MEALS.map((m) => m.id));
 const PROFILE_STORAGE_KEY = "simple_chef_profile_v1";
 const CLIENT_ID_STORAGE_KEY = "simple_chef_client_id";
+const SPOTLIGHT_HISTORY_KEY = "simple_chef_recent_spotlights_v1";
 
 function mergeMealsWithDefaults(customMeals: Meal[]): Meal[] {
   const uniqueCustom = customMeals.filter((m) => !DEFAULT_ID_SET.has(m.id));
@@ -236,7 +252,18 @@ export default function App() {
   const [isRescuing, setIsRescuing] = useState<boolean>(false);
   const [isSuggestingFromPantry, setIsSuggestingFromPantry] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [recentSpotlightIds, setRecentSpotlightIds] = useState<string[]>([]);
+  const [recentSpotlightIds, setRecentSpotlightIds] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem(SPOTLIGHT_HISTORY_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed.filter((s): s is string => typeof s === "string").slice(0, 12);
+        }
+      }
+    } catch {}
+    return [];
+  });
   const [currentSpotlightId, setCurrentSpotlightId] = useState<string | null>(null);
   const [recentSuggestions, setRecentSuggestions] = useState<Meal[]>([]);
 
@@ -322,6 +349,12 @@ export default function App() {
     } catch {}
   }, [pantryItems]);
 
+  useEffect(() => {
+    try {
+      localStorage.setItem(SPOTLIGHT_HISTORY_KEY, JSON.stringify(recentSpotlightIds));
+    } catch {}
+  }, [recentSpotlightIds]);
+
   const showToast = (msg: string) => {
     setToastMessage(msg);
     if (toastTimerRef.current !== null) {
@@ -333,22 +366,25 @@ export default function App() {
     }, 3500);
   };
 
-  // Profile change handlers (Axis A: Environment & Equipment; Axis B: Effort; Axis C: Dietary & Variety)
+  // Profile change handlers (Axis 1: Equipment; Axis 2: Effort; Axis 3: Living Situation & Dorm)
   const triggerPreferenceRefresh = (nextProfile: KitchenProfile) => {
     setRecentSuggestions((prev) =>
-      prev.filter((m) => isMealEquipmentCompatible(m, nextProfile).compatible)
+      prev.filter(
+        (m) =>
+          isMealEquipmentCompatible(m, nextProfile).compatible &&
+          isMealDormCompatible(m, nextProfile).compatible
+      )
     );
+    setCurrentSpotlightId(null);
   };
 
   const handleChangeEnvironment = (env: CookingEnvironment) => {
     const nextProfile = createProfileForEnvironment(env, profile);
     setProfile(nextProfile);
 
+    const effEq = getEffectiveEquipment(nextProfile);
     const hasHeatOtherThanMicro =
-      nextProfile.equipment.includes("stove") ||
-      nextProfile.equipment.includes("oven") ||
-      nextProfile.equipment.includes("toaster") ||
-      nextProfile.equipment.includes("air_fryer");
+      effEq.has("stove") || effEq.has("oven") || effEq.has("toaster") || effEq.has("air_fryer");
 
     if (!hasHeatOtherThanMicro && activeFilter === "one_skillet") {
       setActiveFilter("all");
@@ -357,7 +393,9 @@ export default function App() {
     triggerPreferenceRefresh(nextProfile);
 
     if (env === "microwave_only") {
-      showToast("Microwave Only active — showing shelf-stable microwave & no-cook meals (add Mini-Fridge for chilled items).");
+      showToast(
+        "Microwave Only active — showing shelf-stable microwave & no-cook meals (add Mini-Fridge for chilled items)."
+      );
     } else if (env === "custom") {
       showToast("Custom Equipment active — toggle any appliances you have below.");
     } else {
@@ -394,11 +432,68 @@ export default function App() {
     });
   };
 
+  const handleChangeOtherEquipmentLabel = (label: string) => {
+    setProfile((prev) => ({
+      ...prev,
+      otherEquipmentLabel: label.slice(0, 60)
+    }));
+  };
+
   const handleChangeEffort = (effort: CookingEffort) => {
     const nextProfile: KitchenProfile = { ...profile, effort };
     setProfile(nextProfile);
     triggerPreferenceRefresh(nextProfile);
     showToast(`${EFFORT_PRESETS[effort].label} active`);
+  };
+
+  const handleChangeLivingSituation = (livingSituation: LivingSituation) => {
+    setProfile((prev) => {
+      const updated: KitchenProfile = {
+        ...prev,
+        livingSituation,
+        dormConstraints: normalizeDormConstraints(livingSituation),
+        sharedKitchen: livingSituation === "standard" ? "none" : prev.sharedKitchen ?? "none"
+      };
+      triggerPreferenceRefresh(updated);
+      return updated;
+    });
+    showToast(
+      livingSituation === "dorm"
+        ? "Dorm / College profile active — cookware & storage tailored independently."
+        : "Standard kitchen profile active."
+    );
+  };
+
+  const handleToggleDormConstraint = (key: keyof DormConstraints) => {
+    setProfile((prev) => {
+      const currentDorm = prev.dormConstraints ?? DEFAULT_DORM_CONSTRAINTS;
+      const updated: KitchenProfile = {
+        ...prev,
+        livingSituation: "dorm",
+        dormConstraints: {
+          ...currentDorm,
+          [key]: !currentDorm[key]
+        }
+      };
+      triggerPreferenceRefresh(updated);
+      return updated;
+    });
+  };
+
+  const handleChangeSharedKitchen = (sharedKitchen: SharedKitchenPreference) => {
+    setProfile((prev) => {
+      const updated: KitchenProfile = {
+        ...prev,
+        sharedKitchen
+      };
+      triggerPreferenceRefresh(updated);
+      return updated;
+    });
+    if (sharedKitchen === "available_use") {
+      showToast("Shared dorm kitchen included — stovetop & oven recipes unlocked.");
+    } else if (sharedKitchen === "available_avoid") {
+      showToast("Keeping meals in-room (avoiding shared hall kitchen).");
+    }
   };
 
   const handleToggleDietary = (tag: DietaryRestriction) => {
@@ -409,10 +504,12 @@ export default function App() {
         : [...prev.dietaryRestrictions, tag];
       return { ...prev, dietaryRestrictions: nextTags };
     });
+    setCurrentSpotlightId(null);
   };
 
   const handleChangeVarietyPreference = (varietyPreference: VarietyPreference) => {
     setProfile((prev) => ({ ...prev, varietyPreference }));
+    setCurrentSpotlightId(null);
   };
 
   // Listen to Firebase Auth
@@ -1169,11 +1266,13 @@ export default function App() {
       dateAdded: new Date().toISOString()
     };
     setRutMeals((prev) => [...prev, newItem]);
+    setCurrentSpotlightId(null);
     showToast(`Added "${name}" to your preferences list.`);
   };
 
   const handleRemoveRutMeal = (id: string) => {
     setRutMeals((prev) => prev.filter((r) => r.id !== id));
+    setCurrentSpotlightId(null);
   };
 
   // Adaptive AI Meal Generator ("Pick For Me" or "Try a Twist")
@@ -1202,19 +1301,40 @@ export default function App() {
             lessFrequentList: rutMeals
           }).eligible
       );
-      const eqEligible =
+      const closestSafeEligible =
         strictEligible.length > 0
           ? strictEligible
-          : meals.filter((m) => isMealEquipmentCompatible(m, profile).compatible);
-      const pool = eqEligible.length > 0 ? eqEligible : DEFAULT_MEALS;
-      const picked =
-        pool.find((m) => !recentSpotlightIds.includes(m.id)) ||
-        pool[Math.floor(Math.random() * pool.length)] ||
-        DEFAULT_MEALS[0];
+          : meals.filter(
+              (m) =>
+                getMealEligibility(m, profile, {
+                  mealType: mealTypeFilter,
+                  effortMatchMode: "any",
+                  lessFrequentList: rutMeals
+                }).eligible
+            );
+
+      if (closestSafeEligible.length === 0) {
+        setCurrentSpotlightId(null);
+        showToast(
+          customToast ||
+            "No saved meals fit all active constraints — use the adjustment buttons in Spotlight."
+        );
+        return;
+      }
+
+      const unshown = closestSafeEligible.filter((m) => !recentSpotlightIds.includes(m.id));
+      const pool = unshown.length > 0 ? unshown : closestSafeEligible;
+      const picked = pool[Math.floor(Math.random() * pool.length)];
 
       promoteSpotlight(picked);
       ensureVisible();
-      showToast(customToast || `Selected for your setup: "${picked.title}"`);
+      if (customToast) {
+        showToast(customToast);
+      } else if (strictEligible.length === 0) {
+        showToast(`Closest effort match for your equipment: "${picked.title}"`);
+      } else {
+        showToast(`Selected for your setup: "${picked.title}"`);
+      }
     };
 
     if (typeof navigator !== "undefined" && !navigator.onLine) {
@@ -1300,16 +1420,31 @@ export default function App() {
             lessFrequentList: rutMeals
           }).eligible
       );
-      const eqEligible =
-        strictEligible.length >= 3
-          ? strictEligible
-          : meals.filter((m) => isMealEquipmentCompatible(m, profile).compatible);
-      const basePool = eqEligible.length > 0 ? eqEligible : DEFAULT_MEALS;
-      const shuffled = [...basePool].sort(() => Math.random() - 0.5).slice(0, 3);
-      if (shuffled.length > 0) {
-        setRecentSuggestions(shuffled);
-        setCurrentSpotlightId(shuffled[0].id);
+      const safeAnyEffort = meals.filter(
+        (m) =>
+          getMealEligibility(m, profile, {
+            mealType: "any",
+            effortMatchMode: "any",
+            lessFrequentList: rutMeals
+          }).eligible
+      );
+      const basePool = strictEligible.length >= 3 ? strictEligible : safeAnyEffort;
+
+      if (basePool.length === 0) {
+        setRecentSuggestions([]);
+        showToast(
+          customToast ||
+            "No saved meals fit your active equipment & dietary filters — adjust filters above."
+        );
+        return;
       }
+
+      const shuffled = [...basePool].sort(() => Math.random() - 0.5).slice(0, 3);
+      setRecentSuggestions(shuffled);
+      setCurrentSpotlightId(shuffled[0].id);
+      setRecentSpotlightIds((prev) =>
+        [shuffled[0].id, ...prev.filter((id) => id !== shuffled[0].id)].slice(0, 12)
+      );
       ensureBatchVisible();
       showToast(customToast || "Surfaced fresh meal picks — compare their ingredients below!");
     };
@@ -1364,6 +1499,9 @@ export default function App() {
       });
       setRecentSuggestions(stamped);
       setCurrentSpotlightId(stamped[0].id);
+      setRecentSpotlightIds((prev) =>
+        [stamped[0].id, ...prev.filter((id) => id !== stamped[0].id)].slice(0, 12)
+      );
       ensureBatchVisible();
       showToast(`Added ${stamped.length} new meal ideas — compare ingredients below!`);
     } catch {
@@ -1404,7 +1542,8 @@ export default function App() {
         .filter(
           (m) =>
             !excludeLower.has(m.title.toLowerCase()) &&
-            isMealEquipmentCompatible(m, profile).compatible
+            isMealEquipmentCompatible(m, profile).compatible &&
+            isMealDormCompatible(m, profile).compatible
         )
         .map((m) => {
           const overlap = m.ingredients.filter((ing) =>
@@ -1422,8 +1561,9 @@ export default function App() {
         .map((x) => x.meal);
 
       const now = Date.now();
-      const hasStove = profile.equipment.includes("stove");
-      const hasMicro = profile.equipment.includes("microwave");
+      const effectiveEq = getEffectiveEquipment(profile);
+      const hasStove = effectiveEq.has("stove");
+      const hasMicro = effectiveEq.has("microwave");
 
       const noCookOption: Meal = {
         id: `rescue-nocook-${now}-2`,
@@ -1573,7 +1713,8 @@ export default function App() {
         if (picked.length >= 3) break;
         if (
           !usedTitles.has(opt.title.toLowerCase()) &&
-          isMealEquipmentCompatible(opt, profile).compatible
+          isMealEquipmentCompatible(opt, profile).compatible &&
+          isMealDormCompatible(opt, profile).compatible
         ) {
           usedTitles.add(opt.title.toLowerCase());
           picked.push(opt);
@@ -1885,10 +2026,11 @@ export default function App() {
   useEffect(() => {
     if (spotlightResult.meal && spotlightResult.meal.id !== currentSpotlightId) {
       setCurrentSpotlightId(spotlightResult.meal.id);
+      setRecentSpotlightIds(spotlightResult.updatedRecentIds);
     } else if (!spotlightResult.meal && currentSpotlightId !== null) {
       setCurrentSpotlightId(null);
     }
-  }, [spotlightResult.meal, currentSpotlightId]);
+  }, [spotlightResult.meal, spotlightResult.updatedRecentIds, currentSpotlightId]);
 
   const handleNextSpotlightPick = () => {
     const basePool =
@@ -1911,21 +2053,24 @@ export default function App() {
     }
   };
 
-  const handleSpotlightAdjustment = (
-    action: "relax_effort" | "add_fridge" | "reset_filters" | "generate_ai"
-  ) => {
+  const handleSpotlightAdjustment = (action: SpotlightAdjustmentAction) => {
     if (action === "generate_ai") {
       handleGenerateMeal();
     } else if (action === "relax_effort") {
+      const effectiveEq = getEffectiveEquipment(profile);
       const nextEffort: CookingEffort =
-        profile.effort === "normal" &&
-        !profile.equipment.includes("stove") &&
-        !profile.equipment.includes("oven")
+        profile.effort === "normal" && !effectiveEq.has("stove") && !effectiveEq.has("oven")
           ? "moderate"
           : "low";
       handleChangeEffort(nextEffort);
     } else if (action === "add_fridge") {
-      handleChangeEnvironment("microwave_mini_fridge");
+      if (profile.environment === "microwave_only") {
+        handleChangeEnvironment("microwave_mini_fridge");
+      } else {
+        handleToggleCustomEquipment("fridge");
+      }
+    } else if (action === "use_shared_kitchen") {
+      handleChangeSharedKitchen("available_use");
     } else if (action === "reset_filters") {
       setMealTypeFilter("any");
       setMaxTimeFilter(null);
@@ -1935,6 +2080,7 @@ export default function App() {
         dietaryRestrictions: [],
         varietyPreference: "balanced"
       }));
+      setCurrentSpotlightId(null);
       showToast("Filters reset to match more meals.");
     }
   };
@@ -1944,10 +2090,19 @@ export default function App() {
     ? evaluateMealIngredients(spotlightMeal, pantryItems)
     : null;
   const spotlightReqs = spotlightMeal ? inferMealRequirements(spotlightMeal) : null;
+  const spotlightStorage = spotlightMeal ? getMealStorageProfile(spotlightMeal) : null;
 
   const activeEnvLabel =
     profile.environment === "custom"
-      ? `Custom (${profile.equipment.map((e) => e.replace(/_/g, " ")).join(", ") || "No-Cook"})`
+      ? `Custom (${
+          profile.equipment
+            .map((e) =>
+              e === "other" && profile.otherEquipmentLabel
+                ? profile.otherEquipmentLabel
+                : e.replace(/_/g, " ")
+            )
+            .join(", ") || "No-Cook"
+        })`
       : ENVIRONMENT_PRESETS[profile.environment].label;
 
   return (
@@ -1972,7 +2127,13 @@ export default function App() {
                 Simple Chef
               </h1>
               <p className="text-xs text-stone-500 mt-0.5 truncate">
-                {activeEnvLabel} · {EFFORT_PRESETS[profile.effort].label}
+                {activeEnvLabel}
+                {profile.livingSituation === "dorm"
+                  ? profile.sharedKitchen === "available_use"
+                    ? " · Dorm (Shared Kitchen)"
+                    : " · Dorm Mode"
+                  : ""}{" "}
+                · {EFFORT_PRESETS[profile.effort].label}
               </p>
             </div>
           </div>
@@ -2073,22 +2234,42 @@ export default function App() {
         {/* Adaptive Hubs, Environment, Effort & Filter Bar */}
         <MealGeneratorBar
           profile={profile}
+          eligibleCount={eligibleMeals.length}
           onChangeEnvironment={handleChangeEnvironment}
           onToggleCustomEquipment={handleToggleCustomEquipment}
+          onChangeOtherEquipmentLabel={handleChangeOtherEquipmentLabel}
           onChangeEffort={handleChangeEffort}
+          onChangeLivingSituation={handleChangeLivingSituation}
+          onToggleDormConstraint={handleToggleDormConstraint}
+          onChangeSharedKitchen={handleChangeSharedKitchen}
           onToggleDietary={handleToggleDietary}
           onPickForMe={() => handleGenerateMeal()}
           onGenerateBatch={handleGenerateBatch}
-          onUseWhatIHave={() =>
-            setActiveFilter((prev) => (prev === "pantry" ? "all" : "pantry"))
-          }
+          onUseWhatIHave={() => {
+            setActiveFilter((prev) => (prev === "pantry" ? "all" : "pantry"));
+            resultsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+          }}
+          onBrowseMeals={() => {
+            setActiveFilter("all");
+            resultsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+          }}
+          onOpenFavorites={() => {
+            setActiveFilter((prev) => (prev === "favorites" ? "all" : "favorites"));
+            resultsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+          }}
           generatingMode={generatingMode}
           activeMethodFilter={activeFilter}
           onSelectMethodFilter={setActiveFilter}
           mealTypeFilter={mealTypeFilter}
-          onChangeMealTypeFilter={setMealTypeFilter}
+          onChangeMealTypeFilter={(nextType) => {
+            setMealTypeFilter(nextType);
+            setCurrentSpotlightId(null);
+          }}
           maxTimeFilter={maxTimeFilter}
-          onChangeMaxTimeFilter={setMaxTimeFilter}
+          onChangeMaxTimeFilter={(nextMax) => {
+            setMaxTimeFilter(nextMax);
+            setCurrentSpotlightId(null);
+          }}
           pantryCount={pantryItems.length}
           pantryMatchCount={pantryMatchedMeals.length}
           groceryCount={groceryItems.length}
@@ -2152,6 +2333,7 @@ export default function App() {
                 const evalRes = evaluateMealIngredients(item, pantryItems);
                 const missing = evalRes.missing;
                 const totalMins = item.prepMinutes + item.cookMinutes;
+                const itemStorage = getMealStorageProfile(item);
                 const methodLabel =
                   item.category === "assembly"
                     ? "No-Cook"
@@ -2172,11 +2354,20 @@ export default function App() {
                         <h4 className="text-sm font-bold text-stone-900 leading-snug">
                           {item.title}
                         </h4>
-                        <div className="text-[11px] text-stone-500 font-medium mt-0.5">
-                          {methodLabel} · {totalMins}m · {item.ingredients.length} items
+                        <div className="text-[11px] text-stone-500 font-medium mt-0.5 flex flex-wrap items-center gap-x-1.5">
+                          <span>{methodLabel}</span>
+                          <span aria-hidden="true">·</span>
+                          <span>{totalMins}m</span>
+                          <span aria-hidden="true">·</span>
+                          <span>
+                            {itemStorage.requiresFreezer
+                              ? "Needs Freezer"
+                              : itemStorage.requiresFridge
+                              ? "Needs Fridge"
+                              : "Shelf-Stable"}
+                          </span>
                           {pantryItems.length > 0 && (
                             <span className="text-emerald-700 font-semibold">
-                              {" "}
                               · {missing.length === 0 ? "Have all" : `Buy ${missing.length}`}
                             </span>
                           )}
@@ -2187,31 +2378,42 @@ export default function App() {
 
                       <div className="space-y-1 pt-1 border-t border-stone-200/70">
                         <div className="text-[11px] font-bold uppercase tracking-wider text-stone-500">
-                          What You Need:
+                          What You Need ({item.ingredients.length}):
                         </div>
-                        <ul className="space-y-0.5">
+                        <ul className="space-y-1">
                           {item.ingredients.map((ing, i) => {
                             const res = evalRes.resolutions[i];
-                            const hasIt = pantryItems.length > 0 && res?.hasInPantry;
+                            const isExact = pantryItems.length > 0 && res?.tier === "exact";
+                            const isSub = pantryItems.length > 0 && res?.tier === "substitution";
+                            const isRelated =
+                              pantryItems.length > 0 && res?.tier === "related_not_equivalent";
                             return (
                               <li key={i} className="text-xs text-stone-700 flex items-start gap-1.5">
-                                <span
-                                  className={`w-1.5 h-1.5 rounded-full shrink-0 mt-1.5 ${
-                                    res?.tier === "exact"
-                                      ? "bg-emerald-600"
-                                      : res?.tier === "substitution"
-                                      ? "bg-teal-500"
-                                      : "bg-stone-300"
-                                  }`}
-                                />
+                                {isExact ? (
+                                  <Check className="w-3.5 h-3.5 text-emerald-700 shrink-0 mt-0.5" />
+                                ) : isSub ? (
+                                  <RefreshCw className="w-3.5 h-3.5 text-teal-700 shrink-0 mt-0.5" />
+                                ) : isRelated ? (
+                                  <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+                                ) : (
+                                  <ShoppingBag className="w-3.5 h-3.5 text-stone-400 shrink-0 mt-0.5" />
+                                )}
                                 <span>
                                   <strong className="font-semibold text-stone-900">{ing.amount}</strong>{" "}
                                   {ing.item}
-                                  {hasIt && (
+                                  {isExact && (
                                     <span className="text-[10px] text-emerald-700 font-semibold ml-1">
-                                      {res?.tier === "substitution"
-                                        ? `(sub: ${res.matchedItem?.name})`
-                                        : "(have)"}
+                                      (in pantry)
+                                    </span>
+                                  )}
+                                  {isSub && res.matchedItem && (
+                                    <span className="text-[10px] text-teal-700 font-semibold ml-1">
+                                      (swap: {res.matchedItem.name})
+                                    </span>
+                                  )}
+                                  {isRelated && res.matchedItem && (
+                                    <span className="text-[10px] text-amber-800 font-medium ml-1">
+                                      (have {res.matchedItem.name} — different)
                                     </span>
                                   )}
                                 </span>
@@ -2229,7 +2431,7 @@ export default function App() {
                           setRecentSuggestions([]);
                           setCookingMeal(item);
                         }}
-                        className="flex-1 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold px-3 py-2 rounded-lg transition-colors"
+                        className="flex-1 min-h-[44px] bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold px-3 py-2 rounded-lg transition-colors"
                       >
                         Cook This
                       </button>
@@ -2240,7 +2442,7 @@ export default function App() {
                             ? handleAddMissingToGrocery(item)
                             : handleAddToGrocery(item)
                         }
-                        className="bg-white hover:bg-emerald-50 text-emerald-900 border border-emerald-300 text-xs font-semibold px-3 py-2 rounded-lg transition-colors"
+                        className="min-h-[44px] bg-white hover:bg-emerald-50 text-emerald-900 border border-emerald-300 text-xs font-semibold px-3 py-2 rounded-lg transition-colors"
                       >
                         {pantryItems.length > 0 ? "+ Missing" : "+ List"}
                       </button>
@@ -2253,7 +2455,7 @@ export default function App() {
         )}
 
         {/* Adaptive Spotlight Card (or Clear Empty Explanation + Adjustment Buttons) */}
-        {spotlightMeal && spotlightEval && spotlightReqs ? (
+        {spotlightMeal && spotlightEval && spotlightReqs && spotlightStorage ? (
           <div className="bg-white border-2 border-emerald-700/30 rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col lg:flex-row items-start lg:items-center justify-between gap-5">
             <div className="space-y-2.5 max-w-2xl flex-1 w-full">
               <div className="flex flex-wrap items-center gap-2 text-xs text-stone-500 font-medium">
@@ -2268,9 +2470,24 @@ export default function App() {
                 <span aria-hidden="true">·</span>
                 <span>{EFFORT_PRESETS[spotlightReqs.effortLevel].label}</span>
                 <span aria-hidden="true">·</span>
-                <span>{spotlightMeal.ingredients.length} ingredients</span>
+                <span className="inline-flex items-center gap-1 font-semibold text-emerald-800">
+                  {spotlightStorage.requiresFreezer ? (
+                    <Snowflake className="w-3 h-3" />
+                  ) : spotlightStorage.requiresFridge ? (
+                    <Refrigerator className="w-3 h-3" />
+                  ) : (
+                    <Package className="w-3 h-3" />
+                  )}
+                  <span>
+                    {spotlightStorage.requiresFreezer
+                      ? "Needs Freezer"
+                      : spotlightStorage.requiresFridge
+                      ? "Needs Fridge"
+                      : "Shelf-Stable"}
+                  </span>
+                </span>
                 <span aria-hidden="true">·</span>
-                <span>{spotlightResult.eligiblePoolCount} eligible in pool</span>
+                <span>{spotlightResult.eligiblePoolCount} eligible</span>
               </div>
 
               <h3 className="text-xl font-bold text-stone-900 tracking-tight">
@@ -2278,46 +2495,50 @@ export default function App() {
               </h3>
               <p className="text-sm text-stone-600">{spotlightMeal.tagline}</p>
 
-              {/* Ingredient Checklist with 3-tier clarity */}
-              <div className="bg-stone-50 border border-stone-200 rounded-xl p-3 space-y-1.5">
+              {/* High-visibility Ingredient Checklist with 3-tier clarity */}
+              <div className="bg-stone-50 border border-stone-200 rounded-xl p-3.5 space-y-2">
                 <div className="flex items-center justify-between gap-2 text-xs">
                   <span className="font-bold uppercase tracking-wider text-stone-600">
-                    What This Meal Needs:
+                    What This Meal Needs ({spotlightMeal.ingredients.length})
                   </span>
                   {pantryItems.length > 0 && (
                     <span className="font-semibold text-emerald-700">
                       {spotlightEval.missing.length === 0
                         ? "All covered in pantry"
-                        : `Need ${spotlightEval.missing.length} of ${spotlightMeal.ingredients.length}`}
+                        : `Have ${spotlightEval.matchCount} · Need ${spotlightEval.missing.length}`}
                     </span>
                   )}
                 </div>
-                <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
+                <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5">
                   {spotlightMeal.ingredients.map((ing, idx) => {
                     const res = pantryItems.length > 0 ? spotlightEval.resolutions[idx] : undefined;
                     const isExact = res?.tier === "exact";
                     const isSub = res?.tier === "substitution";
                     const isRelated = res?.tier === "related_not_equivalent";
+                    const ingStorage = inferIngredientStorage(ing);
                     return (
                       <li
                         key={idx}
                         className="text-xs text-stone-700 flex items-start justify-between gap-2"
                       >
                         <span className="flex items-start gap-1.5 min-w-0">
-                          <span
-                            className={`w-1.5 h-1.5 rounded-full shrink-0 mt-1.5 ${
-                              isExact
-                                ? "bg-emerald-600"
-                                : isSub
-                                ? "bg-teal-500"
-                                : isRelated
-                                ? "bg-amber-400"
-                                : "bg-stone-300"
-                            }`}
-                          />
+                          {isExact && res.quantitySufficient ? (
+                            <Check className="w-3.5 h-3.5 text-emerald-700 shrink-0 mt-0.5" />
+                          ) : isSub ? (
+                            <RefreshCw className="w-3.5 h-3.5 text-teal-700 shrink-0 mt-0.5" />
+                          ) : isRelated || (isExact && !res.quantitySufficient) ? (
+                            <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+                          ) : (
+                            <ShoppingBag className="w-3.5 h-3.5 text-stone-400 shrink-0 mt-0.5" />
+                          )}
                           <span>
                             <strong className="font-semibold text-stone-900">{ing.amount}</strong>{" "}
                             {ing.item}
+                            {ing.optional && (
+                              <span className="ml-1 text-[10px] text-stone-500 italic">
+                                (optional)
+                              </span>
+                            )}
                             {isExact && res.quantitySufficient && (
                               <span className="ml-1 text-[10px] font-semibold text-emerald-700">
                                 (in pantry)
@@ -2330,7 +2551,7 @@ export default function App() {
                             )}
                             {isSub && (
                               <span className="ml-1 text-[10px] font-semibold text-teal-700">
-                                (sub: {res.matchedItem?.name})
+                                (swap: {res.matchedItem?.name})
                               </span>
                             )}
                             {isRelated && (
@@ -2340,8 +2561,13 @@ export default function App() {
                             )}
                           </span>
                         </span>
-                        <span className="text-[11px] text-stone-400 shrink-0">
+                        <span className="text-[11px] text-stone-500 shrink-0">
                           {ing.walmartAisle}
+                          {ingStorage === "fridge"
+                            ? " · Fridge"
+                            : ingStorage === "freezer"
+                            ? " · Freezer"
+                            : ""}
                         </span>
                       </li>
                     );
@@ -2358,7 +2584,7 @@ export default function App() {
             <div className="flex flex-col sm:flex-row lg:flex-col items-stretch gap-2.5 w-full lg:w-auto shrink-0">
               <button
                 onClick={() => setCookingMeal(spotlightMeal)}
-                className="bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-sm px-5 py-3 rounded-xl shadow-sm flex items-center justify-center gap-2 transition-colors"
+                className="min-h-[44px] bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-sm px-5 py-3 rounded-xl shadow-sm flex items-center justify-center gap-2 transition-colors"
               >
                 <span>Cook Step-by-Step</span>
                 <ArrowRight className="w-4 h-4" />
@@ -2371,7 +2597,7 @@ export default function App() {
                       ? handleAddMissingToGrocery(spotlightMeal)
                       : handleAddToGrocery(spotlightMeal)
                   }
-                  className="flex-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 font-medium text-xs px-3.5 py-3 rounded-xl border border-emerald-200 flex items-center justify-center gap-1.5 transition-colors"
+                  className="flex-1 min-h-[44px] bg-emerald-50 hover:bg-emerald-100 text-emerald-900 font-medium text-xs px-3.5 py-3 rounded-xl border border-emerald-200 flex items-center justify-center gap-1.5 transition-colors"
                 >
                   <ShoppingBag className="w-3.5 h-3.5 text-emerald-700" />
                   <span>{pantryItems.length > 0 ? "Add Missing" : "Add to List"}</span>
@@ -2379,7 +2605,7 @@ export default function App() {
 
                 <button
                   onClick={handleNextSpotlightPick}
-                  className="flex-1 bg-stone-100 hover:bg-stone-200 text-stone-700 font-medium text-xs px-3.5 py-3 rounded-xl border border-stone-200 flex items-center justify-center gap-1.5 transition-colors"
+                  className="flex-1 min-h-[44px] bg-stone-100 hover:bg-stone-200 text-stone-700 font-medium text-xs px-3.5 py-3 rounded-xl border border-stone-200 flex items-center justify-center gap-1.5 transition-colors"
                   title="Pick another eligible Spotlight meal without repeating recent picks"
                 >
                   <Shuffle className="w-3.5 h-3.5" />

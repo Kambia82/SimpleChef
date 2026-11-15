@@ -16,7 +16,7 @@ export default defineConfig(() => {
           id: '/',
           name: 'Easy Low-Effort Meals',
           short_name: 'Easy Meals',
-          description: 'Simple, low-cognitive-load meal ideas and step-by-step cooking guides to prevent eating ruts.',
+          description: 'Adaptive, low-cognitive-load meal ideas, dorm and microwave recipes, and step-by-step cooking guides.',
           theme_color: '#065f46',
           background_color: '#f5f5f4',
           display: 'standalone',

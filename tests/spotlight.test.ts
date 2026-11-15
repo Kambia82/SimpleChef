@@ -98,4 +98,25 @@ describe("Adaptive Spotlight Selection Engine", () => {
     expect(res.suggestedAdjustments.some((a) => a.action === "relax_effort")).toBe(true);
     expect(res.suggestedAdjustments.some((a) => a.action === "add_fridge")).toBe(true);
   });
+
+  it("suggests Include Shared Kitchen when sharedKitchen is available_avoid and eligible pool is empty", () => {
+    const dormAvoidImpossible = createProfileForEnvironment("microwave_only", {
+      effort: "normal",
+      livingSituation: "dorm",
+      sharedKitchen: "available_avoid",
+      dietaryRestrictions: ["dairy_free", "gluten_free", "vegetarian"],
+    });
+
+    const res = selectSpotlightMeal({
+      meals: DEFAULT_MEALS,
+      profile: dormAvoidImpossible,
+      lessFrequentList: [],
+      pantryItems: [],
+      recentSpotlightIds: [],
+    });
+
+    expect(res.meal).toBeNull();
+    expect(res.emptyReason).toContain("Dorm setup");
+    expect(res.suggestedAdjustments.some((a) => a.action === "use_shared_kitchen")).toBe(true);
+  });
 });

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   Sparkles,
   Loader2,
@@ -12,31 +12,48 @@ import {
   Refrigerator,
   Clock,
   Heart,
-  Wrench
+  Wrench,
+  Home,
+  GraduationCap,
+  ChevronDown,
+  ChevronUp,
+  LayoutGrid
 } from "lucide-react";
 import {
   CookingEffort,
   CookingEnvironment,
   CookingEquipment,
   DietaryRestriction,
+  DormConstraints,
   KitchenProfile,
-  MealType
+  LivingSituation,
+  MealType,
+  SharedKitchenPreference
 } from "../types";
 import {
   ALL_EQUIPMENT_OPTIONS,
+  DEFAULT_DORM_CONSTRAINTS,
   EFFORT_PRESETS,
-  ENVIRONMENT_PRESETS
+  ENVIRONMENT_PRESETS,
+  getEffectiveEquipment
 } from "../utils/kitchenProfile";
 
 interface MealGeneratorBarProps {
   profile: KitchenProfile;
+  eligibleCount: number;
   onChangeEnvironment: (env: CookingEnvironment) => void;
   onToggleCustomEquipment: (eq: CookingEquipment) => void;
+  onChangeOtherEquipmentLabel: (label: string) => void;
   onChangeEffort: (effort: CookingEffort) => void;
+  onChangeLivingSituation: (living: LivingSituation) => void;
+  onToggleDormConstraint: (key: keyof DormConstraints) => void;
+  onChangeSharedKitchen: (pref: SharedKitchenPreference) => void;
   onToggleDietary: (tag: DietaryRestriction) => void;
   onPickForMe: () => Promise<void>;
   onGenerateBatch: () => Promise<void>;
   onUseWhatIHave: () => void;
+  onBrowseMeals: () => void;
+  onOpenFavorites: () => void;
   generatingMode: "single" | "batch" | null;
   activeMethodFilter: string;
   onSelectMethodFilter: (filter: string) => void;
@@ -80,15 +97,36 @@ const DIETARY_OPTIONS: Array<{ id: DietaryRestriction; label: string }> = [
   { id: "high_protein", label: "High Protein" }
 ];
 
+const DORM_CONSTRAINT_LABELS: Array<{
+  key: keyof DormConstraints;
+  label: string;
+}> = [
+  { key: "minimalCookware", label: "Mug/bowl/plate only" },
+  { key: "preferShelfStable", label: "Favor shelf-stable" },
+  { key: "smallerQuantities", label: "Smaller single-serve packs" },
+  { key: "limitedFridgeSpace", label: "Small mini-fridge" },
+  { key: "limitedFreezerSpace", label: "No/tiny freezer" },
+  { key: "limitedFoodStorage", label: "Small dry storage" },
+  { key: "limitedCounterSpace", label: "Minimal prep space" },
+  { key: "sharedAppliances", label: "Shared hall appliances" }
+];
+
 export const MealGeneratorBar: React.FC<MealGeneratorBarProps> = ({
   profile,
+  eligibleCount,
   onChangeEnvironment,
   onToggleCustomEquipment,
+  onChangeOtherEquipmentLabel,
   onChangeEffort,
+  onChangeLivingSituation,
+  onToggleDormConstraint,
+  onChangeSharedKitchen,
   onToggleDietary,
   onPickForMe,
   onGenerateBatch,
   onUseWhatIHave,
+  onBrowseMeals,
+  onOpenFavorites,
   generatingMode,
   activeMethodFilter,
   onSelectMethodFilter,
@@ -106,194 +144,395 @@ export const MealGeneratorBar: React.FC<MealGeneratorBarProps> = ({
   onOpenRescueModal,
   onOpenPantryModal
 }) => {
-  const hasStoveOrOven =
-    profile.equipment.includes("stove") || profile.equipment.includes("oven");
+  const [setupExpanded, setSetupExpanded] = useState(true);
+  const effectiveEq = getEffectiveEquipment(profile);
+  const hasStoveOrOven = effectiveEq.has("stove") || effectiveEq.has("oven");
   const hasToasterOrAirFryer =
-    profile.equipment.includes("toaster") || profile.equipment.includes("air_fryer");
+    effectiveEq.has("toaster") || effectiveEq.has("air_fryer");
+  const dormConstraints = profile.dormConstraints ?? DEFAULT_DORM_CONSTRAINTS;
+
+  const envLabel =
+    profile.environment === "custom"
+      ? `Custom (${
+          profile.equipment
+            .map((e) =>
+              e === "other" && profile.otherEquipmentLabel
+                ? profile.otherEquipmentLabel
+                : e.replace(/_/g, " ")
+            )
+            .join(", ") || "No-cook"
+        })`
+      : ENVIRONMENT_PRESETS[profile.environment].label;
 
   return (
     <div className="bg-white border border-stone-200 rounded-2xl p-4 sm:p-6 shadow-sm space-y-5">
-      {/* Primary Action Hubs */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
-        <button
-          type="button"
-          onClick={onPickForMe}
-          disabled={generatingMode !== null}
-          className="col-span-2 sm:col-span-1 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-60 text-white text-xs font-bold px-3.5 py-3 rounded-xl shadow-xs flex items-center justify-center gap-2 transition-colors min-h-[44px]"
-        >
-          {generatingMode === "single" ? (
+      {/* Primary Task Hub (8 clear workflows) */}
+      <div className="space-y-2.5">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+          <button
+            type="button"
+            onClick={onPickForMe}
+            disabled={generatingMode !== null}
+            className="min-h-[44px] bg-emerald-700 hover:bg-emerald-800 disabled:opacity-60 text-white text-xs sm:text-sm font-bold px-3.5 py-2.5 rounded-xl shadow-xs flex items-center justify-center gap-2 transition-colors"
+          >
+            {generatingMode === "single" ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Picking...</span>
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-4 h-4 text-emerald-200 shrink-0" />
+                <span>Pick Something for Me</span>
+              </>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={onUseWhatIHave}
+            className={`min-h-[44px] text-xs sm:text-sm font-semibold px-3 py-2.5 rounded-xl border flex items-center justify-center gap-1.5 transition-colors ${
+              activeMethodFilter === "pantry"
+                ? "bg-emerald-900 text-white border-emerald-900"
+                : "bg-emerald-50 hover:bg-emerald-100 text-emerald-950 border-emerald-200"
+            }`}
+          >
+            <PackageCheck className="w-4 h-4 shrink-0" />
+            <span>Use What I Have ({pantryMatchCount})</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={onOpenRescueModal}
+            className="min-h-[44px] bg-amber-50 hover:bg-amber-100 text-amber-950 border border-amber-200 text-xs sm:text-sm font-semibold px-3 py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-colors"
+          >
+            <ChefHat className="w-4 h-4 text-amber-700 shrink-0" />
+            <span>Ingredient Rescue</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={onBrowseMeals}
+            className="min-h-[44px] bg-stone-50 hover:bg-stone-100 text-stone-800 border border-stone-200 text-xs sm:text-sm font-semibold px-3 py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-colors"
+          >
+            <LayoutGrid className="w-4 h-4 text-stone-600 shrink-0" />
+            <span>Browse Meals ({eligibleCount})</span>
+          </button>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <button
+            type="button"
+            onClick={onOpenPantryModal}
+            className="min-h-[44px] bg-stone-50 hover:bg-stone-100 text-stone-800 border border-stone-200 text-xs font-semibold px-3 py-2 rounded-xl flex items-center justify-center gap-1.5 transition-colors"
+          >
+            <Refrigerator className="w-4 h-4 text-stone-600 shrink-0" />
+            <span>My Pantry ({pantryCount})</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={onOpenGroceryModal}
+            className="min-h-[44px] bg-stone-50 hover:bg-stone-100 text-stone-800 border border-stone-200 text-xs font-semibold px-3 py-2 rounded-xl flex items-center justify-center gap-1.5 transition-colors"
+          >
+            <ShoppingCart className="w-4 h-4 text-emerald-700 shrink-0" />
+            <span>My Grocery List ({groceryCount})</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={onOpenFavorites}
+            className={`min-h-[44px] text-xs font-semibold px-3 py-2 rounded-xl border flex items-center justify-center gap-1.5 transition-colors ${
+              activeMethodFilter === "favorites"
+                ? "bg-rose-700 text-white border-rose-700"
+                : "bg-stone-50 hover:bg-stone-100 text-stone-800 border-stone-200"
+            }`}
+          >
+            <Heart
+              className={`w-4 h-4 shrink-0 ${
+                activeMethodFilter === "favorites" ? "fill-white text-white" : "text-rose-500"
+              }`}
+            />
+            <span>Favorites ({favoritesCount})</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setSetupExpanded((prev) => !prev)}
+            aria-expanded={setupExpanded}
+            className={`min-h-[44px] text-xs font-semibold px-3 py-2 rounded-xl border flex items-center justify-center gap-1.5 transition-colors ${
+              setupExpanded
+                ? "bg-stone-900 text-white border-stone-900"
+                : "bg-stone-50 hover:bg-stone-100 text-stone-800 border-stone-200"
+            }`}
+          >
+            <SlidersHorizontal className="w-4 h-4 shrink-0" />
+            <span>Cooking Preferences</span>
+            {setupExpanded ? (
+              <ChevronUp className="w-3.5 h-3.5" />
+            ) : (
+              <ChevronDown className="w-3.5 h-3.5" />
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Active Setup Status Line */}
+      <div className="bg-stone-50 border border-stone-200 rounded-xl px-3.5 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-stone-700">
+          <span className="font-bold text-stone-900">Active Setup:</span>
+          <span>{envLabel}</span>
+          <span aria-hidden="true">·</span>
+          <span>
+            {profile.livingSituation === "dorm"
+              ? "Dorm / College Living"
+              : "Standard Kitchen Setup"}
+          </span>
+          <span aria-hidden="true">·</span>
+          <span>{EFFORT_PRESETS[profile.effort].label}</span>
+          {profile.sharedKitchen === "available_use" && (
             <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              <span>Picking...</span>
-            </>
-          ) : (
-            <>
-              <Sparkles className="w-4 h-4 text-emerald-200" />
-              <span>Pick For Me</span>
+              <span aria-hidden="true">·</span>
+              <span className="text-emerald-800 font-semibold">Shared Kitchen Included</span>
             </>
           )}
-        </button>
-
-        <button
-          type="button"
-          onClick={onUseWhatIHave}
-          className={`text-xs font-semibold px-3 py-3 rounded-xl border flex items-center justify-center gap-1.5 transition-colors min-h-[44px] ${
-            activeMethodFilter === "pantry"
-              ? "bg-emerald-900 text-white border-emerald-900"
-              : "bg-emerald-50 hover:bg-emerald-100 text-emerald-950 border-emerald-200"
-          }`}
-        >
-          <PackageCheck className="w-4 h-4 shrink-0" />
-          <span>Use What I Have ({pantryMatchCount})</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={onOpenRescueModal}
-          className="bg-amber-50 hover:bg-amber-100 text-amber-950 border border-amber-200 text-xs font-semibold px-3 py-3 rounded-xl flex items-center justify-center gap-1.5 transition-colors min-h-[44px]"
-        >
-          <ChefHat className="w-4 h-4 text-amber-700 shrink-0" />
-          <span>Ingredient Rescue</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={onOpenPantryModal}
-          className="bg-stone-50 hover:bg-stone-100 text-stone-800 border border-stone-200 text-xs font-semibold px-3 py-3 rounded-xl flex items-center justify-center gap-1.5 transition-colors min-h-[44px]"
-        >
-          <Refrigerator className="w-4 h-4 text-stone-600 shrink-0" />
-          <span>My Pantry ({pantryCount})</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={onOpenGroceryModal}
-          className="bg-stone-50 hover:bg-stone-100 text-stone-800 border border-stone-200 text-xs font-semibold px-3 py-3 rounded-xl flex items-center justify-center gap-1.5 transition-colors min-h-[44px]"
-        >
-          <ShoppingCart className="w-4 h-4 text-emerald-700 shrink-0" />
-          <span>Grocery List ({groceryCount})</span>
-        </button>
-
+        </div>
         <button
           type="button"
           onClick={onOpenPreferencesModal}
-          className="bg-stone-50 hover:bg-stone-100 text-stone-800 border border-stone-200 text-xs font-semibold px-3 py-3 rounded-xl flex items-center justify-center gap-1.5 transition-colors min-h-[44px]"
+          className="text-emerald-800 hover:text-emerald-950 font-semibold underline underline-offset-2"
         >
-          <SlidersHorizontal className="w-4 h-4 text-stone-600 shrink-0" />
-          <span>
-            Style{lessFrequentCount > 0 ? ` (${lessFrequentCount})` : ""}
-          </span>
+          Variety &amp; Comfort{lessFrequentCount > 0 ? ` (${lessFrequentCount})` : ""}
         </button>
       </div>
 
-      {/* Independent Axis A (Cooking Environment) & Axis B (Cooking Effort) */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 pt-3 border-t border-stone-100">
-        {/* A. Cooking Environment */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-stone-600">
-              1. Your Cooking Equipment
-            </span>
-            <span className="text-[11px] text-stone-500">
-              {profile.environment === "custom"
-                ? `${profile.equipment.length} selected`
-                : ENVIRONMENT_PRESETS[profile.environment].description}
-            </span>
-          </div>
+      {/* Decoupled 3-Axis Cooking Preferences Panel */}
+      {setupExpanded && (
+        <div
+          id="cooking-preferences-panel"
+          className="space-y-4 pt-3 border-t border-stone-100"
+        >
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Axis 1: Cooking Equipment */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-stone-600">
+                  1. Cooking Equipment
+                </span>
+                <span className="text-[11px] text-stone-500 truncate max-w-[60%]">
+                  {profile.environment === "custom"
+                    ? `${profile.equipment.length} selected`
+                    : ENVIRONMENT_PRESETS[profile.environment].description}
+                </span>
+              </div>
 
-          <div className="flex flex-wrap gap-1.5">
-            {ENVIRONMENTS.map((env) => {
-              const active = profile.environment === env.id;
-              return (
-                <button
-                  key={env.id}
-                  type="button"
-                  onClick={() => onChangeEnvironment(env.id)}
-                  className={`px-3 py-2 rounded-xl text-xs font-semibold border flex items-center gap-1.5 transition-colors ${
-                    active
-                      ? "bg-stone-900 text-white border-stone-900 shadow-xs"
-                      : "bg-stone-50 text-stone-700 border-stone-200 hover:bg-stone-100"
-                  }`}
-                >
-                  {env.icon}
-                  <span>{env.label}</span>
-                </button>
-              );
-            })}
-          </div>
+              <div className="flex flex-wrap gap-1.5">
+                {ENVIRONMENTS.map((env) => {
+                  const active = profile.environment === env.id;
+                  return (
+                    <button
+                      key={env.id}
+                      type="button"
+                      onClick={() => onChangeEnvironment(env.id)}
+                      className={`min-h-[40px] px-3 py-1.5 rounded-xl text-xs font-semibold border flex items-center gap-1.5 transition-colors ${
+                        active
+                          ? "bg-stone-900 text-white border-stone-900 shadow-xs"
+                          : "bg-stone-50 text-stone-700 border-stone-200 hover:bg-stone-100"
+                      }`}
+                    >
+                      {env.icon}
+                      <span>{env.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
 
-          {profile.environment === "custom" && (
-            <div className="pt-1.5 flex flex-wrap gap-1.5">
-              {ALL_EQUIPMENT_OPTIONS.map((eq) => {
-                const checked =
-                  eq.id === "freezer"
-                    ? profile.hasFreezer
-                    : profile.equipment.includes(eq.id);
-                return (
-                  <button
-                    key={eq.id}
-                    type="button"
-                    onClick={() => onToggleCustomEquipment(eq.id)}
-                    aria-pressed={checked}
-                    className={`px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                      checked
-                        ? "bg-emerald-700 text-white border-emerald-700"
-                        : "bg-white text-stone-600 border-stone-300 hover:bg-stone-50"
-                    }`}
-                  >
-                    {checked ? `✓ ${eq.label}` : eq.label}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* B. Independent Effort Level */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-stone-600">
-              2. Effort &amp; Recipe Complexity
-            </span>
-            <span className="text-[11px] text-stone-500">
-              {EFFORT_PRESETS[profile.effort].description}
-            </span>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-            {EFFORTS.map((eff) => {
-              const active = profile.effort === eff;
-              const label = EFFORT_PRESETS[eff].label
-                .replace(" Effort", "")
-                .replace(" Cooking", "");
-              const range = EFFORT_PRESETS[eff].ingredientRange;
-              return (
-                <button
-                  key={eff}
-                  type="button"
-                  onClick={() => onChangeEffort(eff)}
-                  className={`px-2.5 py-2 rounded-xl text-left border transition-colors ${
-                    active
-                      ? "bg-emerald-800 text-white border-emerald-800 shadow-xs"
-                      : "bg-stone-50 text-stone-700 border-stone-200 hover:bg-stone-100"
-                  }`}
-                >
-                  <div className="text-xs font-bold leading-tight">{label}</div>
-                  <div
-                    className={`text-[10px] mt-0.5 ${
-                      active ? "text-emerald-200" : "text-stone-500"
-                    }`}
-                  >
-                    {eff === "normal"
-                      ? "Flexible ing."
-                      : `${range.min}–${range.max} ingredients`}
+              {profile.environment === "custom" && (
+                <div className="pt-1.5 space-y-2">
+                  <div className="flex flex-wrap gap-1.5">
+                    {ALL_EQUIPMENT_OPTIONS.map((eq) => {
+                      const checked =
+                        eq.id === "freezer"
+                          ? profile.hasFreezer
+                          : profile.equipment.includes(eq.id);
+                      return (
+                        <button
+                          key={eq.id}
+                          type="button"
+                          onClick={() => onToggleCustomEquipment(eq.id)}
+                          aria-pressed={checked}
+                          className={`min-h-[36px] px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
+                            checked
+                              ? "bg-emerald-700 text-white border-emerald-700"
+                              : "bg-white text-stone-600 border-stone-300 hover:bg-stone-50"
+                          }`}
+                        >
+                          {checked ? `✓ ${eq.label}` : eq.label}
+                        </button>
+                      );
+                    })}
                   </div>
+
+                  {profile.equipment.includes("other") && (
+                    <input
+                      type="text"
+                      value={profile.otherEquipmentLabel || ""}
+                      onChange={(e) => onChangeOtherEquipmentLabel(e.target.value)}
+                      placeholder="Specify other equipment (e.g., rice cooker, panini press)..."
+                      maxLength={60}
+                      className="w-full px-3 py-2 rounded-lg border border-stone-300 text-xs text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-600/30"
+                    />
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Axis 2: Independent Effort Level */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-stone-600">
+                  2. Desired Effort (Independent)
+                </span>
+                <span className="text-[11px] text-stone-500 truncate max-w-[55%]">
+                  {EFFORT_PRESETS[profile.effort].description}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                {EFFORTS.map((eff) => {
+                  const active = profile.effort === eff;
+                  const label = EFFORT_PRESETS[eff].label
+                    .replace(" Effort", "")
+                    .replace(" Cooking", "");
+                  const range = EFFORT_PRESETS[eff].ingredientRange;
+                  return (
+                    <button
+                      key={eff}
+                      type="button"
+                      onClick={() => onChangeEffort(eff)}
+                      className={`min-h-[44px] px-2.5 py-2 rounded-xl text-left border transition-colors ${
+                        active
+                          ? "bg-emerald-800 text-white border-emerald-800 shadow-xs"
+                          : "bg-stone-50 text-stone-700 border-stone-200 hover:bg-stone-100"
+                      }`}
+                    >
+                      <div className="text-xs font-bold leading-tight">{label}</div>
+                      <div
+                        className={`text-[10px] mt-0.5 ${
+                          active ? "text-emerald-200" : "text-stone-500"
+                        }`}
+                      >
+                        {eff === "normal"
+                          ? "Flexible ing."
+                          : `${range.min}–${range.max} ingredients`}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* Axis 3: Independent Living Situation & Dorm Context */}
+          <div className="pt-3 border-t border-stone-100 space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <span className="text-xs font-bold uppercase tracking-wider text-stone-600">
+                  3. Living Situation &amp; Storage Context (Optional)
+                </span>
+                <p className="text-[11px] text-stone-500">
+                  Separate from equipment — Microwave-Only works in apartments too, and Dorm mode adapts storage, cookware, and shared hall kitchens.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => onChangeLivingSituation("standard")}
+                  className={`min-h-[40px] px-3 py-1.5 rounded-xl text-xs font-semibold border flex items-center gap-1.5 transition-colors ${
+                    profile.livingSituation !== "dorm"
+                      ? "bg-stone-900 text-white border-stone-900"
+                      : "bg-stone-50 text-stone-700 border-stone-200 hover:bg-stone-100"
+                  }`}
+                >
+                  <Home className="w-3.5 h-3.5" />
+                  <span>Standard</span>
                 </button>
-              );
-            })}
+                <button
+                  type="button"
+                  onClick={() => onChangeLivingSituation("dorm")}
+                  className={`min-h-[40px] px-3 py-1.5 rounded-xl text-xs font-semibold border flex items-center gap-1.5 transition-colors ${
+                    profile.livingSituation === "dorm"
+                      ? "bg-emerald-800 text-white border-emerald-800"
+                      : "bg-stone-50 text-stone-700 border-stone-200 hover:bg-stone-100"
+                  }`}
+                >
+                  <GraduationCap className="w-3.5 h-3.5" />
+                  <span>Dorm / College</span>
+                </button>
+              </div>
+            </div>
+
+            {profile.livingSituation === "dorm" && (
+              <div className="bg-emerald-50/50 border border-emerald-200/80 rounded-xl p-3.5 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <span className="text-xs font-semibold text-emerald-950">
+                    Shared / Communal Dorm Kitchen:
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(
+                      [
+                        { id: "none", label: "No shared kitchen" },
+                        { id: "available_avoid", label: "Available (prefer in-room)" },
+                        { id: "available_use", label: "Use shared stove & oven" }
+                      ] as const
+                    ).map((opt) => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => onChangeSharedKitchen(opt.id)}
+                        className={`px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                          (profile.sharedKitchen ?? "none") === opt.id
+                            ? "bg-emerald-700 text-white border-emerald-700"
+                            : "bg-white text-stone-700 border-stone-300 hover:bg-stone-50"
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-900">
+                    Active Dorm Constraints:
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {DORM_CONSTRAINT_LABELS.map((item) => {
+                      const active = dormConstraints[item.key];
+                      return (
+                        <button
+                          key={item.key}
+                          type="button"
+                          onClick={() => onToggleDormConstraint(item.key)}
+                          aria-pressed={active}
+                          className={`px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                            active
+                              ? "bg-white text-emerald-900 border-emerald-500 ring-1 ring-emerald-500/20 font-semibold"
+                              : "bg-stone-100 text-stone-500 border-stone-200 hover:bg-stone-200"
+                          }`}
+                        >
+                          {active ? `✓ ${item.label}` : item.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
-      </div>
+      )}
 
       {/* Browse Filters & +3 Ideas */}
       <div className="pt-3 border-t border-stone-100 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
@@ -301,7 +540,7 @@ export const MealGeneratorBar: React.FC<MealGeneratorBarProps> = ({
           <button
             type="button"
             onClick={() => onSelectMethodFilter("all")}
-            className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+            className={`min-h-[36px] px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
               activeMethodFilter === "all"
                 ? "bg-stone-900 text-white"
                 : "bg-stone-100 text-stone-600 hover:bg-stone-200"
@@ -310,11 +549,11 @@ export const MealGeneratorBar: React.FC<MealGeneratorBarProps> = ({
             All Matching
           </button>
 
-          {profile.equipment.includes("microwave") && (
+          {effectiveEq.has("microwave") && (
             <button
               type="button"
               onClick={() => onSelectMethodFilter("microwave")}
-              className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+              className={`min-h-[36px] px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                 activeMethodFilter === "microwave"
                   ? "bg-stone-900 text-white"
                   : "bg-stone-100 text-stone-600 hover:bg-stone-200"
@@ -327,7 +566,7 @@ export const MealGeneratorBar: React.FC<MealGeneratorBarProps> = ({
           <button
             type="button"
             onClick={() => onSelectMethodFilter("assembly")}
-            className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+            className={`min-h-[36px] px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
               activeMethodFilter === "assembly"
                 ? "bg-stone-900 text-white"
                 : "bg-stone-100 text-stone-600 hover:bg-stone-200"
@@ -340,7 +579,7 @@ export const MealGeneratorBar: React.FC<MealGeneratorBarProps> = ({
             <button
               type="button"
               onClick={() => onSelectMethodFilter("one_skillet")}
-              className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+              className={`min-h-[36px] px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                 activeMethodFilter === "one_skillet"
                   ? "bg-stone-900 text-white"
                   : "bg-stone-100 text-stone-600 hover:bg-stone-200"
@@ -353,7 +592,7 @@ export const MealGeneratorBar: React.FC<MealGeneratorBarProps> = ({
           <button
             type="button"
             onClick={() => onSelectMethodFilter("healthy_boost")}
-            className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+            className={`min-h-[36px] px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
               activeMethodFilter === "healthy_boost"
                 ? "bg-stone-900 text-white"
                 : "bg-stone-100 text-stone-600 hover:bg-stone-200"
@@ -362,30 +601,11 @@ export const MealGeneratorBar: React.FC<MealGeneratorBarProps> = ({
             Veggies / Produce
           </button>
 
-          {favoritesCount > 0 && (
-            <button
-              type="button"
-              onClick={() =>
-                onSelectMethodFilter(
-                  activeMethodFilter === "favorites" ? "all" : "favorites"
-                )
-              }
-              className={`px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1 transition-colors ${
-                activeMethodFilter === "favorites"
-                  ? "bg-rose-700 text-white"
-                  : "bg-stone-100 text-stone-600 hover:bg-stone-200"
-              }`}
-            >
-              <Heart className="w-3 h-3" />
-              <span>Favorites ({favoritesCount})</span>
-            </button>
-          )}
-
           <select
             value={mealTypeFilter}
             onChange={(e) => onChangeMealTypeFilter(e.target.value as MealType)}
             aria-label="Filter by meal type"
-            className="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-stone-100 text-stone-700 border border-stone-200 focus:outline-none"
+            className="min-h-[36px] px-2.5 py-1.5 rounded-lg text-xs font-medium bg-stone-100 text-stone-700 border border-stone-200 focus:outline-none"
           >
             <option value="any">Any Meal</option>
             <option value="breakfast">Breakfast</option>
@@ -401,7 +621,7 @@ export const MealGeneratorBar: React.FC<MealGeneratorBarProps> = ({
                 maxTimeFilter === 10 ? 20 : maxTimeFilter === 20 ? null : 10
               )
             }
-            className={`px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1 transition-colors ${
+            className={`min-h-[36px] px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1 transition-colors ${
               maxTimeFilter !== null
                 ? "bg-emerald-800 text-white"
                 : "bg-stone-100 text-stone-600 hover:bg-stone-200"
@@ -419,7 +639,7 @@ export const MealGeneratorBar: React.FC<MealGeneratorBarProps> = ({
                 key={tag.id}
                 type="button"
                 onClick={() => onToggleDietary(tag.id)}
-                className={`px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                className={`min-h-[36px] px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
                   active
                     ? "bg-emerald-700 text-white border-emerald-700"
                     : "bg-white text-stone-600 border-stone-200 hover:bg-stone-50"
@@ -435,7 +655,7 @@ export const MealGeneratorBar: React.FC<MealGeneratorBarProps> = ({
           type="button"
           onClick={onGenerateBatch}
           disabled={generatingMode !== null}
-          className="bg-emerald-50 hover:bg-emerald-100 disabled:opacity-50 text-emerald-950 border border-emerald-300 text-xs font-semibold px-4 py-2 rounded-xl flex items-center justify-center gap-1.5 transition-colors shrink-0"
+          className="min-h-[44px] bg-emerald-50 hover:bg-emerald-100 disabled:opacity-50 text-emerald-950 border border-emerald-300 text-xs font-semibold px-4 py-2 rounded-xl flex items-center justify-center gap-1.5 transition-colors shrink-0"
         >
           {generatingMode === "batch" ? (
             <>

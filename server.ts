@@ -13,6 +13,7 @@ import {
   normalizeGenerationRequest,
   recipeSchema,
 } from "./serverLogic";
+import { getEffectiveEquipment } from "./src/utils/kitchenProfile";
 import { Meal } from "./src/types";
 
 dotenv.config();
@@ -33,7 +34,6 @@ function aiRateLimiter(
   const key = deriveRateLimitKey({
     reqIp: req.ip,
     remoteAddress: req.socket.remoteAddress,
-    userIdHeader: req.headers["x-simplechef-client"],
   });
 
   const decision = rateLimiter.checkAndConsume(key);
@@ -132,7 +132,8 @@ app.post("/api/generate-meal", aiRateLimiter, async (req, res) => {
       });
     }
 
-    const pool = getStylePoolForProfile(request.profile.equipment, request.profile.effort);
+    const effectiveEquipment = Array.from(getEffectiveEquipment(request.profile));
+    const pool = getStylePoolForProfile(effectiveEquipment, request.profile.effort);
     const pickedStyle = pool[Math.floor(Math.random() * pool.length)];
     const prompt = buildAdaptiveRecipePrompt(request, pickedStyle.label);
 
@@ -198,11 +199,11 @@ app.post("/api/ingredients-to-meal", aiRateLimiter, async (req, res) => {
     }
 
     const bounds = getIngredientBoundsForEffort(request.profile.effort);
-    const hasStove = request.profile.equipment.includes("stove");
-    const hasOven = request.profile.equipment.includes("oven");
+    const effectiveEqSet = getEffectiveEquipment(request.profile);
+    const hasStove = effectiveEqSet.has("stove");
+    const hasOven = effectiveEqSet.has("oven");
     const hasToasterOrAirFryer =
-      request.profile.equipment.includes("toaster") ||
-      request.profile.equipment.includes("air_fryer");
+      effectiveEqSet.has("toaster") || effectiveEqSet.has("air_fryer");
 
     const formatAngles: Array<{ style: string; category: Meal["category"] }> = [
       {
@@ -312,7 +313,8 @@ app.post("/api/pantry-suggestions", aiRateLimiter, async (req, res) => {
       });
     }
 
-    const pool = getStylePoolForProfile(request.profile.equipment, request.profile.effort).slice(0, 2);
+    const effectiveEquipment = Array.from(getEffectiveEquipment(request.profile));
+    const pool = getStylePoolForProfile(effectiveEquipment, request.profile.effort).slice(0, 2);
 
     const fetchOne = async (angle: (typeof pool)[number]) => {
       const prompt = buildAdaptiveRecipePrompt(request, angle.label);
@@ -382,7 +384,8 @@ app.post("/api/generate-batch", aiRateLimiter, async (req, res) => {
       });
     }
 
-    const pool = getStylePoolForProfile(request.profile.equipment, request.profile.effort);
+    const effectiveEquipment = Array.from(getEffectiveEquipment(request.profile));
+    const pool = getStylePoolForProfile(effectiveEquipment, request.profile.effort);
     const chosenAngles = [...pool].sort(() => Math.random() - 0.5).slice(0, 3);
 
     const fetchOne = async (angle: (typeof chosenAngles)[number]) => {

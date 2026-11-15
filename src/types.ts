@@ -21,7 +21,25 @@ export type CookingEquipment =
   | "toaster"
   | "air_fryer"
   | "fridge"
-  | "freezer";
+  | "freezer"
+  | "other";
+
+export type LivingSituation = "standard" | "dorm";
+
+export type SharedKitchenPreference = "none" | "available_avoid" | "available_use";
+
+export interface DormConstraints {
+  limitedFridgeSpace: boolean;
+  limitedFreezerSpace: boolean;
+  limitedFoodStorage: boolean;
+  limitedCounterSpace: boolean;
+  sharedAppliances: boolean;
+  minimalCookware: boolean;
+  preferShelfStable: boolean;
+  smallerQuantities: boolean;
+}
+
+export type IngredientStorage = "shelf_stable" | "fridge" | "freezer";
 
 export type CookingEffort = "very_low" | "low" | "moderate" | "normal";
 
@@ -42,6 +60,10 @@ export interface KitchenProfile {
   effort: CookingEffort;
   varietyPreference: VarietyPreference;
   dietaryRestrictions: DietaryRestriction[];
+  livingSituation?: LivingSituation;
+  dormConstraints?: DormConstraints;
+  sharedKitchen?: SharedKitchenPreference;
+  otherEquipmentLabel?: string;
 }
 
 export interface MealIngredient {
@@ -50,6 +72,7 @@ export interface MealIngredient {
   walmartAisle: WalmartAisle;
   tip?: string;
   optional?: boolean;
+  storage?: IngredientStorage;
 }
 
 export interface MealStep {

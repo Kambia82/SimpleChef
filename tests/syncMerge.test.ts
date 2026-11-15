@@ -102,7 +102,22 @@ describe("Offline Sync Merge & Client Cloud Sanitization", () => {
       sanitizeCustomMealsForCloud([
         null,
         { id: "bad", title: "Incomplete" },
+        {
+          id: "ok-dorm-1",
+          title: "Rice Cooker Bowl",
+          tagline: "Easy bowl",
+          prepMinutes: 2,
+          cookMinutes: 10,
+          category: "microwave",
+          requiredEquipment: ["other", "invalid_tool"],
+          ingredients: [
+            { item: "Jasmine rice", amount: "1 cup", walmartAisle: "Pantry / Canned", storage: "shelf_stable" },
+          ],
+          instructions: [{ stepNumber: 1, title: "Cook", instruction: "Cook rice." }],
+          whyItWorks: "Simple",
+          rutAlternativeNote: "Filling",
+        },
       ])
-    ).toEqual([]);
+    ).toHaveLength(1);
   });
 });

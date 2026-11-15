@@ -2,7 +2,9 @@ import { KitchenProfile, Meal, MealType, PantryItem, RutMeal } from "../types";
 import {
   EFFORT_PRESETS,
   ENVIRONMENT_PRESETS,
+  getEffectiveEquipment,
   getMealEligibility,
+  getMealStorageProfile,
   isMealMatchedToLessFrequent,
 } from "./kitchenProfile";
 import { getPantryMatchStats } from "./pantryMatch";
@@ -18,6 +20,13 @@ export interface SpotlightSelectionParams {
   forceNewPick?: boolean;
 }
 
+export type SpotlightAdjustmentAction =
+  | "relax_effort"
+  | "add_fridge"
+  | "use_shared_kitchen"
+  | "reset_filters"
+  | "generate_ai";
+
 export interface SpotlightSelectionResult {
   meal: Meal | null;
   eligiblePoolCount: number;
@@ -26,7 +35,7 @@ export interface SpotlightSelectionResult {
   suggestedAdjustments: Array<{
     id: string;
     label: string;
-    action: "relax_effort" | "add_fridge" | "reset_filters" | "generate_ai";
+    action: SpotlightAdjustmentAction;
   }>;
 }
 
@@ -43,6 +52,17 @@ function scoreMealForSpotlight(
     const stats = getPantryMatchStats(meal, pantryItems);
     score += stats.ratio * 40 + stats.matchCount * 6;
     if (stats.isFullMatch) score += 25;
+  }
+
+  // Living situation & dorm preference boosts
+  if (profile.livingSituation === "dorm") {
+    const storage = getMealStorageProfile(meal);
+    if (profile.dormConstraints?.preferShelfStable && storage.isShelfStable) {
+      score += 12;
+    }
+    if (profile.dormConstraints?.smallerQuantities && meal.ingredients.length <= 6) {
+      score += 6;
+    }
   }
 
   // Variety preference weighting
@@ -95,6 +115,7 @@ export function selectSpotlightMeal(
         ? "Custom Equipment"
         : ENVIRONMENT_PRESETS[profile.environment].label;
     const effortLabel = EFFORT_PRESETS[profile.effort].label;
+    const owned = getEffectiveEquipment(profile);
 
     const adjustments: SpotlightSelectionResult["suggestedAdjustments"] = [
       {
@@ -104,7 +125,7 @@ export function selectSpotlightMeal(
       },
     ];
 
-    if (profile.effort === "normal" && !profile.equipment.includes("stove") && !profile.equipment.includes("oven")) {
+    if (profile.effort === "normal" && !owned.has("stove") && !owned.has("oven")) {
       adjustments.push({
         id: "relax-effort",
         label: "Switch to Moderate Effort",
@@ -118,15 +139,27 @@ export function selectSpotlightMeal(
       });
     }
 
-    if (profile.environment === "microwave_only" && !profile.equipment.includes("fridge")) {
+    if (!owned.has("fridge") && owned.has("microwave")) {
       adjustments.push({
         id: "add-fridge",
-        label: "Switch to Microwave + Mini-Fridge",
+        label: "Add Mini-Fridge Access",
         action: "add_fridge",
       });
     }
 
-    if (mealType !== "any" || profile.dietaryRestrictions.length > 0 || profile.varietyPreference === "new_ideas") {
+    if (profile.sharedKitchen === "available_avoid") {
+      adjustments.push({
+        id: "use-shared-kitchen",
+        label: "Include Shared Kitchen",
+        action: "use_shared_kitchen",
+      });
+    }
+
+    if (
+      mealType !== "any" ||
+      profile.dietaryRestrictions.length > 0 ||
+      profile.varietyPreference === "new_ideas"
+    ) {
       adjustments.push({
         id: "reset-filters",
         label: "Reset meal type & dietary filters",
@@ -138,9 +171,9 @@ export function selectSpotlightMeal(
       meal: null,
       eligiblePoolCount: 0,
       updatedRecentIds: recentSpotlightIds,
-      emptyReason: `No saved meals match ${envLabel} + ${effortLabel}${
-        mealType !== "any" ? ` (${mealType})` : ""
-      }${
+      emptyReason: `No saved meals match ${envLabel}${
+        profile.livingSituation === "dorm" ? " (Dorm setup)" : ""
+      } + ${effortLabel}${mealType !== "any" ? ` (${mealType})` : ""}${
         profile.dietaryRestrictions.length > 0
           ? ` with ${profile.dietaryRestrictions.join(", ").replace(/_/g, " ")}`
           : ""

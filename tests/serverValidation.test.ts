@@ -117,22 +117,94 @@ describe("Server API Validation, Effort Bounds & Persistent Rate Limiter", () =>
     expect(validMicroMeal!.possibleSubstitutions?.some((s) => s.includes("Jasmine rice"))).toBe(true);
   });
 
-  it("persists rate limit counts to disk across limiter instances and enforces 20 req/10min", () => {
+  it("normalizes kitchenProfile livingSituation, dormConstraints, sharedKitchen, and otherEquipmentLabel", () => {
+    const parsed = normalizeGenerationRequest({
+      kitchenProfile: {
+        environment: "custom",
+        equipment: ["microwave", "other"],
+        otherEquipmentLabel: "Rice Cooker",
+        hasFreezer: false,
+        effort: "moderate",
+        varietyPreference: "familiar",
+        dietaryRestrictions: ["vegetarian"],
+        livingSituation: "dorm",
+        sharedKitchen: "available_avoid",
+        dormConstraints: {
+          minimalCookware: true,
+          preferShelfStable: true,
+        },
+      },
+      pantryItems: ["Black beans", "Rice pouch"],
+      mealType: "dinner",
+    });
+
+    expect(parsed.ok).toBe(true);
+    if (parsed.ok) {
+      expect(parsed.value.profile.environment).toBe("custom");
+      expect(parsed.value.profile.equipment).toContain("other");
+      expect(parsed.value.profile.otherEquipmentLabel).toBe("Rice Cooker");
+      expect(parsed.value.profile.livingSituation).toBe("dorm");
+      expect(parsed.value.profile.sharedKitchen).toBe("available_avoid");
+      expect(parsed.value.profile.dormConstraints?.minimalCookware).toBe(true);
+    }
+  });
+
+  it("rejects AI meals requiring a colander/heavy cookware when dorm minimalCookware is active", () => {
+    const dormProfile = createProfileForEnvironment("microwave_mini_fridge", {
+      effort: "low",
+      livingSituation: "dorm",
+      sharedKitchen: "available_avoid",
+      dormConstraints: {
+        limitedFridgeSpace: true,
+        limitedFreezerSpace: true,
+        limitedFoodStorage: true,
+        limitedCounterSpace: true,
+        sharedAppliances: true,
+        minimalCookware: true,
+        preferShelfStable: true,
+        smallerQuantities: true,
+      },
+    });
+
+    const badColanderMeal = finalizeAndVerifyGeneratedMeal(
+      {
+        title: "Microwave Pasta With Colander Drain",
+        tagline: "Needs strainer",
+        prepMinutes: 2,
+        cookMinutes: 6,
+        ingredients: [{ item: "Penne pasta", amount: "1 cup", walmartAisle: "Pantry / Canned" }],
+        instructions: [
+          { stepNumber: 1, title: "Drain", instruction: "Microwave in water and drain in a colander." },
+        ],
+        whyItWorks: "Fast",
+        rutAlternativeNote: "Good",
+      },
+      dormProfile,
+      [],
+      "microwave"
+    );
+
+    expect(badColanderMeal).toBeNull();
+  });
+
+  it("persists rate limit counts to disk across limiter instances and enforces non-bypassable IP limit", () => {
     const tmpFile = path.join(os.tmpdir(), `sc-rl-test-${Date.now()}-${Math.random()}.json`);
     try {
       const limiter1 = new PersistentRateLimiter({ filePath: tmpFile, maxRequests: 20 });
-      const key = deriveRateLimitKey({ reqIp: "10.0.0.5", userIdHeader: "dorm_user_1" });
-      expect(key).toBe("uid:dorm_user_1:10.0.0.5");
+      const key1 = deriveRateLimitKey({ reqIp: "10.0.0.5", userIdHeader: "dorm_user_1" });
+      const key2 = deriveRateLimitKey({ reqIp: "10.0.0.5", userIdHeader: "attacker_rotated_id" });
+      expect(key1).toBe("ip:10.0.0.5");
+      expect(key2).toBe("ip:10.0.0.5");
 
       const now = Date.now();
       for (let i = 0; i < 19; i++) {
-        expect(limiter1.checkAndConsume(key, now + i).allowed).toBe(true);
+        expect(limiter1.checkAndConsume(key1, now + i).allowed).toBe(true);
       }
 
       // Simulate server restart by instantiating a brand new PersistentRateLimiter reading same file
       const limiter2 = new PersistentRateLimiter({ filePath: tmpFile, maxRequests: 20 });
-      expect(limiter2.checkAndConsume(key, now + 20).allowed).toBe(true);
-      const blocked = limiter2.checkAndConsume(key, now + 21);
+      expect(limiter2.checkAndConsume(key2, now + 20).allowed).toBe(true);
+      const blocked = limiter2.checkAndConsume(key2, now + 21);
       expect(blocked.allowed).toBe(false);
     } finally {
       if (fs.existsSync(tmpFile)) fs.unlinkSync(tmpFile);

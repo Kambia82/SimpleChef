@@ -7,11 +7,21 @@ import {
   ChefHat,
   Eye,
   ArrowLeft,
-  RefreshCw
+  RefreshCw,
+  ShoppingBag,
+  Package,
+  Refrigerator,
+  Snowflake
 } from "lucide-react";
 import { KitchenProfile, Meal } from "../types";
 import { PANTRY_STAPLE_GROUPS } from "../data/pantryStaples";
-import { EFFORT_PRESETS, ENVIRONMENT_PRESETS } from "../utils/kitchenProfile";
+import {
+  EFFORT_PRESETS,
+  ENVIRONMENT_PRESETS,
+  getEffectiveEquipment,
+  getMealStorageProfile,
+  inferIngredientStorage
+} from "../utils/kitchenProfile";
 
 interface IngredientRescueModalProps {
   profile: KitchenProfile;
@@ -96,10 +106,9 @@ export const IngredientRescueModal: React.FC<IngredientRescueModalProps> = ({
     const results = await onGenerateOptions(selectedIngredients, exclude);
     if (results.length > 0) {
       setMealOptions(results);
-      setSeenOptionTitles((prev) => [
-        ...prev,
-        ...results.map((m) => m.title)
-      ].slice(-18));
+      setSeenOptionTitles((prev) =>
+        [...prev, ...results.map((m) => m.title)].slice(-18)
+      );
     }
   };
 
@@ -115,6 +124,9 @@ export const IngredientRescueModal: React.FC<IngredientRescueModalProps> = ({
     profile.environment === "custom"
       ? "Custom Kitchen"
       : ENVIRONMENT_PRESETS[profile.environment].shortLabel;
+  const effectiveEq = getEffectiveEquipment(profile);
+  const hasFridge = effectiveEq.has("fridge");
+  const hasFreezer = effectiveEq.has("freezer");
 
   return (
     <div
@@ -140,7 +152,9 @@ export const IngredientRescueModal: React.FC<IngredientRescueModalProps> = ({
               <p className="text-xs text-stone-600">
                 {isPickingStep
                   ? "Compare 3 ideas tailored to your equipment before cooking"
-                  : `${envLabel} · ${EFFORT_PRESETS[profile.effort].label}`}
+                  : `${envLabel}${
+                      profile.livingSituation === "dorm" ? " · Dorm" : ""
+                    } · ${EFFORT_PRESETS[profile.effort].label}`}
               </p>
             </div>
           </div>
@@ -149,7 +163,7 @@ export const IngredientRescueModal: React.FC<IngredientRescueModalProps> = ({
               onCancel?.();
               onClose();
             }}
-            className="p-1.5 text-stone-400 hover:text-stone-700 hover:bg-stone-200 rounded-lg transition-colors"
+            className="min-w-[44px] min-h-[44px] flex items-center justify-center text-stone-500 hover:text-stone-800 hover:bg-stone-200 rounded-lg transition-colors"
             aria-label="Close modal"
           >
             <X className="w-5 h-5" />
@@ -169,10 +183,11 @@ export const IngredientRescueModal: React.FC<IngredientRescueModalProps> = ({
             <div className="space-y-3">
               {mealOptions.map((option) => {
                 const totalMinutes = option.prepMinutes + option.cookMinutes;
+                const storage = getMealStorageProfile(option);
                 return (
                   <div
                     key={option.id}
-                    className="rounded-xl border border-stone-200 bg-stone-50/70 p-4 space-y-2.5 hover:border-emerald-300 transition-colors"
+                    className="rounded-xl border border-stone-200 bg-stone-50/70 p-4 space-y-3 hover:border-emerald-300 transition-colors"
                   >
                     <div className="space-y-1">
                       <h3 className="text-base font-bold text-stone-900 leading-snug">
@@ -184,6 +199,23 @@ export const IngredientRescueModal: React.FC<IngredientRescueModalProps> = ({
                         <span>{totalMinutes} min</span>
                         <span aria-hidden="true">·</span>
                         <span>{option.ingredients.length} ingredients</span>
+                        <span aria-hidden="true">·</span>
+                        <span className="inline-flex items-center gap-1 text-emerald-800 font-semibold">
+                          {storage.requiresFreezer ? (
+                            <Snowflake className="w-3 h-3" />
+                          ) : storage.requiresFridge ? (
+                            <Refrigerator className="w-3 h-3" />
+                          ) : (
+                            <Package className="w-3 h-3" />
+                          )}
+                          <span>
+                            {storage.requiresFreezer
+                              ? "Needs Freezer"
+                              : storage.requiresFridge
+                              ? "Needs Fridge"
+                              : "Shelf-Stable"}
+                          </span>
+                        </span>
                       </div>
                     </div>
 
@@ -191,16 +223,42 @@ export const IngredientRescueModal: React.FC<IngredientRescueModalProps> = ({
                       {option.tagline}
                     </p>
 
-                    <p className="text-xs text-stone-600">
-                      <span className="font-semibold text-stone-700">Ingredients:</span>{" "}
-                      {option.ingredients.map((i) => `${i.amount} ${i.item}`).join(" · ")}
-                    </p>
+                    <div className="bg-white border border-stone-200 rounded-lg p-2.5 space-y-1">
+                      <div className="text-[11px] font-bold uppercase tracking-wider text-stone-500">
+                        What This Needs
+                      </div>
+                      <ul className="space-y-1">
+                        {option.ingredients.map((ing, i) => {
+                          const ingStorage = inferIngredientStorage(ing);
+                          return (
+                            <li
+                              key={i}
+                              className="text-xs text-stone-700 flex items-start justify-between gap-2"
+                            >
+                              <span className="flex items-start gap-1.5 min-w-0">
+                                <ShoppingBag className="w-3 h-3 text-stone-400 shrink-0 mt-0.5" />
+                                <span>
+                                  <strong className="font-semibold text-stone-900">
+                                    {ing.amount}
+                                  </strong>{" "}
+                                  {ing.item}
+                                </span>
+                              </span>
+                              <span className="text-[10px] text-stone-500 shrink-0">
+                                {ing.walmartAisle}
+                                {ingStorage !== "shelf_stable" ? ` · ${ingStorage}` : ""}
+                              </span>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
 
                     <div className="flex flex-wrap items-center gap-2 pt-1">
                       <button
                         type="button"
                         onClick={() => onCookOption(option, mealOptions)}
-                        className="flex-1 min-w-[130px] bg-emerald-700 hover:bg-emerald-800 text-white text-xs sm:text-sm font-semibold px-4 py-2 rounded-xl flex items-center justify-center gap-1.5 transition-colors"
+                        className="flex-1 min-w-[130px] min-h-[44px] bg-emerald-700 hover:bg-emerald-800 text-white text-xs sm:text-sm font-semibold px-4 py-2 rounded-xl flex items-center justify-center gap-1.5 transition-colors"
                       >
                         <ChefHat className="w-4 h-4" />
                         <span>Cook This</span>
@@ -208,7 +266,7 @@ export const IngredientRescueModal: React.FC<IngredientRescueModalProps> = ({
                       <button
                         type="button"
                         onClick={() => onViewOption(option, mealOptions)}
-                        className="flex-1 min-w-[130px] bg-white hover:bg-stone-100 text-stone-800 border border-stone-300 text-xs sm:text-sm font-semibold px-4 py-2 rounded-xl flex items-center justify-center gap-1.5 transition-colors"
+                        className="flex-1 min-w-[130px] min-h-[44px] bg-white hover:bg-stone-100 text-stone-800 border border-stone-300 text-xs sm:text-sm font-semibold px-4 py-2 rounded-xl flex items-center justify-center gap-1.5 transition-colors"
                       >
                         <Eye className="w-4 h-4" />
                         <span>View in Spotlight</span>
@@ -222,7 +280,7 @@ export const IngredientRescueModal: React.FC<IngredientRescueModalProps> = ({
         ) : (
           <div className="p-6 space-y-5 flex-1 overflow-y-auto">
             <p className="text-sm text-stone-600 leading-relaxed">
-              Pick the random ingredients you have right now, and Simple Chef will preview 3 distinct meal options you can choose from before cooking.
+              Pick the random ingredients you have right now, and Simple Chef will preview 3 distinct meal options you can compare before deciding to cook.
             </p>
 
             {/* Custom Input */}
@@ -231,13 +289,13 @@ export const IngredientRescueModal: React.FC<IngredientRescueModalProps> = ({
                 type="text"
                 value={customInput}
                 onChange={(e) => setCustomInput(e.target.value)}
-                placeholder="Type an ingredient (e.g., chicken breast, spinach, tortillas)..."
-                className="flex-1 px-3.5 py-2.5 rounded-xl border border-stone-300 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600/30 focus:border-emerald-600 text-stone-900"
+                placeholder="Type an ingredient (e.g., black beans, rice pouch, tortillas)..."
+                className="flex-1 min-h-[44px] px-3.5 py-2.5 rounded-xl border border-stone-300 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600/30 focus:border-emerald-600 text-stone-900"
               />
               <button
                 type="submit"
                 disabled={!customInput.trim()}
-                className="bg-stone-800 hover:bg-stone-900 disabled:opacity-50 text-white px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-1.5 transition-colors shrink-0"
+                className="min-h-[44px] bg-stone-800 hover:bg-stone-900 disabled:opacity-50 text-white px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-1.5 transition-colors shrink-0"
               >
                 <Plus className="w-4 h-4" />
                 <span>Add</span>
@@ -260,7 +318,7 @@ export const IngredientRescueModal: React.FC<IngredientRescueModalProps> = ({
                       <button
                         type="button"
                         onClick={() => toggleIngredient(item)}
-                        className="text-stone-400 hover:text-rose-600"
+                        className="text-stone-400 hover:text-rose-600 p-0.5"
                         aria-label={`Remove ${item}`}
                       >
                         <X className="w-3 h-3" />
@@ -273,9 +331,11 @@ export const IngredientRescueModal: React.FC<IngredientRescueModalProps> = ({
 
             {/* Grouped Quick Tap Staples */}
             <div className="space-y-4">
-              {PANTRY_STAPLE_GROUPS.filter(
-                (group) => !(!profile.hasFreezer && group.label === "Freezer")
-              ).map((group) => (
+              {PANTRY_STAPLE_GROUPS.filter((group) => {
+                if (!hasFreezer && group.label === "Freezer") return false;
+                if (!hasFridge && group.label === "Fridge & Deli") return false;
+                return true;
+              }).map((group) => (
                 <div key={group.label} className="space-y-2">
                   <div className="text-xs font-bold uppercase tracking-wider text-stone-500">
                     {group.label}:
@@ -314,7 +374,7 @@ export const IngredientRescueModal: React.FC<IngredientRescueModalProps> = ({
               <button
                 type="button"
                 onClick={handleEditIngredients}
-                className="text-xs text-stone-600 hover:text-stone-900 font-medium flex items-center gap-1.5 py-2 px-2"
+                className="min-h-[44px] text-xs text-stone-600 hover:text-stone-900 font-medium flex items-center gap-1.5 py-2 px-2"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
                 <span>{isLoading ? "Cancel & edit" : "Edit Ingredients"}</span>
@@ -324,7 +384,7 @@ export const IngredientRescueModal: React.FC<IngredientRescueModalProps> = ({
                 type="button"
                 onClick={() => handleFetchOptions(true)}
                 disabled={isLoading}
-                className="bg-stone-800 hover:bg-stone-900 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2 rounded-xl shadow-sm flex items-center gap-2 transition-colors"
+                className="min-h-[44px] bg-stone-800 hover:bg-stone-900 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2 rounded-xl shadow-sm flex items-center gap-2 transition-colors"
               >
                 {isLoading ? (
                   <>
@@ -349,7 +409,7 @@ export const IngredientRescueModal: React.FC<IngredientRescueModalProps> = ({
                   setSeenOptionTitles([]);
                 }}
                 disabled={selectedIngredients.length === 0 && !isLoading}
-                className="text-xs text-stone-500 hover:text-stone-800 disabled:opacity-40 font-medium"
+                className="min-h-[44px] text-xs text-stone-500 hover:text-stone-800 disabled:opacity-40 font-medium px-2"
               >
                 {isLoading ? "Cancel & clear" : "Clear selection"}
               </button>
@@ -357,7 +417,7 @@ export const IngredientRescueModal: React.FC<IngredientRescueModalProps> = ({
               <button
                 onClick={() => handleFetchOptions(false)}
                 disabled={selectedIngredients.length === 0 || isLoading}
-                className="bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white text-sm font-semibold px-6 py-2.5 rounded-xl shadow-sm flex items-center gap-2 transition-colors"
+                className="min-h-[44px] bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white text-sm font-semibold px-6 py-2.5 rounded-xl shadow-sm flex items-center gap-2 transition-colors"
               >
                 {isLoading ? (
                   <>

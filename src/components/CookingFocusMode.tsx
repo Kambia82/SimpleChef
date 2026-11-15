@@ -32,6 +32,9 @@ import {
 import { getMealExtras } from "../utils/mealExtras";
 import {
   EFFORT_PRESETS,
+  getEffectiveEquipment,
+  getMealStorageProfile,
+  inferIngredientStorage,
   inferMealRequirements,
   isMealEquipmentCompatible
 } from "../utils/kitchenProfile";
@@ -70,16 +73,18 @@ export const CookingFocusMode: React.FC<CookingFocusModeProps> = ({
   const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
   const [usedInSession, setUsedInSession] = useState<Record<string, number>>({});
 
+  const effectiveEquipment = profile ? Array.from(getEffectiveEquipment(profile)) : undefined;
   const { addons, sides } = useMemo(
     () =>
       getMealExtras(meal, {
-        equipment: profile?.equipment,
-        hasFreezer: profile?.hasFreezer
+        equipment: effectiveEquipment,
+        hasFreezer: profile ? getEffectiveEquipment(profile).has("freezer") : undefined
       }),
-    [meal, profile]
+    [meal, effectiveEquipment, profile]
   );
 
   const reqs = useMemo(() => inferMealRequirements(meal), [meal]);
+  const storageProfile = useMemo(() => getMealStorageProfile(meal), [meal]);
   const equipmentCompat = useMemo(
     () => (profile ? isMealEquipmentCompatible(meal, profile) : { compatible: true, missingEquipment: [] }),
     [meal, profile]
@@ -518,31 +523,54 @@ export const CookingFocusMode: React.FC<CookingFocusModeProps> = ({
                 </button>
 
                 {showIngredientsDrawer && (
-                  <div className="px-3.5 pb-3.5 pt-2 border-t border-stone-100 space-y-2">
-                    <p className="text-xs text-stone-600">{meal.tagline}</p>
+                  <div className="px-3.5 pb-3.5 pt-2 border-t border-stone-100 space-y-2.5">
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-stone-600">
+                      <span>{meal.tagline}</span>
+                      <span className="font-semibold text-emerald-800">
+                        {storageProfile.requiresFreezer
+                          ? "Needs Freezer"
+                          : storageProfile.requiresFridge
+                          ? "Needs Fridge"
+                          : "Shelf-Stable"}
+                      </span>
+                    </div>
                     <ul className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                      {ingredientEval.resolutions.map((res, i) => (
-                        <li
-                          key={i}
-                          className="text-xs flex items-start justify-between gap-2 bg-stone-50 px-2.5 py-1.5 rounded-lg border border-stone-100"
-                        >
-                          <span className="text-stone-800">
-                            <strong className="font-semibold">{res.ingredient.amount}</strong>{" "}
-                            {res.ingredient.item}
-                            {res.tier === "exact" && (
-                              <span className="text-emerald-700 font-semibold ml-1">(in pantry)</span>
-                            )}
-                            {res.tier === "substitution" && (
-                              <span className="text-teal-700 font-semibold ml-1">
-                                (sub: {res.matchedItem?.name})
-                              </span>
-                            )}
-                          </span>
-                          <span className="text-[10px] text-stone-400 shrink-0">
-                            {res.ingredient.walmartAisle}
-                          </span>
-                        </li>
-                      ))}
+                      {ingredientEval.resolutions.map((res, i) => {
+                        const ingStorage = inferIngredientStorage(res.ingredient);
+                        return (
+                          <li
+                            key={i}
+                            className="text-xs flex items-start justify-between gap-2 bg-stone-50 px-2.5 py-2 rounded-lg border border-stone-200/80"
+                          >
+                            <span className="text-stone-800">
+                              <strong className="font-semibold">{res.ingredient.amount}</strong>{" "}
+                              {res.ingredient.item}
+                              {res.tier === "exact" && (
+                                <span className="text-emerald-700 font-semibold ml-1">
+                                  (in pantry{!res.quantitySufficient ? ` · ${res.note}` : ""})
+                                </span>
+                              )}
+                              {res.tier === "substitution" && (
+                                <span className="text-teal-700 font-semibold ml-1">
+                                  (swap: {res.matchedItem?.name})
+                                </span>
+                              )}
+                              {res.tier === "related_not_equivalent" && (
+                                <span className="text-amber-700 font-semibold ml-1">
+                                  (have {res.matchedItem?.name} — different)
+                                </span>
+                              )}
+                              {res.tier === "none" && (
+                                <span className="text-stone-500 ml-1">(needed)</span>
+                              )}
+                            </span>
+                            <span className="text-[10px] text-stone-500 shrink-0 text-right">
+                              {res.ingredient.walmartAisle}
+                              {ingStorage !== "shelf_stable" ? ` · ${ingStorage}` : ""}
+                            </span>
+                          </li>
+                        );
+                      })}
                     </ul>
                   </div>
                 )}
@@ -818,11 +846,11 @@ export const CookingFocusMode: React.FC<CookingFocusModeProps> = ({
 
         {/* Footer Navigation Bar */}
         {!isFinished && (
-          <div className="bg-stone-100 border-t border-stone-200 px-6 py-4 flex items-center justify-between">
+          <div className="bg-stone-100 border-t border-stone-200 px-6 py-4 flex items-center justify-between gap-3">
             <button
               onClick={handlePrev}
               disabled={currentStepIndex === 0}
-              className={`px-4 py-2.5 rounded-xl text-sm font-medium flex items-center space-x-1.5 transition-colors ${
+              className={`min-h-[44px] px-4 py-2.5 rounded-xl text-sm font-medium flex items-center space-x-1.5 transition-colors ${
                 currentStepIndex === 0
                   ? "text-stone-400 cursor-not-allowed"
                   : "text-stone-700 hover:bg-stone-200 bg-white border border-stone-300 shadow-sm"
@@ -834,7 +862,7 @@ export const CookingFocusMode: React.FC<CookingFocusModeProps> = ({
 
             <button
               onClick={handleNext}
-              className="bg-emerald-700 hover:bg-emerald-800 text-white font-medium px-6 py-2.5 rounded-xl shadow-sm flex items-center space-x-2 transition-colors"
+              className="min-h-[44px] bg-emerald-700 hover:bg-emerald-800 text-white font-medium px-6 py-2.5 rounded-xl shadow-sm flex items-center space-x-2 transition-colors"
             >
               <span>
                 {currentStepIndex === meal.instructions.length - 1
