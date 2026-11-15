@@ -11,7 +11,16 @@ import {
   getDocFromServer
 } from "firebase/firestore";
 import firebaseConfig from "../firebase-applet-config.json";
-import { GroceryItem, Meal, PantryItem, RutMeal, WalmartAisle } from "./types";
+import {
+  CookingEffort,
+  CookingEquipment,
+  DietaryRestriction,
+  GroceryItem,
+  Meal,
+  PantryItem,
+  RutMeal,
+  WalmartAisle
+} from "./types";
 
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
@@ -33,14 +42,10 @@ export interface FirestoreErrorInfo {
   path: string | null;
   authInfo: {
     userId?: string | null;
-    email?: string | null;
     emailVerified?: boolean | null;
     isAnonymous?: boolean | null;
     tenantId?: string | null;
-    providerInfo?: {
-      providerId?: string | null;
-      email?: string | null;
-    }[];
+    providerIds?: string[];
   };
 }
 
@@ -49,24 +54,21 @@ export function handleFirestoreError(
   operationType: OperationType,
   path: string | null
 ): never {
+  // Never emit raw user emails or sensitive PII in client/console diagnostics
   const errInfo: FirestoreErrorInfo = {
     error: error instanceof Error ? error.message : String(error),
     authInfo: {
-      userId: auth.currentUser?.uid,
-      email: auth.currentUser?.email,
-      emailVerified: auth.currentUser?.emailVerified,
-      isAnonymous: auth.currentUser?.isAnonymous,
-      tenantId: auth.currentUser?.tenantId,
-      providerInfo:
-        auth.currentUser?.providerData?.map((provider) => ({
-          providerId: provider.providerId,
-          email: provider.email
-        })) || []
+      userId: auth.currentUser?.uid ?? null,
+      emailVerified: auth.currentUser?.emailVerified ?? null,
+      isAnonymous: auth.currentUser?.isAnonymous ?? null,
+      tenantId: auth.currentUser?.tenantId ?? null,
+      providerIds:
+        auth.currentUser?.providerData?.map((provider) => provider.providerId).filter(Boolean) || []
     },
     operationType,
     path
   };
-  console.error("Firestore Error: ", JSON.stringify(errInfo));
+  console.error("Firestore operation failed:", operationType, path);
   throw new Error(JSON.stringify(errInfo));
 }
 
@@ -108,6 +110,23 @@ const VALID_CATEGORIES = new Set<Meal["category"]>([
   "comfort"
 ]);
 
+const VALID_EFFORTS = new Set<CookingEffort>(["very_low", "low", "moderate", "normal"]);
+const VALID_EQUIPMENT = new Set<CookingEquipment>([
+  "stove",
+  "oven",
+  "microwave",
+  "toaster",
+  "air_fryer",
+  "fridge",
+  "freezer"
+]);
+const VALID_DIETARY = new Set<DietaryRestriction>([
+  "vegetarian",
+  "gluten_free",
+  "dairy_free",
+  "high_protein"
+]);
+
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -123,7 +142,7 @@ function normalizeAisle(raw: unknown): WalmartAisle | null {
 }
 
 // Strict per-item validation & sanitization aligned with firebase-blueprint.json & firestore.rules.
-// Validates EVERY element (not just index 0) before writes and skips malformed entries on reads without crashing.
+// Validates EVERY element before writes and skips malformed entries on reads without crashing.
 export function sanitizePantryForCloud(items: unknown): PantryItem[] {
   if (!Array.isArray(items)) return [];
   const deduped = new Map<string, PantryItem>();
@@ -258,6 +277,16 @@ function sanitizeAddonList(raw: unknown) {
   return list.length > 0 ? list : undefined;
 }
 
+function sanitizeStringList(raw: unknown, maxItems = 16, maxLen = 120): string[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const cleaned = raw
+    .filter((s): s is string => typeof s === "string")
+    .map((s) => s.trim().slice(0, maxLen))
+    .filter(Boolean)
+    .slice(0, maxItems);
+  return cleaned.length > 0 ? cleaned : undefined;
+}
+
 export function sanitizeCustomMealsForCloud(items: unknown): Meal[] {
   if (!Array.isArray(items)) return [];
   const result: Meal[] = [];
@@ -289,7 +318,7 @@ export function sanitizeCustomMealsForCloud(items: unknown): Meal[] {
 
     const ingredients: Meal["ingredients"] = [];
     for (const ing of entry.ingredients) {
-      if (ingredients.length >= 10) break;
+      if (ingredients.length >= 16) break;
       if (!isPlainObject(ing)) continue;
       if (typeof ing.item !== "string" || typeof ing.amount !== "string") continue;
       if (ing.tip !== undefined && typeof ing.tip !== "string") continue;
@@ -304,7 +333,8 @@ export function sanitizeCustomMealsForCloud(items: unknown): Meal[] {
         walmartAisle,
         ...(typeof ing.tip === "string" && ing.tip.trim()
           ? { tip: ing.tip.trim().slice(0, 140) }
-          : {})
+          : {}),
+        ...(ing.optional === true ? { optional: true } : {})
       });
     }
 
@@ -345,8 +375,37 @@ export function sanitizeCustomMealsForCloud(items: unknown): Meal[] {
       ? (entry.category as Meal["category"])
       : "one_skillet";
 
+    const effortLevel =
+      typeof entry.effortLevel === "string" && VALID_EFFORTS.has(entry.effortLevel as CookingEffort)
+        ? (entry.effortLevel as CookingEffort)
+        : undefined;
+
+    const requiredEquipment = Array.isArray(entry.requiredEquipment)
+      ? entry.requiredEquipment.filter(
+          (e): e is CookingEquipment =>
+            typeof e === "string" && VALID_EQUIPMENT.has(e as CookingEquipment)
+        )
+      : undefined;
+
+    const dietaryTags = Array.isArray(entry.dietaryTags)
+      ? entry.dietaryTags.filter(
+          (d): d is DietaryRestriction =>
+            typeof d === "string" && VALID_DIETARY.has(d as DietaryRestriction)
+        )
+      : undefined;
+
+    const mealType =
+      typeof entry.mealType === "string" &&
+      ["breakfast", "lunch", "dinner", "snack"].includes(entry.mealType)
+        ? (entry.mealType as Meal["mealType"])
+        : undefined;
+
     const optionalAddons = sanitizeAddonList(entry.optionalAddons);
     const sidePairings = sanitizeAddonList(entry.sidePairings);
+    const ownedIngredients = sanitizeStringList(entry.ownedIngredients);
+    const missingIngredients = sanitizeStringList(entry.missingIngredients);
+    const optionalIngredients = sanitizeStringList(entry.optionalIngredients);
+    const possibleSubstitutions = sanitizeStringList(entry.possibleSubstitutions, 8, 160);
 
     seenIds.add(id);
     result.push({
@@ -360,6 +419,18 @@ export function sanitizeCustomMealsForCloud(items: unknown): Meal[] {
       instructions,
       whyItWorks: entry.whyItWorks.trim().slice(0, 400),
       rutAlternativeNote: entry.rutAlternativeNote.trim().slice(0, 400),
+      ...(effortLevel ? { effortLevel } : {}),
+      ...(requiredEquipment && requiredEquipment.length > 0 ? { requiredEquipment } : {}),
+      ...(typeof entry.requiresFreezer === "boolean" ? { requiresFreezer: entry.requiresFreezer } : {}),
+      ...(mealType ? { mealType } : {}),
+      ...(dietaryTags && dietaryTags.length > 0 ? { dietaryTags } : {}),
+      ...(typeof entry.comfortVariationOf === "string" && entry.comfortVariationOf.trim()
+        ? { comfortVariationOf: entry.comfortVariationOf.trim().slice(0, 100) }
+        : {}),
+      ...(ownedIngredients ? { ownedIngredients } : {}),
+      ...(missingIngredients ? { missingIngredients } : {}),
+      ...(optionalIngredients ? { optionalIngredients } : {}),
+      ...(possibleSubstitutions ? { possibleSubstitutions } : {}),
       ...(optionalAddons ? { optionalAddons } : {}),
       ...(sidePairings ? { sidePairings } : {})
     });

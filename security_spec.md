@@ -1,4 +1,4 @@
-# Security Specification: Easy Low-Effort Meals
+# Security Specification: Simple Chef (Easy Low-Effort Meals)
 
 ## 1. Data Invariants
 1. **Default Isolation**: Unauthenticated or distinct signed-in users never share data. Every user's private state lives at `/users/{userId}/appState/main`, readable and writable only by `userId` with a verified email.

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import { Meal, MealAddon, MealStep, PantryItem } from "../types";
+import { KitchenProfile, Meal, MealAddon, MealStep, PantryItem } from "../types";
 import {
   X,
   ChevronLeft,
@@ -19,15 +19,27 @@ import {
   Minus,
   Plus,
   Utensils,
-  Check
+  Check,
+  AlertTriangle,
+  ListChecks
 } from "lucide-react";
 import { playChime } from "../utils/sound";
-import { findMatchingPantryItem, getPantryMatchStats } from "../utils/pantryMatch";
+import {
+  evaluateMealIngredients,
+  findMatchingPantryItem,
+  getPantryMatchStats
+} from "../utils/pantryMatch";
 import { getMealExtras } from "../utils/mealExtras";
+import {
+  EFFORT_PRESETS,
+  inferMealRequirements,
+  isMealEquipmentCompatible
+} from "../utils/kitchenProfile";
 
 interface CookingFocusModeProps {
   meal: Meal;
   pantryItems: PantryItem[];
+  profile?: KitchenProfile;
   onClose: () => void;
   onAddToGrocery: (meal: Meal) => void;
   onAddMissingToGrocery: (meal: Meal) => void;
@@ -39,6 +51,7 @@ interface CookingFocusModeProps {
 export const CookingFocusMode: React.FC<CookingFocusModeProps> = ({
   meal,
   pantryItems,
+  profile,
   onClose,
   onAddToGrocery,
   onAddMissingToGrocery,
@@ -51,11 +64,30 @@ export const CookingFocusMode: React.FC<CookingFocusModeProps> = ({
   const [timerSecondsLeft, setTimerSecondsLeft] = useState<number>(0);
   const [isTimerRunning, setIsTimerRunning] = useState<boolean>(false);
   const [showExtras, setShowExtras] = useState<boolean>(false);
+  const [showIngredientsDrawer, setShowIngredientsDrawer] = useState<boolean>(false);
   const [addedExtras, setAddedExtras] = useState<Record<string, boolean>>({});
-  const { addons, sides } = useMemo(() => getMealExtras(meal), [meal]);
   const [isFinished, setIsFinished] = useState<boolean>(false);
   const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
   const [usedInSession, setUsedInSession] = useState<Record<string, number>>({});
+
+  const { addons, sides } = useMemo(
+    () =>
+      getMealExtras(meal, {
+        equipment: profile?.equipment,
+        hasFreezer: profile?.hasFreezer
+      }),
+    [meal, profile]
+  );
+
+  const reqs = useMemo(() => inferMealRequirements(meal), [meal]);
+  const equipmentCompat = useMemo(
+    () => (profile ? isMealEquipmentCompatible(meal, profile) : { compatible: true, missingEquipment: [] }),
+    [meal, profile]
+  );
+  const ingredientEval = useMemo(
+    () => evaluateMealIngredients(meal, pantryItems),
+    [meal, pantryItems]
+  );
 
   const handleAddExtra = (extra: MealAddon) => {
     if (!onAddExtraToGrocery) return;
@@ -71,7 +103,6 @@ export const CookingFocusMode: React.FC<CookingFocusModeProps> = ({
     "speechSynthesis" in window &&
     typeof SpeechSynthesisUtterance !== "undefined";
 
-  // Capture initial matched pantry items for post-meal cleanup so items remain visible even if decremented to 0
   const initialMatchedPantryNames = useMemo(() => {
     const seen = new Set<string>();
     const names: string[] = [];
@@ -83,13 +114,16 @@ export const CookingFocusMode: React.FC<CookingFocusModeProps> = ({
       }
     }
     return names;
-    // Only compute once when opening this meal so rows don't vanish mid-cleanup
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [meal.id]);
 
   const pantryMatch = pantryItems.length > 0 ? getPantryMatchStats(meal, pantryItems) : null;
-  const missingCount = pantryMatch ? pantryMatch.totalCount - pantryMatch.matchCount : meal.ingredients.length;
-  const hasPartialMatch = Boolean(pantryMatch && pantryMatch.matchCount > 0 && !pantryMatch.isFullMatch);
+  const missingCount = pantryMatch
+    ? pantryMatch.totalCount - pantryMatch.matchCount
+    : meal.ingredients.length;
+  const hasPartialMatch = Boolean(
+    pantryMatch && pantryMatch.matchCount > 0 && !pantryMatch.isFullMatch
+  );
 
   const stopSpeech = () => {
     if (supportsSpeech) {
@@ -116,7 +150,6 @@ export const CookingFocusMode: React.FC<CookingFocusModeProps> = ({
     window.speechSynthesis.speak(utterance);
   };
 
-  // Stop speech when changing steps, finishing, or closing
   useEffect(() => {
     stopSpeech();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -139,7 +172,6 @@ export const CookingFocusMode: React.FC<CookingFocusModeProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Sync timer when step changes
   useEffect(() => {
     if (currentStep && currentStep.timerSeconds && currentStep.timerSeconds > 0) {
       setTimerSecondsLeft(currentStep.timerSeconds);
@@ -150,7 +182,6 @@ export const CookingFocusMode: React.FC<CookingFocusModeProps> = ({
     }
   }, [currentStepIndex, currentStep]);
 
-  // Handle countdown
   useEffect(() => {
     if (isTimerRunning && timerSecondsLeft > 0) {
       timerRef.current = window.setInterval(() => {
@@ -245,6 +276,11 @@ export const CookingFocusMode: React.FC<CookingFocusModeProps> = ({
     });
   };
 
+  const equipmentLabel =
+    reqs.requiredEquipment.length > 0
+      ? reqs.requiredEquipment.map((e) => e.replace(/_/g, " ")).join(", ")
+      : "No appliances needed";
+
   return (
     <div
       className="fixed inset-0 z-50 bg-stone-900/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-y-auto"
@@ -256,19 +292,22 @@ export const CookingFocusMode: React.FC<CookingFocusModeProps> = ({
       }}
     >
       <div className="bg-stone-50 text-stone-900 w-full max-w-2xl rounded-2xl shadow-2xl border border-stone-200 overflow-hidden flex flex-col max-h-[92vh]">
-        
         {/* Header bar */}
         <div className="bg-emerald-900 text-white px-5 py-4 flex items-center justify-between gap-2">
-          <div className="flex items-center space-x-3">
-            <span className="bg-emerald-800 text-emerald-100 text-xs font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full">
-              Cooking Focus Mode
-            </span>
-            <span className="text-emerald-200 text-sm hidden sm:inline">
-              Step {currentStepIndex + 1} of {meal.instructions.length}
-            </span>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 text-xs font-semibold text-emerald-200">
+              <span>Step {currentStepIndex + 1} of {meal.instructions.length}</span>
+              <span aria-hidden="true">·</span>
+              <span>{EFFORT_PRESETS[reqs.effortLevel].label}</span>
+              <span aria-hidden="true" className="hidden sm:inline">·</span>
+              <span className="hidden sm:inline capitalize">{equipmentLabel}</span>
+            </div>
+            <div className="text-sm sm:text-base font-bold text-white truncate mt-0.5">
+              {meal.title}
+            </div>
           </div>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 shrink-0">
             {hasPartialMatch ? (
               <button
                 onClick={() => onAddMissingToGrocery(meal)}
@@ -284,7 +323,7 @@ export const CookingFocusMode: React.FC<CookingFocusModeProps> = ({
                 className="text-xs bg-emerald-800/80 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors"
                 title={
                   pantryMatch?.isFullMatch
-                    ? "All ingredients are in your pantry — tap to add restock items to Walmart list"
+                    ? "All ingredients are in your pantry — tap to add restock items"
                     : "Add ingredients to Walmart list"
                 }
               >
@@ -318,7 +357,21 @@ export const CookingFocusMode: React.FC<CookingFocusModeProps> = ({
         </div>
 
         {/* Main Step Body */}
-        <div className="p-6 sm:p-8 flex-1 overflow-y-auto">
+        <div className="p-5 sm:p-7 flex-1 overflow-y-auto space-y-5">
+          {!equipmentCompat.compatible && (
+            <div className="bg-amber-50 border border-amber-300 text-amber-950 rounded-xl p-3 text-xs flex items-start gap-2.5">
+              <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+              <div>
+                <span className="font-bold">Equipment Check: </span>
+                This recipe uses{" "}
+                <span className="font-semibold capitalize">
+                  {equipmentCompat.missingEquipment.join(", ").replace(/_/g, " ")}
+                </span>
+                , which is unchecked in your current kitchen setup.
+              </div>
+            </div>
+          )}
+
           {isFinished ? (
             <div className="text-center py-4 space-y-5">
               <div className="w-16 h-16 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center mx-auto shadow-inner">
@@ -326,10 +379,10 @@ export const CookingFocusMode: React.FC<CookingFocusModeProps> = ({
               </div>
               <div>
                 <h2 className="text-2xl sm:text-3xl font-bold text-stone-900">
-                  You did it! Meal complete.
+                  Meal complete!
                 </h2>
                 <p className="text-stone-600 mt-2 max-w-md mx-auto text-sm sm:text-base">
-                  No thinking, no stress, no burnt pans. Sit down and enjoy your warm, nutritious food!
+                  Everything is plated and ready. Sit down and enjoy your food.
                 </p>
               </div>
 
@@ -416,7 +469,7 @@ export const CookingFocusMode: React.FC<CookingFocusModeProps> = ({
 
               <div className="bg-white border border-stone-200 rounded-xl p-4 text-left max-w-md mx-auto shadow-sm">
                 <div className="text-xs font-bold uppercase tracking-wider text-emerald-800 mb-1">
-                  Why this was a win
+                  Why this works
                 </div>
                 <p className="text-sm text-stone-700">{meal.whyItWorks}</p>
               </div>
@@ -442,13 +495,64 @@ export const CookingFocusMode: React.FC<CookingFocusModeProps> = ({
               </div>
             </div>
           ) : (
-            <div className="space-y-6">
-              
+            <div className="space-y-5">
+              {/* Collapsible Ingredients Quick-Peek without losing current step */}
+              <div className="border border-stone-200 rounded-xl bg-white overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setShowIngredientsDrawer((prev) => !prev)}
+                  className="w-full px-3.5 py-2.5 flex items-center justify-between text-xs font-semibold text-stone-700 hover:bg-stone-50 transition-colors"
+                >
+                  <span className="flex items-center gap-2">
+                    <ListChecks className="w-4 h-4 text-emerald-700" />
+                    <span>
+                      Recipe Overview &amp; Ingredients ({meal.ingredients.length} items ·{" "}
+                      {meal.prepMinutes + meal.cookMinutes} min)
+                    </span>
+                  </span>
+                  {showIngredientsDrawer ? (
+                    <ChevronUp className="w-4 h-4 text-stone-400" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4 text-stone-400" />
+                  )}
+                </button>
+
+                {showIngredientsDrawer && (
+                  <div className="px-3.5 pb-3.5 pt-2 border-t border-stone-100 space-y-2">
+                    <p className="text-xs text-stone-600">{meal.tagline}</p>
+                    <ul className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                      {ingredientEval.resolutions.map((res, i) => (
+                        <li
+                          key={i}
+                          className="text-xs flex items-start justify-between gap-2 bg-stone-50 px-2.5 py-1.5 rounded-lg border border-stone-100"
+                        >
+                          <span className="text-stone-800">
+                            <strong className="font-semibold">{res.ingredient.amount}</strong>{" "}
+                            {res.ingredient.item}
+                            {res.tier === "exact" && (
+                              <span className="text-emerald-700 font-semibold ml-1">(in pantry)</span>
+                            )}
+                            {res.tier === "substitution" && (
+                              <span className="text-teal-700 font-semibold ml-1">
+                                (sub: {res.matchedItem?.name})
+                              </span>
+                            )}
+                          </span>
+                          <span className="text-[10px] text-stone-400 shrink-0">
+                            {res.ingredient.walmartAisle}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+
               {/* Step indicator, Read Aloud, and title */}
               <div>
                 <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-stone-500 mb-1.5 gap-2">
                   <span>Step {currentStep.stepNumber} of {meal.instructions.length}</span>
-                  <span className="truncate">{meal.title}</span>
+                  <span>Prep {meal.prepMinutes}m · Cook {meal.cookMinutes}m</span>
                 </div>
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <h3 className="text-xl sm:text-2xl font-bold text-stone-900 tracking-tight">
@@ -486,7 +590,7 @@ export const CookingFocusMode: React.FC<CookingFocusModeProps> = ({
                   {currentStep.instruction}
                 </p>
 
-                {/* Built-in timer if this step has cooking time */}
+                {/* Built-in timer */}
                 {currentStep.timerSeconds && currentStep.timerSeconds > 0 ? (
                   <div className="mt-4 pt-4 border-t border-stone-100 flex flex-wrap items-center justify-between gap-3 bg-emerald-50/60 p-4 rounded-xl">
                     <div className="flex items-center space-x-3">
@@ -544,7 +648,7 @@ export const CookingFocusMode: React.FC<CookingFocusModeProps> = ({
                 ) : null}
               </div>
 
-              {/* Working memory safety checkbox */}
+              {/* Step completion checkbox */}
               <div
                 onClick={() => markStepDone(currentStepIndex)}
                 className={`cursor-pointer p-3.5 rounded-xl border flex items-center space-x-3 transition-colors ${
@@ -564,15 +668,15 @@ export const CookingFocusMode: React.FC<CookingFocusModeProps> = ({
                 </div>
                 <span className="text-sm font-medium">
                   {completedSteps[currentStepIndex]
-                    ? "Done with this step! (Checked off so you don't repeat it)"
+                    ? "Done with this step"
                     : "Tap to mark this step finished"}
                 </span>
               </div>
 
-              {/* Mini step list overview for mental grounding */}
-              <div className="pt-2">
+              {/* Step switcher */}
+              <div className="pt-1">
                 <div className="text-xs font-bold uppercase tracking-wider text-stone-500 mb-2">
-                  All Steps in this meal:
+                  All Steps:
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {meal.instructions.map((step, idx) => (
@@ -587,110 +691,127 @@ export const CookingFocusMode: React.FC<CookingFocusModeProps> = ({
                           : "border-stone-200 bg-white text-stone-700 hover:bg-stone-100"
                       }`}
                     >
-                      <div className="text-[10px] text-stone-400 uppercase font-semibold">Step {step.stepNumber}</div>
+                      <div className="text-[10px] text-stone-400 uppercase font-semibold">
+                        Step {step.stepNumber}
+                      </div>
                       <div className="truncate">{step.title}</div>
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* Optional: Take it a step further & Easy side pairings */}
-              <div className="pt-1 border-t border-stone-200">
-                <button
-                  type="button"
-                  onClick={() => setShowExtras((prev) => !prev)}
-                  className="w-full flex items-center justify-between text-xs font-semibold text-emerald-900 bg-emerald-50/70 hover:bg-emerald-100/70 border border-emerald-200 px-3.5 py-2.5 rounded-xl transition-colors"
-                >
-                  <span className="flex items-center gap-2">
-                    <Utensils className="w-3.5 h-3.5 text-emerald-700" />
-                    <span>Optional: Take it a step further &amp; easy side pairings</span>
-                  </span>
-                  {showExtras ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                </button>
+              {/* Equipment-safe Optional Add-Ons & Side Pairings */}
+              {(addons.length > 0 || sides.length > 0) && (
+                <div className="pt-1 border-t border-stone-200">
+                  <button
+                    type="button"
+                    onClick={() => setShowExtras((prev) => !prev)}
+                    className="w-full flex items-center justify-between text-xs font-semibold text-emerald-900 bg-emerald-50/70 hover:bg-emerald-100/70 border border-emerald-200 px-3.5 py-2.5 rounded-xl transition-colors"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Utensils className="w-3.5 h-3.5 text-emerald-700" />
+                      <span>Optional add-ins &amp; side pairings</span>
+                    </span>
+                    {showExtras ? (
+                      <ChevronUp className="w-4 h-4" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4" />
+                    )}
+                  </button>
 
-                {showExtras && (
-                  <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="bg-amber-50/60 border border-amber-200 rounded-xl p-3 space-y-2">
-                      <div className="text-[11px] font-bold uppercase tracking-wider text-amber-900">
-                        Optional Add-Ins
-                      </div>
-                      <ul className="space-y-2">
-                        {addons.map((addon, idx) => (
-                          <li key={idx} className="text-xs text-stone-700 flex items-start justify-between gap-2">
-                            <div>
-                              <strong className="text-stone-900">{addon.item}:</strong> {addon.howToUse}
-                            </div>
-                            {onAddExtraToGrocery && (
-                              <button
-                                type="button"
-                                onClick={() => handleAddExtra(addon)}
-                                className={`shrink-0 text-[11px] font-semibold border px-2 py-0.5 rounded-md flex items-center gap-0.5 transition-colors ${
-                                  addedExtras[addon.item]
-                                    ? "bg-emerald-700 text-white border-emerald-700"
-                                    : "bg-white hover:bg-amber-100 text-amber-900 border-amber-300"
-                                }`}
-                                title={`Add ${addon.item} to Walmart list`}
+                  {showExtras && (
+                    <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {addons.length > 0 && (
+                        <div className="bg-amber-50/60 border border-amber-200 rounded-xl p-3 space-y-2">
+                          <div className="text-[11px] font-bold uppercase tracking-wider text-amber-900">
+                            Optional Add-Ins
+                          </div>
+                          <ul className="space-y-2">
+                            {addons.map((addon, idx) => (
+                              <li
+                                key={idx}
+                                className="text-xs text-stone-700 flex items-start justify-between gap-2"
                               >
-                                {addedExtras[addon.item] ? (
-                                  <>
-                                    <Check className="w-3 h-3" />
-                                    <span>Added</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <Plus className="w-3 h-3" />
-                                    <span>List</span>
-                                  </>
+                                <div>
+                                  <strong className="text-stone-900">{addon.item}:</strong>{" "}
+                                  {addon.howToUse}
+                                </div>
+                                {onAddExtraToGrocery && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleAddExtra(addon)}
+                                    className={`shrink-0 text-[11px] font-semibold border px-2 py-0.5 rounded-md flex items-center gap-0.5 transition-colors ${
+                                      addedExtras[addon.item]
+                                        ? "bg-emerald-700 text-white border-emerald-700"
+                                        : "bg-white hover:bg-amber-100 text-amber-900 border-amber-300"
+                                    }`}
+                                  >
+                                    {addedExtras[addon.item] ? (
+                                      <>
+                                        <Check className="w-3 h-3" />
+                                        <span>Added</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Plus className="w-3 h-3" />
+                                        <span>List</span>
+                                      </>
+                                    )}
+                                  </button>
                                 )}
-                              </button>
-                            )}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
 
-                    <div className="bg-emerald-50/60 border border-emerald-200 rounded-xl p-3 space-y-2">
-                      <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-900">
-                        Easy Side Pairings
-                      </div>
-                      <ul className="space-y-2">
-                        {sides.map((side, idx) => (
-                          <li key={idx} className="text-xs text-stone-700 flex items-start justify-between gap-2">
-                            <div>
-                              <strong className="text-stone-900">{side.item}:</strong> {side.howToUse}
-                            </div>
-                            {onAddExtraToGrocery && (
-                              <button
-                                type="button"
-                                onClick={() => handleAddExtra(side)}
-                                className={`shrink-0 text-[11px] font-semibold border px-2 py-0.5 rounded-md flex items-center gap-0.5 transition-colors ${
-                                  addedExtras[side.item]
-                                    ? "bg-emerald-700 text-white border-emerald-700"
-                                    : "bg-white hover:bg-emerald-100 text-emerald-900 border-emerald-300"
-                                }`}
-                                title={`Add ${side.item} to Walmart list`}
+                      {sides.length > 0 && (
+                        <div className="bg-emerald-50/60 border border-emerald-200 rounded-xl p-3 space-y-2">
+                          <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-900">
+                            Easy Side Pairings
+                          </div>
+                          <ul className="space-y-2">
+                            {sides.map((side, idx) => (
+                              <li
+                                key={idx}
+                                className="text-xs text-stone-700 flex items-start justify-between gap-2"
                               >
-                                {addedExtras[side.item] ? (
-                                  <>
-                                    <Check className="w-3 h-3" />
-                                    <span>Added</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <Plus className="w-3 h-3" />
-                                    <span>List</span>
-                                  </>
+                                <div>
+                                  <strong className="text-stone-900">{side.item}:</strong>{" "}
+                                  {side.howToUse}
+                                </div>
+                                {onAddExtraToGrocery && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleAddExtra(side)}
+                                    className={`shrink-0 text-[11px] font-semibold border px-2 py-0.5 rounded-md flex items-center gap-0.5 transition-colors ${
+                                      addedExtras[side.item]
+                                        ? "bg-emerald-700 text-white border-emerald-700"
+                                        : "bg-white hover:bg-emerald-100 text-emerald-900 border-emerald-300"
+                                    }`}
+                                  >
+                                    {addedExtras[side.item] ? (
+                                      <>
+                                        <Check className="w-3 h-3" />
+                                        <span>Added</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Plus className="w-3 h-3" />
+                                        <span>List</span>
+                                      </>
+                                    )}
+                                  </button>
                                 )}
-                              </button>
-                            )}
-                          </li>
-                        ))}
-                      </ul>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                )}
-              </div>
-
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -715,7 +836,11 @@ export const CookingFocusMode: React.FC<CookingFocusModeProps> = ({
               onClick={handleNext}
               className="bg-emerald-700 hover:bg-emerald-800 text-white font-medium px-6 py-2.5 rounded-xl shadow-sm flex items-center space-x-2 transition-colors"
             >
-              <span>{currentStepIndex === meal.instructions.length - 1 ? "Finish Meal!" : "Next Step"}</span>
+              <span>
+                {currentStepIndex === meal.instructions.length - 1
+                  ? "Finish Meal"
+                  : "Next Step"}
+              </span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>

@@ -2,7 +2,7 @@
   "entities": {
     "UserAppState": {
       "title": "UserAppState",
-      "description": "Private per-user meal planner state including pantry quantities, Walmart list, rut tracker, favorites, custom meals, and optional household link.",
+      "description": "Private per-user meal planner state including pantry quantities, Walmart list, meal variety preferences, favorites, custom meals, and optional household link.",
       "type": "object",
       "properties": {
         "ownerId": {
@@ -21,7 +21,7 @@
         },
         "rutMeals": {
           "type": "array",
-          "description": "Meals the user wants to avoid repeating."
+          "description": "Meals the user optionally marked to see less often or twist."
         },
         "favorites": {
           "type": "array",

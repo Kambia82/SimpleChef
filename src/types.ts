@@ -7,11 +7,49 @@ export type WalmartAisle =
   | "Bakery"
   | "Spices & Condiments";
 
+export type CookingEnvironment =
+  | "full_kitchen"
+  | "microwave_only"
+  | "microwave_mini_fridge"
+  | "limited_kitchen"
+  | "custom";
+
+export type CookingEquipment =
+  | "stove"
+  | "oven"
+  | "microwave"
+  | "toaster"
+  | "air_fryer"
+  | "fridge"
+  | "freezer";
+
+export type CookingEffort = "very_low" | "low" | "moderate" | "normal";
+
+export type VarietyPreference = "familiar" | "balanced" | "new_ideas";
+
+export type MealType = "any" | "breakfast" | "lunch" | "dinner" | "snack";
+
+export type DietaryRestriction =
+  | "vegetarian"
+  | "gluten_free"
+  | "dairy_free"
+  | "high_protein";
+
+export interface KitchenProfile {
+  environment: CookingEnvironment;
+  equipment: CookingEquipment[];
+  hasFreezer: boolean;
+  effort: CookingEffort;
+  varietyPreference: VarietyPreference;
+  dietaryRestrictions: DietaryRestriction[];
+}
+
 export interface MealIngredient {
   item: string;
   amount: string;
   walmartAisle: WalmartAisle;
   tip?: string;
+  optional?: boolean;
 }
 
 export interface MealStep {
@@ -34,6 +72,16 @@ export interface Meal {
   prepMinutes: number;
   cookMinutes: number;
   category: "assembly" | "microwave" | "one_skillet" | "sheet_pan" | "comfort";
+  effortLevel?: CookingEffort;
+  requiredEquipment?: CookingEquipment[];
+  requiresFreezer?: boolean;
+  mealType?: Exclude<MealType, "any">;
+  dietaryTags?: DietaryRestriction[];
+  comfortVariationOf?: string;
+  ownedIngredients?: string[];
+  missingIngredients?: string[];
+  optionalIngredients?: string[];
+  possibleSubstitutions?: string[];
   ingredients: MealIngredient[];
   instructions: MealStep[];
   whyItWorks: string;
@@ -65,5 +113,3 @@ export interface PantryItem {
 }
 
 export type KitchenMode = "microwave_only" | "full_kitchen";
-
-

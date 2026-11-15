@@ -195,7 +195,7 @@ export const GroceryListModal: React.FC<GroceryListModalProps> = ({
               </div>
               <div className="text-stone-700 font-semibold text-sm">Your shopping list is empty</div>
               <p className="text-xs text-stone-500 max-w-sm mx-auto">
-                Tap the shopping bag icon on any meal to instantly load its 3-5 ingredients here organized by Walmart aisle.
+                Tap the shopping bag icon on any meal to load its ingredients here organized by Walmart aisle.
               </p>
             </div>
           ) : (

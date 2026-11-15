@@ -9,12 +9,12 @@ import {
   ArrowLeft,
   RefreshCw
 } from "lucide-react";
-import { KitchenMode, Meal } from "../types";
+import { KitchenProfile, Meal } from "../types";
 import { PANTRY_STAPLE_GROUPS } from "../data/pantryStaples";
+import { EFFORT_PRESETS, ENVIRONMENT_PRESETS } from "../utils/kitchenProfile";
 
 interface IngredientRescueModalProps {
-  kitchenMode?: KitchenMode;
-  noFreezer?: boolean;
+  profile: KitchenProfile;
   onGenerateOptions: (ingredients: string[], excludeTitles?: string[]) => Promise<Meal[]>;
   onCookOption: (meal: Meal, allOptions: Meal[]) => void;
   onViewOption: (meal: Meal, allOptions: Meal[]) => void;
@@ -26,23 +26,22 @@ interface IngredientRescueModalProps {
 function getCategoryLabel(category: Meal["category"]): string {
   switch (category) {
     case "microwave":
-      return "Microwave Only";
+      return "Microwave";
     case "assembly":
-      return "No-Cook Assembly";
+      return "No-Cook";
     case "one_skillet":
       return "1 Skillet";
     case "sheet_pan":
-      return "Sheet Pan";
+      return "Oven / Tray";
     case "comfort":
-      return "Cozy Comfort";
+      return "Classic";
     default:
       return "Easy Meal";
   }
 }
 
 export const IngredientRescueModal: React.FC<IngredientRescueModalProps> = ({
-  kitchenMode = "microwave_only",
-  noFreezer = false,
+  profile,
   onGenerateOptions,
   onCookOption,
   onViewOption,
@@ -112,6 +111,10 @@ export const IngredientRescueModal: React.FC<IngredientRescueModalProps> = ({
   };
 
   const isPickingStep = mealOptions !== null && mealOptions.length > 0;
+  const envLabel =
+    profile.environment === "custom"
+      ? "Custom Kitchen"
+      : ENVIRONMENT_PRESETS[profile.environment].shortLabel;
 
   return (
     <div
@@ -132,14 +135,12 @@ export const IngredientRescueModal: React.FC<IngredientRescueModalProps> = ({
             </div>
             <div>
               <h2 className="text-lg font-bold text-stone-900">
-                {isPickingStep ? "Pick What Sounds Good" : "Rescue My Random Ingredients"}
+                {isPickingStep ? "Pick a Meal Idea First" : "Quick Ingredient Rescue"}
               </h2>
               <p className="text-xs text-stone-600">
                 {isPickingStep
-                  ? "Choose a dish before we start cooking"
-                  : kitchenMode === "microwave_only"
-                  ? "Turn ingredients into 3 microwave or no-cook options"
-                  : "Turn groceries into 3 easy meal options"}
+                  ? "Compare 3 ideas tailored to your equipment before cooking"
+                  : `${envLabel} · ${EFFORT_PRESETS[profile.effort].label}`}
               </p>
             </div>
           </div>
@@ -159,7 +160,10 @@ export const IngredientRescueModal: React.FC<IngredientRescueModalProps> = ({
         {isPickingStep ? (
           <div className="p-5 sm:p-6 space-y-4 flex-1 overflow-y-auto">
             <p className="text-xs text-stone-500">
-              Based on: <span className="font-medium text-stone-700">{selectedIngredients.join(", ")}</span>
+              Built around:{" "}
+              <span className="font-medium text-stone-700">
+                {selectedIngredients.join(", ")}
+              </span>
             </p>
 
             <div className="space-y-3">
@@ -177,7 +181,7 @@ export const IngredientRescueModal: React.FC<IngredientRescueModalProps> = ({
                       <div className="flex flex-wrap items-center gap-1.5 text-xs text-stone-500 font-medium">
                         <span>{getCategoryLabel(option.category)}</span>
                         <span aria-hidden="true">·</span>
-                        <span>{totalMinutes} min total</span>
+                        <span>{totalMinutes} min</span>
                         <span aria-hidden="true">·</span>
                         <span>{option.ingredients.length} ingredients</span>
                       </div>
@@ -188,7 +192,7 @@ export const IngredientRescueModal: React.FC<IngredientRescueModalProps> = ({
                     </p>
 
                     <p className="text-xs text-stone-600">
-                      <span className="font-semibold text-stone-700">Needs:</span>{" "}
+                      <span className="font-semibold text-stone-700">Ingredients:</span>{" "}
                       {option.ingredients.map((i) => `${i.amount} ${i.item}`).join(" · ")}
                     </p>
 
@@ -207,7 +211,7 @@ export const IngredientRescueModal: React.FC<IngredientRescueModalProps> = ({
                         className="flex-1 min-w-[130px] bg-white hover:bg-stone-100 text-stone-800 border border-stone-300 text-xs sm:text-sm font-semibold px-4 py-2 rounded-xl flex items-center justify-center gap-1.5 transition-colors"
                       >
                         <Eye className="w-4 h-4" />
-                        <span>View Details</span>
+                        <span>View in Spotlight</span>
                       </button>
                     </div>
                   </div>
@@ -218,7 +222,7 @@ export const IngredientRescueModal: React.FC<IngredientRescueModalProps> = ({
         ) : (
           <div className="p-6 space-y-5 flex-1 overflow-y-auto">
             <p className="text-sm text-stone-600 leading-relaxed">
-              Tap whatever ingredients you already have in your kitchen, and we&apos;ll show you 3 simple meal options to pick from.
+              Pick the random ingredients you have right now, and Simple Chef will preview 3 distinct meal options you can choose from before cooking.
             </p>
 
             {/* Custom Input */}
@@ -227,7 +231,7 @@ export const IngredientRescueModal: React.FC<IngredientRescueModalProps> = ({
                 type="text"
                 value={customInput}
                 onChange={(e) => setCustomInput(e.target.value)}
-                placeholder="Type an ingredient (e.g., buffalo sauce, chicken nuggets, tortilla chips)..."
+                placeholder="Type an ingredient (e.g., chicken breast, spinach, tortillas)..."
                 className="flex-1 px-3.5 py-2.5 rounded-xl border border-stone-300 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600/30 focus:border-emerald-600 text-stone-900"
               />
               <button
@@ -270,7 +274,7 @@ export const IngredientRescueModal: React.FC<IngredientRescueModalProps> = ({
             {/* Grouped Quick Tap Staples */}
             <div className="space-y-4">
               {PANTRY_STAPLE_GROUPS.filter(
-                (group) => !(noFreezer && group.label === "Freezer")
+                (group) => !(!profile.hasFreezer && group.label === "Freezer")
               ).map((group) => (
                 <div key={group.label} className="space-y-2">
                   <div className="text-xs font-bold uppercase tracking-wider text-stone-500">

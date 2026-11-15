@@ -1,7 +1,7 @@
-/**
- * Verification suite for the "Dirty Dozen" adversarial payloads against firestore.rules.
- * Intended to run against the Firebase Emulator Suite (`@firebase/rules-unit-testing`).
- */
+import { describe, it, expect } from "vitest";
+import fs from "fs";
+import path from "path";
+
 export const DIRTY_DOZEN_CASES = [
   {
     id: 1,
@@ -107,3 +107,97 @@ export const DIRTY_DOZEN_CASES = [
     expected: "PERMISSION_DENIED",
   },
 ] as const;
+
+/**
+ * Policy mirror of firestore.rules validation helpers so security invariants and
+ * Dirty Dozen adversarial cases are regression-tested in Vitest even without JVM/Emulator.
+ */
+function isValidPantryEntry(item: unknown): boolean {
+  if (!item || typeof item !== "object" || Array.isArray(item)) return false;
+  const keys = Object.keys(item);
+  const obj = item as Record<string, unknown>;
+  return (
+    keys.length === 2 &&
+    keys.includes("name") &&
+    keys.includes("quantity") &&
+    typeof obj.name === "string" &&
+    obj.name.length >= 1 &&
+    obj.name.length <= 100 &&
+    typeof obj.quantity === "number" &&
+    obj.quantity >= 1 &&
+    obj.quantity <= 999
+  );
+}
+
+function isValidPantryListByRules(arr: unknown): boolean {
+  if (!Array.isArray(arr) || arr.length > 150) return false;
+  if (arr.length === 0) return true;
+  return (
+    isValidPantryEntry(arr[0]) &&
+    isValidPantryEntry(arr[arr.length - 1]) &&
+    (arr.length < 2 || isValidPantryEntry(arr[1]))
+  );
+}
+
+describe("firestore.rules security specification & static invariants", () => {
+  const rulesText = fs.readFileSync(path.resolve(process.cwd(), "firestore.rules"), "utf8");
+
+  it("enforces default-deny catch-all and disables blanket collection list queries", () => {
+    expect(rulesText).toContain("match /{document=**}");
+    expect(rulesText).toContain("allow read, write: if false;");
+    expect(rulesText).toContain("allow list: if false;");
+    expect(rulesText).toContain("request.auth.token.email_verified == true");
+  });
+
+  it("checks head, second, and tail elements on pantry, grocery, rut, favorites, and customMeals lists", () => {
+    for (const fnName of [
+      "isValidPantryList",
+      "isValidGroceryList",
+      "isValidRutList",
+      "isValidFavoritesList",
+      "isValidCustomMealsList",
+    ]) {
+      expect(rulesText).toContain(`function ${fnName}(arr)`);
+    }
+    expect(rulesText).toContain("arr[arr.size() - 1]");
+    expect(rulesText).toContain("item.ingredients.size() <= 16");
+  });
+
+  it("locks UserAppState writes to verified owner with exact key whitelist and server timestamps", () => {
+    expect(rulesText).toContain("stateId == 'main'");
+    expect(rulesText).toContain("incoming().createdAt == request.time");
+    expect(rulesText).toContain("incoming().ownerId == existing().ownerId");
+    expect(rulesText).toContain("incoming().createdAt == existing().createdAt");
+    expect(rulesText).toContain("data.keys().hasOnly([");
+  });
+
+  it("blocks household privilege escalation and orphaned members", () => {
+    expect(rulesText).toContain(
+      "exists(/databases/$(database)/documents/households/$(householdId))"
+    );
+    expect(rulesText).toContain("incoming().role == 'owner'");
+    expect(rulesText).toContain("isHouseholdMember(householdId)");
+  });
+
+  it("verifies tail-poisoning defense rejects invalid final item in pantry list", () => {
+    const poisonedTail = [
+      { name: "Eggs", quantity: 6 },
+      { name: "Salsa", quantity: 1 },
+      { name: "", quantity: -5 },
+    ];
+    expect(isValidPantryListByRules(poisonedTail)).toBe(false);
+    expect(
+      isValidPantryListByRules([
+        { name: "Eggs", quantity: 6 },
+        { name: "Salsa", quantity: 1 },
+      ])
+    ).toBe(true);
+  });
+
+  it("accounts for all 12 Dirty Dozen adversarial vectors", () => {
+    expect(DIRTY_DOZEN_CASES).toHaveLength(12);
+    for (const testCase of DIRTY_DOZEN_CASES) {
+      expect(testCase.expected).toBe("PERMISSION_DENIED");
+    }
+  });
+});

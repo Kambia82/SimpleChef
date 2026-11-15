@@ -46,59 +46,93 @@ service cloud.firestore {
       return isSignedIn() && get(/databases/$(database)/documents/households/$(householdId)).data.ownerId == request.auth.uid;
     }
 
+    function isValidPantryEntry(item) {
+      return item is map &&
+        item.keys().hasAll(['name', 'quantity']) &&
+        item.keys().hasOnly(['name', 'quantity']) &&
+        item.name is string && item.name.size() >= 1 && item.name.size() <= 100 &&
+        item.quantity is number && item.quantity >= 1 && item.quantity <= 999;
+    }
+
     function isValidPantryList(arr) {
       return arr is list && arr.size() <= 150 && (
         arr.size() == 0 || (
-          arr[0] is map &&
-          arr[0].keys().hasAll(['name', 'quantity']) &&
-          arr[0].keys().hasOnly(['name', 'quantity']) &&
-          arr[0].name is string && arr[0].name.size() >= 1 && arr[0].name.size() <= 100 &&
-          arr[0].quantity is number && arr[0].quantity >= 1 && arr[0].quantity <= 999
+          isValidPantryEntry(arr[0]) &&
+          isValidPantryEntry(arr[arr.size() - 1]) &&
+          (arr.size() < 2 || isValidPantryEntry(arr[1]))
         )
       );
+    }
+
+    function isValidGroceryEntry(item) {
+      return item is map &&
+        item.keys().hasAll(['id', 'name', 'amount', 'aisle', 'mealTitle', 'completed']) &&
+        item.keys().hasOnly(['id', 'name', 'amount', 'aisle', 'mealTitle', 'completed']) &&
+        item.id is string && item.id.size() >= 1 && item.id.size() <= 128 &&
+        item.name is string && item.name.size() >= 1 && item.name.size() <= 120 &&
+        item.amount is string && item.amount.size() <= 60 &&
+        item.aisle is string && item.aisle.size() <= 40 &&
+        item.mealTitle is string && item.mealTitle.size() <= 120 &&
+        item.completed is bool;
     }
 
     function isValidGroceryList(arr) {
       return arr is list && arr.size() <= 200 && (
         arr.size() == 0 || (
-          arr[0] is map &&
-          arr[0].keys().hasAll(['id', 'name', 'amount', 'aisle', 'mealTitle', 'completed']) &&
-          arr[0].keys().hasOnly(['id', 'name', 'amount', 'aisle', 'mealTitle', 'completed']) &&
-          arr[0].id is string && arr[0].id.size() >= 1 && arr[0].id.size() <= 128 &&
-          arr[0].name is string && arr[0].name.size() >= 1 && arr[0].name.size() <= 120 &&
-          arr[0].amount is string && arr[0].amount.size() <= 60 &&
-          arr[0].aisle is string && arr[0].aisle.size() <= 40 &&
-          arr[0].mealTitle is string && arr[0].mealTitle.size() <= 120 &&
-          arr[0].completed is bool
+          isValidGroceryEntry(arr[0]) &&
+          isValidGroceryEntry(arr[arr.size() - 1]) &&
+          (arr.size() < 2 || isValidGroceryEntry(arr[1]))
         )
       );
+    }
+
+    function isValidRutEntry(item) {
+      return item is map &&
+        item.keys().hasAll(['id', 'name', 'dateAdded']) &&
+        item.keys().hasOnly(['id', 'name', 'category', 'dateAdded']) &&
+        item.id is string && item.id.size() >= 1 && item.id.size() <= 128 &&
+        item.name is string && item.name.size() >= 1 && item.name.size() <= 100 &&
+        item.dateAdded is string && item.dateAdded.size() <= 64;
     }
 
     function isValidRutList(arr) {
       return arr is list && arr.size() <= 100 && (
         arr.size() == 0 || (
-          arr[0] is map &&
-          arr[0].keys().hasAll(['id', 'name', 'dateAdded']) &&
-          arr[0].keys().hasOnly(['id', 'name', 'category', 'dateAdded']) &&
-          arr[0].id is string && arr[0].id.size() >= 1 && arr[0].id.size() <= 128 &&
-          arr[0].name is string && arr[0].name.size() >= 1 && arr[0].name.size() <= 100 &&
-          arr[0].dateAdded is string && arr[0].dateAdded.size() <= 64
+          isValidRutEntry(arr[0]) &&
+          isValidRutEntry(arr[arr.size() - 1]) &&
+          (arr.size() < 2 || isValidRutEntry(arr[1]))
         )
       );
     }
 
+    function isValidFavoriteEntry(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128;
+    }
+
     function isValidFavoritesList(arr) {
       return arr is list && arr.size() <= 200 && (
-        arr.size() == 0 || (arr[0] is string && arr[0].size() >= 1 && arr[0].size() <= 128)
+        arr.size() == 0 || (
+          isValidFavoriteEntry(arr[0]) &&
+          isValidFavoriteEntry(arr[arr.size() - 1]) &&
+          (arr.size() < 2 || isValidFavoriteEntry(arr[1]))
+        )
       );
+    }
+
+    function isValidCustomMealEntry(item) {
+      return item is map &&
+        item.id is string && item.id.size() >= 1 && item.id.size() <= 128 &&
+        item.title is string && item.title.size() >= 1 && item.title.size() <= 120 &&
+        item.ingredients is list && item.ingredients.size() >= 1 && item.ingredients.size() <= 16 &&
+        item.instructions is list && item.instructions.size() >= 1 && item.instructions.size() <= 10;
     }
 
     function isValidCustomMealsList(arr) {
       return arr is list && arr.size() <= 100 && (
         arr.size() == 0 || (
-          arr[0] is map &&
-          arr[0].id is string && arr[0].id.size() >= 1 && arr[0].id.size() <= 128 &&
-          arr[0].title is string && arr[0].title.size() >= 1 && arr[0].title.size() <= 120
+          isValidCustomMealEntry(arr[0]) &&
+          isValidCustomMealEntry(arr[arr.size() - 1]) &&
+          (arr.size() < 2 || isValidCustomMealEntry(arr[1]))
         )
       );
     }

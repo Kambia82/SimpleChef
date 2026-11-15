@@ -1,14 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { X, Plus, Minus, PackageCheck, Sparkles, Loader2, Trash2 } from "lucide-react";
-import { KitchenMode, PantryItem } from "../types";
+import { KitchenProfile, PantryItem } from "../types";
 import { PANTRY_STAPLE_GROUPS } from "../data/pantryStaples";
 
 interface PantryModalProps {
   pantryItems: PantryItem[];
   matchingMealCount: number;
   isSuggesting: boolean;
-  kitchenMode?: KitchenMode;
-  noFreezer?: boolean;
+  profile: KitchenProfile;
   onTogglePantryItem: (itemName: string) => void;
   onAddPantryItem: (itemName: string) => void;
   onUpdatePantryQuantity: (itemName: string, delta: number) => void;
@@ -21,14 +20,13 @@ export const PantryModal: React.FC<PantryModalProps> = ({
   pantryItems,
   matchingMealCount,
   isSuggesting,
-  kitchenMode = "microwave_only",
-  noFreezer = false,
+  profile,
   onTogglePantryItem,
   onAddPantryItem,
   onUpdatePantryQuantity,
   onClearPantry,
   onRequestMoreSuggestions,
-  onClose,
+  onClose
 }) => {
   const [customInput, setCustomInput] = useState("");
   const totalUnits = pantryItems.reduce((sum, item) => sum + item.quantity, 0);
@@ -50,6 +48,13 @@ export const PantryModal: React.FC<PantryModalProps> = ({
     }
   };
 
+  const hasFridge = profile.equipment.includes("fridge");
+  const title = profile.hasFreezer
+    ? "My Pantry, Fridge & Freezer"
+    : hasFridge
+    ? "My Pantry & Fridge"
+    : "My Shelf-Stable Pantry";
+
   return (
     <div
       className="fixed inset-0 z-50 bg-stone-900/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto"
@@ -65,15 +70,9 @@ export const PantryModal: React.FC<PantryModalProps> = ({
               <PackageCheck className="w-5 h-5 text-emerald-200" />
             </div>
             <div>
-              <h2 className="text-lg font-bold">
-                {noFreezer
-                  ? "My Pantry & Mini-Fridge"
-                  : kitchenMode === "microwave_only"
-                  ? "My Dorm Pantry & Fridge"
-                  : "My Pantry, Fridge & Freezer"}
-              </h2>
+              <h2 className="text-lg font-bold">{title}</h2>
               <p className="text-xs text-emerald-200">
-                {pantryItems.length} items ({totalUnits} total qty) • {matchingMealCount} matching meal ideas ready
+                {pantryItems.length} items ({totalUnits} total qty) · {matchingMealCount} matching meal ideas
               </p>
             </div>
           </div>
@@ -90,7 +89,7 @@ export const PantryModal: React.FC<PantryModalProps> = ({
         {/* Body */}
         <div className="p-6 space-y-5 flex-1 overflow-y-auto">
           <div className="bg-emerald-50/80 border border-emerald-200 rounded-xl p-3.5 text-xs sm:text-sm text-emerald-950 leading-relaxed">
-            Tap what you currently have in your fridge, freezer, or pantry—or type your own items below. Adjust quantities with <strong>+ / -</strong> if you bought multiples.
+            Tap what you currently have on hand—or add your own ingredients below. Adjust quantities with <strong>+ / -</strong> so Simple Chef tracks exact availability and acceptable swaps accurately.
           </div>
 
           {/* Add custom pantry item */}
@@ -99,7 +98,7 @@ export const PantryModal: React.FC<PantryModalProps> = ({
               type="text"
               value={customInput}
               onChange={(e) => setCustomInput(e.target.value)}
-              placeholder="Type anything in your kitchen (e.g., buffalo sauce, pepperoni, mac cup)..."
+              placeholder="Type anything in your kitchen (e.g., ground beef, jasmine rice, broccoli)..."
               className="flex-1 px-3.5 py-2.5 rounded-xl border border-stone-300 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600/30 focus:border-emerald-600 text-stone-900"
             />
             <button
@@ -175,9 +174,11 @@ export const PantryModal: React.FC<PantryModalProps> = ({
 
           {/* Grouped Quick Tap Staples */}
           <div className="space-y-4">
-            {PANTRY_STAPLE_GROUPS.filter(
-              (group) => !(noFreezer && group.label === "Freezer")
-            ).map((group) => (
+            {PANTRY_STAPLE_GROUPS.filter((group) => {
+              if (!profile.hasFreezer && group.label === "Freezer") return false;
+              if (!hasFridge && group.label === "Fridge & Deli") return false;
+              return true;
+            }).map((group) => (
               <div key={group.label} className="space-y-2">
                 <div className="text-xs font-bold uppercase tracking-wider text-stone-500">
                   {group.label}:
@@ -227,7 +228,7 @@ export const PantryModal: React.FC<PantryModalProps> = ({
             ) : (
               <>
                 <Sparkles className="w-3.5 h-3.5 text-amber-700" />
-                <span>Suggest More Meals From Pantry</span>
+                <span>Suggest Meals From Pantry</span>
               </>
             )}
           </button>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { User, onAuthStateChanged } from "firebase/auth";
 import {
   doc,
@@ -9,7 +9,21 @@ import {
   writeBatch,
   serverTimestamp
 } from "firebase/firestore";
-import { Meal, MealAddon, RutMeal, GroceryItem, WalmartAisle, PantryItem, KitchenMode } from "./types";
+import {
+  CookingEffort,
+  CookingEnvironment,
+  CookingEquipment,
+  DietaryRestriction,
+  GroceryItem,
+  KitchenProfile,
+  Meal,
+  MealAddon,
+  MealType,
+  PantryItem,
+  RutMeal,
+  VarietyPreference,
+  WalmartAisle
+} from "./types";
 import { DEFAULT_MEALS } from "./data/defaultMeals";
 import { MealCard } from "./components/MealCard";
 import { CookingFocusMode } from "./components/CookingFocusMode";
@@ -22,11 +36,26 @@ import { AccountSyncModal } from "./components/AccountSyncModal";
 import { PWAInstallButton } from "./components/PWAInstallButton";
 import { OfflineIndicator } from "./components/OfflineIndicator";
 import {
+  evaluateMealIngredients,
   getMissingIngredients,
   getPantryMatchStats,
-  normalizePantryList,
-  isMealAllowedInKitchenMode
+  normalizePantryList
 } from "./utils/pantryMatch";
+import {
+  DEFAULT_KITCHEN_PROFILE,
+  EFFORT_PRESETS,
+  ENVIRONMENT_PRESETS,
+  createProfileForEnvironment,
+  getMealEligibility,
+  inferMealRequirements,
+  isMealEquipmentCompatible
+} from "./utils/kitchenProfile";
+import { selectSpotlightMeal } from "./utils/spotlight";
+import {
+  mergeGroceryState,
+  mergeOnSignInOfflineToCloud,
+  mergePantryState
+} from "./utils/syncMerge";
 import {
   auth,
   db,
@@ -45,7 +74,7 @@ import {
   Sparkles,
   ChefHat,
   Shuffle,
-  ShieldCheck,
+  SlidersHorizontal,
   Heart,
   CheckCircle,
   Clock,
@@ -56,16 +85,13 @@ import {
   Users,
   ShoppingCart,
   ShoppingBag,
-  X
+  X,
+  AlertCircle
 } from "lucide-react";
 
-const DEFAULT_RUTS: RutMeal[] = [
-  { id: "rut-1", name: "Chips and salsa", dateAdded: new Date().toISOString() },
-  { id: "rut-2", name: "Boxed mac & cheese", dateAdded: new Date().toISOString() },
-  { id: "rut-3", name: "Instant ramen", dateAdded: new Date().toISOString() }
-];
-
 const DEFAULT_ID_SET = new Set(DEFAULT_MEALS.map((m) => m.id));
+const PROFILE_STORAGE_KEY = "simple_chef_profile_v1";
+const CLIENT_ID_STORAGE_KEY = "simple_chef_client_id";
 
 function mergeMealsWithDefaults(customMeals: Meal[]): Meal[] {
   const uniqueCustom = customMeals.filter((m) => !DEFAULT_ID_SET.has(m.id));
@@ -80,8 +106,59 @@ function capApiStrings(items: string[]): string[] {
     .slice(0, 25);
 }
 
+function loadInitialProfile(): KitchenProfile {
+  try {
+    const saved = localStorage.getItem(PROFILE_STORAGE_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved) as Partial<KitchenProfile>;
+      if (parsed && typeof parsed.environment === "string") {
+        const validEnv: CookingEnvironment =
+          parsed.environment === "full_kitchen" ||
+          parsed.environment === "microwave_only" ||
+          parsed.environment === "microwave_mini_fridge" ||
+          parsed.environment === "limited_kitchen" ||
+          parsed.environment === "custom"
+            ? parsed.environment
+            : DEFAULT_KITCHEN_PROFILE.environment;
+        return createProfileForEnvironment(validEnv, parsed);
+      }
+    }
+
+    // Smooth migration from legacy keys if present
+    const legacyMode = localStorage.getItem("easy_meals_kitchen_mode");
+    const legacyNoFreezer = localStorage.getItem("easy_meals_no_freezer") === "true";
+    if (legacyMode === "microwave_only") {
+      return createProfileForEnvironment(
+        legacyNoFreezer ? "microwave_only" : "microwave_mini_fridge",
+        { hasFreezer: !legacyNoFreezer }
+      );
+    }
+    if (legacyMode === "full_kitchen") {
+      return createProfileForEnvironment("full_kitchen", {
+        hasFreezer: !legacyNoFreezer
+      });
+    }
+  } catch {}
+  return DEFAULT_KITCHEN_PROFILE;
+}
+
+function getOrCreateClientToken(uid?: string | null): string {
+  if (uid && /^[a-zA-Z0-9_-]{4,64}$/.test(uid)) return uid;
+  try {
+    const existing = localStorage.getItem(CLIENT_ID_STORAGE_KEY);
+    if (existing && /^[a-zA-Z0-9_-]{4,64}$/.test(existing)) {
+      return existing;
+    }
+    const created = `sc_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+    localStorage.setItem(CLIENT_ID_STORAGE_KEY, created);
+    return created;
+  } catch {
+    return "sc_browser_default";
+  }
+}
+
 export default function App() {
-  // Persistence state: keep custom/AI meals and merge latest curated default meals
+  // Persisted meals (custom/AI meals + latest curated defaults)
   const [meals, setMeals] = useState<Meal[]>(() => {
     try {
       const saved = localStorage.getItem("easy_meals_list");
@@ -98,15 +175,16 @@ export default function App() {
       const saved = localStorage.getItem("easy_meals_favorites");
       if (saved) return sanitizeFavoritesForCloud(JSON.parse(saved));
     } catch {}
-    return ["black-bean-salsa-bowl"];
+    return [];
   });
 
+  // Optional "see less often" / twist targets (starts empty — never shames familiar comfort foods)
   const [rutMeals, setRutMeals] = useState<RutMeal[]>(() => {
     try {
       const saved = localStorage.getItem("easy_meals_ruts");
       if (saved) return sanitizeRutForCloud(JSON.parse(saved));
     } catch {}
-    return DEFAULT_RUTS;
+    return [];
   });
 
   const [groceryItems, setGroceryItems] = useState<GroceryItem[]>(() => {
@@ -125,6 +203,17 @@ export default function App() {
     return [];
   });
 
+  // Adaptive Kitchen & Cooking Effort Profile
+  const [profile, setProfile] = useState<KitchenProfile>(loadInitialProfile);
+  const [mealTypeFilter, setMealTypeFilter] = useState<MealType>("any");
+  const [maxTimeFilter, setMaxTimeFilter] = useState<number | null>(null);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profile));
+    } catch {}
+  }, [profile]);
+
   // Firebase Auth & Sync state
   const [user, setUser] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState<boolean>(false);
@@ -135,94 +224,7 @@ export default function App() {
   const [isSyncingAction, setIsSyncingAction] = useState<boolean>(false);
   const [syncError, setSyncError] = useState<string | null>(null);
 
-  // Kitchen hardware preferences (stored locally so Firestore schema stays untouched)
-  const [kitchenMode, setKitchenMode] = useState<KitchenMode>(() => {
-    try {
-      const saved = localStorage.getItem("easy_meals_kitchen_mode");
-      if (saved === "full_kitchen" || saved === "microwave_only") return saved;
-    } catch {}
-    return "microwave_only";
-  });
-
-  const [noFreezer, setNoFreezer] = useState<boolean>(() => {
-    try {
-      return localStorage.getItem("easy_meals_no_freezer") === "true";
-    } catch {}
-    return false;
-  });
-
-  useEffect(() => {
-    try {
-      localStorage.setItem("easy_meals_kitchen_mode", kitchenMode);
-    } catch {}
-  }, [kitchenMode]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem("easy_meals_no_freezer", String(noFreezer));
-    } catch {}
-  }, [noFreezer]);
-
-  const triggerResultsFeedback = (nextMode: KitchenMode, nextNoFreezer: boolean) => {
-    setModePulse(true);
-    window.setTimeout(() => setModePulse(false), 900);
-    setRecentSuggestions((prev) =>
-      prev.filter((m) => isMealAllowedInKitchenMode(m, nextMode, nextNoFreezer))
-    );
-    window.requestAnimationFrame(() => {
-      resultsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    });
-  };
-
-  const handleChangeKitchenMode = (nextMode: KitchenMode) => {
-    setKitchenMode(nextMode);
-    if (nextMode === "microwave_only" && activeFilter === "one_skillet") {
-      setActiveFilter("all");
-    } else if (nextMode === "full_kitchen" && activeFilter === "assembly") {
-      setActiveFilter("all");
-    }
-
-    // Make the Spotlight visibly change to match the newly picked kitchen mode
-    const nextAllowed = meals.filter((m) =>
-      isMealAllowedInKitchenMode(m, nextMode, noFreezer)
-    );
-    const nextNonRut = nextAllowed.filter(
-      (m) => !rutMeals.some((r) => m.title.toLowerCase().includes(r.name.toLowerCase()))
-    );
-    const pool = nextNonRut.length > 0 ? nextNonRut : nextAllowed;
-    if (nextMode === "full_kitchen") {
-      const firstStoveIdx = pool.findIndex(
-        (m) => m.category === "one_skillet" || m.category === "sheet_pan"
-      );
-      setSpotlightIndex(firstStoveIdx >= 0 ? firstStoveIdx : 0);
-    } else {
-      setSpotlightIndex(0);
-    }
-
-    triggerResultsFeedback(nextMode, noFreezer);
-    showToast(
-      nextMode === "microwave_only"
-        ? `Showing ${nextAllowed.length} Microwave & No-Cook Dorm Meals`
-        : `Showing all ${nextAllowed.length} Full-Kitchen Meals`
-    );
-  };
-
-  const handleToggleNoFreezer = () => {
-    const next = !noFreezer;
-    setNoFreezer(next);
-    setSpotlightIndex(0);
-    triggerResultsFeedback(kitchenMode, next);
-    const nextCount = meals.filter((m) =>
-      isMealAllowedInKitchenMode(m, kitchenMode, next)
-    ).length;
-    showToast(
-      next
-        ? `No-Freezer active — showing ${nextCount} shelf & mini-fridge meals`
-        : `Freezer items included — showing ${nextCount} meals`
-    );
-  };
-
-  // UI state
+  // UI & Discovery state
   const [activeFilter, setActiveFilter] = useState<string>("all");
   const [cookingMeal, setCookingMeal] = useState<Meal | null>(null);
   const [showRutModal, setShowRutModal] = useState<boolean>(false);
@@ -234,9 +236,9 @@ export default function App() {
   const [isRescuing, setIsRescuing] = useState<boolean>(false);
   const [isSuggestingFromPantry, setIsSuggestingFromPantry] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [spotlightIndex, setSpotlightIndex] = useState<number>(0);
+  const [recentSpotlightIds, setRecentSpotlightIds] = useState<string[]>([]);
+  const [currentSpotlightId, setCurrentSpotlightId] = useState<string | null>(null);
   const [recentSuggestions, setRecentSuggestions] = useState<Meal[]>([]);
-  const [modePulse, setModePulse] = useState<boolean>(false);
 
   const toastTimerRef = useRef<number | null>(null);
   const resultsSectionRef = useRef<HTMLDivElement | null>(null);
@@ -244,6 +246,25 @@ export default function App() {
   const rescueCancelledByUserRef = useRef<boolean>(false);
   const pantryAbortRef = useRef<AbortController | null>(null);
   const lastSuggestedPantrySigRef = useRef<string>("");
+
+  // Live local state refs for race-free 3-way merge & initial sign-in merge
+  const localPantryRef = useRef<PantryItem[]>(pantryItems);
+  const localGroceryRef = useRef<GroceryItem[]>(groceryItems);
+  const localFavoritesRef = useRef<string[]>(favorites);
+  const localRutRef = useRef<RutMeal[]>(rutMeals);
+  const localMealsRef = useRef<Meal[]>(meals);
+  localPantryRef.current = pantryItems;
+  localGroceryRef.current = groceryItems;
+  localFavoritesRef.current = favorites;
+  localRutRef.current = rutMeals;
+  localMealsRef.current = meals;
+
+  const baselinePrivatePantryRef = useRef<PantryItem[]>([]);
+  const baselinePrivateGroceryRef = useRef<GroceryItem[]>([]);
+  const baselineSharedPantryRef = useRef<PantryItem[]>([]);
+  const baselineSharedGroceryRef = useRef<GroceryItem[]>([]);
+  const mergedOnSignInUidRef = useRef<string | null>(null);
+  const initializedSharedKeyRef = useRef<string | null>(null);
 
   // Track last synced cloud payloads to prevent echo loops
   const lastPrivateSnapshotRef = useRef<{
@@ -312,6 +333,88 @@ export default function App() {
     }, 3500);
   };
 
+  // Profile change handlers (Axis A: Environment & Equipment; Axis B: Effort; Axis C: Dietary & Variety)
+  const triggerPreferenceRefresh = (nextProfile: KitchenProfile) => {
+    setRecentSuggestions((prev) =>
+      prev.filter((m) => isMealEquipmentCompatible(m, nextProfile).compatible)
+    );
+  };
+
+  const handleChangeEnvironment = (env: CookingEnvironment) => {
+    const nextProfile = createProfileForEnvironment(env, profile);
+    setProfile(nextProfile);
+
+    const hasHeatOtherThanMicro =
+      nextProfile.equipment.includes("stove") ||
+      nextProfile.equipment.includes("oven") ||
+      nextProfile.equipment.includes("toaster") ||
+      nextProfile.equipment.includes("air_fryer");
+
+    if (!hasHeatOtherThanMicro && activeFilter === "one_skillet") {
+      setActiveFilter("all");
+    }
+
+    triggerPreferenceRefresh(nextProfile);
+
+    if (env === "microwave_only") {
+      showToast("Microwave Only active — showing shelf-stable microwave & no-cook meals (add Mini-Fridge for chilled items).");
+    } else if (env === "custom") {
+      showToast("Custom Equipment active — toggle any appliances you have below.");
+    } else {
+      showToast(`${ENVIRONMENT_PRESETS[env].label} active`);
+    }
+  };
+
+  const handleToggleCustomEquipment = (eq: CookingEquipment) => {
+    setProfile((prev) => {
+      let nextHasFreezer = prev.hasFreezer;
+      let nextEq = [...prev.equipment];
+
+      if (eq === "freezer") {
+        nextHasFreezer = !prev.hasFreezer;
+        if (nextHasFreezer && !nextEq.includes("freezer")) {
+          nextEq.push("freezer");
+        } else if (!nextHasFreezer) {
+          nextEq = nextEq.filter((item) => item !== "freezer");
+        }
+      } else if (nextEq.includes(eq)) {
+        nextEq = nextEq.filter((item) => item !== eq);
+      } else {
+        nextEq.push(eq);
+      }
+
+      const updated: KitchenProfile = {
+        ...prev,
+        environment: "custom",
+        equipment: nextEq,
+        hasFreezer: nextHasFreezer
+      };
+      triggerPreferenceRefresh(updated);
+      return updated;
+    });
+  };
+
+  const handleChangeEffort = (effort: CookingEffort) => {
+    const nextProfile: KitchenProfile = { ...profile, effort };
+    setProfile(nextProfile);
+    triggerPreferenceRefresh(nextProfile);
+    showToast(`${EFFORT_PRESETS[effort].label} active`);
+  };
+
+  const handleToggleDietary = (tag: DietaryRestriction) => {
+    setProfile((prev) => {
+      const exists = prev.dietaryRestrictions.includes(tag);
+      const nextTags = exists
+        ? prev.dietaryRestrictions.filter((d) => d !== tag)
+        : [...prev.dietaryRestrictions, tag];
+      return { ...prev, dietaryRestrictions: nextTags };
+    });
+  };
+
+  const handleChangeVarietyPreference = (varietyPreference: VarietyPreference) => {
+    setProfile((prev) => ({ ...prev, varietyPreference }));
+  };
+
   // Listen to Firebase Auth
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (nextUser) => {
@@ -322,12 +425,18 @@ export default function App() {
         setHouseholdName("");
         setIsPrivateCloudReady(false);
         setIsSharedCloudReady(false);
+        mergedOnSignInUidRef.current = null;
+        initializedSharedKeyRef.current = null;
+        baselinePrivatePantryRef.current = [];
+        baselinePrivateGroceryRef.current = [];
+        baselineSharedPantryRef.current = [];
+        baselineSharedGroceryRef.current = [];
       }
     });
     return () => unsub();
   }, []);
 
-  // Subscribe to private user state in Firestore
+  // Subscribe to private user state in Firestore with offline merge & 3-way reconciliation
   useEffect(() => {
     if (!authReady || !user) return;
 
@@ -341,13 +450,17 @@ export default function App() {
         if (!active) return;
 
         if (!snapshot.exists()) {
-          const initPantry = sanitizePantryForCloud(pantryItems);
-          const initGrocery = sanitizeGroceryForCloud(groceryItems);
-          const initRut = sanitizeRutForCloud(rutMeals);
-          const initFavs = sanitizeFavoritesForCloud(favorites);
+          const initPantry = sanitizePantryForCloud(localPantryRef.current);
+          const initGrocery = sanitizeGroceryForCloud(localGroceryRef.current);
+          const initRut = sanitizeRutForCloud(localRutRef.current);
+          const initFavs = sanitizeFavoritesForCloud(localFavoritesRef.current);
           const initCustom = sanitizeCustomMealsForCloud(
-            meals.filter((m) => !DEFAULT_ID_SET.has(m.id))
+            localMealsRef.current.filter((m) => !DEFAULT_ID_SET.has(m.id))
           );
+
+          baselinePrivatePantryRef.current = initPantry;
+          baselinePrivateGroceryRef.current = initGrocery;
+          mergedOnSignInUidRef.current = user.uid;
 
           lastPrivateSnapshotRef.current = {
             pantry: JSON.stringify(initPantry),
@@ -385,6 +498,60 @@ export default function App() {
         const remoteFavs = sanitizeFavoritesForCloud(data.favorites);
         const remoteCustom = sanitizeCustomMealsForCloud(data.customMeals);
 
+        const isFirstLoadForUser = mergedOnSignInUidRef.current !== user.uid;
+        mergedOnSignInUidRef.current = user.uid;
+
+        if (isFirstLoadForUser) {
+          const localCustom = sanitizeCustomMealsForCloud(
+            localMealsRef.current.filter((m) => !DEFAULT_ID_SET.has(m.id))
+          );
+          const mergedAll = mergeOnSignInOfflineToCloud({
+            localPantry: sanitizePantryForCloud(localPantryRef.current),
+            remotePantry,
+            localGrocery: sanitizeGroceryForCloud(localGroceryRef.current),
+            remoteGrocery,
+            localFavorites: sanitizeFavoritesForCloud(localFavoritesRef.current),
+            remoteFavorites: remoteFavs,
+            localCustomMeals: localCustom,
+            remoteCustomMeals: remoteCustom,
+            localRutMeals: sanitizeRutForCloud(localRutRef.current),
+            remoteRutMeals: remoteRut
+          });
+
+          const cleanMergedPantry = sanitizePantryForCloud(mergedAll.pantryItems);
+          const cleanMergedGrocery = sanitizeGroceryForCloud(mergedAll.groceryItems);
+          const cleanMergedRut = sanitizeRutForCloud(mergedAll.rutMeals);
+          const cleanMergedFavs = sanitizeFavoritesForCloud(mergedAll.favorites);
+          const cleanMergedCustom = sanitizeCustomMealsForCloud(mergedAll.customMeals);
+
+          baselinePrivatePantryRef.current = remotePantry;
+          baselinePrivateGroceryRef.current = remoteGrocery;
+
+          lastPrivateSnapshotRef.current = {
+            pantry: JSON.stringify(remotePantry),
+            grocery: JSON.stringify(remoteGrocery),
+            rut: JSON.stringify(remoteRut),
+            favorites: JSON.stringify(remoteFavs),
+            customMeals: JSON.stringify(remoteCustom),
+            householdId: remoteHouseholdId
+          };
+
+          setRutMeals(cleanMergedRut);
+          setFavorites(cleanMergedFavs);
+          setMeals(mergeMealsWithDefaults(cleanMergedCustom));
+          setHouseholdId(remoteHouseholdId);
+
+          if (!remoteHouseholdId) {
+            setPantryItems(cleanMergedPantry);
+            setGroceryItems(cleanMergedGrocery);
+            setIsSharedCloudReady(false);
+            setHouseholdName("");
+          }
+          setIsPrivateCloudReady(true);
+          return;
+        }
+
+        // Subsequent remote updates: preserve concurrent local edits via 3-way merge
         lastPrivateSnapshotRef.current = {
           pantry: JSON.stringify(remotePantry),
           grocery: JSON.stringify(remoteGrocery),
@@ -400,8 +567,24 @@ export default function App() {
         setHouseholdId(remoteHouseholdId);
 
         if (!remoteHouseholdId) {
-          setPantryItems(remotePantry);
-          setGroceryItems(remoteGrocery);
+          const reconciledPantry = sanitizePantryForCloud(
+            mergePantryState(
+              baselinePrivatePantryRef.current,
+              localPantryRef.current,
+              remotePantry
+            )
+          );
+          const reconciledGrocery = sanitizeGroceryForCloud(
+            mergeGroceryState(
+              baselinePrivateGroceryRef.current,
+              localGroceryRef.current,
+              remoteGrocery
+            )
+          );
+          baselinePrivatePantryRef.current = remotePantry;
+          baselinePrivateGroceryRef.current = remoteGrocery;
+          setPantryItems(reconciledPantry);
+          setGroceryItems(reconciledGrocery);
           setIsSharedCloudReady(false);
           setHouseholdName("");
         }
@@ -451,13 +634,52 @@ export default function App() {
         const remotePantry = sanitizePantryForCloud(data.pantryItems);
         const remoteGrocery = sanitizeGroceryForCloud(data.groceryItems);
 
+        const isFirstSharedSnap = initializedSharedKeyRef.current !== householdId;
+        initializedSharedKeyRef.current = householdId;
+
         lastSharedSnapshotRef.current = {
           pantry: JSON.stringify(remotePantry),
           grocery: JSON.stringify(remoteGrocery)
         };
 
-        setPantryItems(remotePantry);
-        setGroceryItems(remoteGrocery);
+        if (isFirstSharedSnap) {
+          const mergedShared = mergeOnSignInOfflineToCloud({
+            localPantry: sanitizePantryForCloud(localPantryRef.current),
+            remotePantry,
+            localGrocery: sanitizeGroceryForCloud(localGroceryRef.current),
+            remoteGrocery,
+            localFavorites: [],
+            remoteFavorites: [],
+            localCustomMeals: [],
+            remoteCustomMeals: [],
+            localRutMeals: [],
+            remoteRutMeals: []
+          });
+          baselineSharedPantryRef.current = remotePantry;
+          baselineSharedGroceryRef.current = remoteGrocery;
+          setPantryItems(sanitizePantryForCloud(mergedShared.pantryItems));
+          setGroceryItems(sanitizeGroceryForCloud(mergedShared.groceryItems));
+        } else {
+          const reconciledPantry = sanitizePantryForCloud(
+            mergePantryState(
+              baselineSharedPantryRef.current,
+              localPantryRef.current,
+              remotePantry
+            )
+          );
+          const reconciledGrocery = sanitizeGroceryForCloud(
+            mergeGroceryState(
+              baselineSharedGroceryRef.current,
+              localGroceryRef.current,
+              remoteGrocery
+            )
+          );
+          baselineSharedPantryRef.current = remotePantry;
+          baselineSharedGroceryRef.current = remoteGrocery;
+          setPantryItems(reconciledPantry);
+          setGroceryItems(reconciledGrocery);
+        }
+
         setIsSharedCloudReady(true);
       },
       (error) => {
@@ -543,6 +765,10 @@ export default function App() {
           customMeals: customJson,
           ...(householdId ? {} : { pantry: pantryJson, grocery: groceryJson })
         };
+        if (!householdId) {
+          baselinePrivatePantryRef.current = cleanPantry;
+          baselinePrivateGroceryRef.current = cleanGrocery;
+        }
 
         try {
           await updateDoc(doc(db, "users", user.uid, "appState", "main"), payloadToSend);
@@ -567,6 +793,8 @@ export default function App() {
             pantry: pantryJson,
             grocery: groceryJson
           };
+          baselineSharedPantryRef.current = cleanPantry;
+          baselineSharedGroceryRef.current = cleanGrocery;
           try {
             await updateDoc(doc(db, "households", householdId, "sharedState", "main"), {
               ...sharedUpdates,
@@ -639,6 +867,9 @@ export default function App() {
         pantry: JSON.stringify(cleanPantry),
         grocery: JSON.stringify(cleanGrocery)
       };
+      baselineSharedPantryRef.current = cleanPantry;
+      baselineSharedGroceryRef.current = cleanGrocery;
+      initializedSharedKeyRef.current = code;
 
       const batch = writeBatch(db);
       batch.set(doc(db, "households", code), {
@@ -670,9 +901,8 @@ export default function App() {
       setHouseholdId(code);
       setHouseholdName(name);
       showToast(`Household created! Share code ${code} with your household.`);
-    } catch (err) {
+    } catch {
       setSyncError("Could not create household right now. Check your connection and try again.");
-      console.error("Create household error:", err);
     } finally {
       setIsSyncingAction(false);
     }
@@ -738,6 +968,9 @@ export default function App() {
         grocery: JSON.stringify(cleanGrocery),
         householdId: ""
       };
+      baselinePrivatePantryRef.current = cleanPantry;
+      baselinePrivateGroceryRef.current = cleanGrocery;
+      initializedSharedKeyRef.current = null;
 
       const batch = writeBatch(db);
       batch.update(doc(db, "users", user.uid, "appState", "main"), {
@@ -753,18 +986,17 @@ export default function App() {
       setHouseholdName("");
       setIsSharedCloudReady(false);
       showToast("Left household. Your lists are back to private mode.");
-    } catch (err) {
+    } catch {
       setSyncError("Could not leave household right now. Check your connection and try again.");
-      console.error("Leave household error:", err);
     } finally {
       setIsSyncingAction(false);
     }
   };
 
-  // Add all ingredients from a meal to grocery list
+  // Grocery handlers
   const handleAddToGrocery = (meal: Meal) => {
     const newItems: GroceryItem[] = meal.ingredients.map((ing) => ({
-      id: `grocery-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: `grocery-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
       name: ing.item,
       amount: ing.amount,
       aisle: ing.walmartAisle,
@@ -776,16 +1008,15 @@ export default function App() {
     showToast(`Added ${newItems.length} items for "${meal.title}" to your Walmart list!`);
   };
 
-  // Add ONLY missing ingredients (not currently in pantry) to grocery list
   const handleAddMissingToGrocery = (meal: Meal) => {
     const missing = getMissingIngredients(meal, pantryItems);
     if (missing.length === 0) {
-      showToast(`You already have all ingredients for "${meal.title}" in your pantry!`);
+      showToast(`You already have everything for "${meal.title}" in your pantry!`);
       return;
     }
 
     const newItems: GroceryItem[] = missing.map((ing) => ({
-      id: `grocery-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: `grocery-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
       name: ing.item,
       amount: ing.amount,
       aisle: ing.walmartAisle,
@@ -801,7 +1032,7 @@ export default function App() {
 
   const handleAddExtraToGrocery = (addon: MealAddon, mealTitle: string) => {
     const item: GroceryItem = {
-      id: `grocery-extra-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+      id: `grocery-extra-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       name: addon.item,
       amount: "1",
       aisle: addon.walmartAisle,
@@ -932,64 +1163,58 @@ export default function App() {
   };
 
   const handleAddRutMeal = (name: string) => {
-    const newRut: RutMeal = {
-      id: `rut-${Date.now()}`,
+    const newItem: RutMeal = {
+      id: `pref-${Date.now()}`,
       name,
       dateAdded: new Date().toISOString()
     };
-    setRutMeals((prev) => [...prev, newRut]);
-    showToast(`Added "${name}" to avoided rut list.`);
+    setRutMeals((prev) => [...prev, newItem]);
+    showToast(`Added "${name}" to your preferences list.`);
   };
 
   const handleRemoveRutMeal = (id: string) => {
     setRutMeals((prev) => prev.filter((r) => r.id !== id));
   };
 
-  // AI Meal Generator (1 fresh idea)
-  const handleGenerateMeal = async (energyFilter: string) => {
-    const inferredCategory: Meal["category"] =
-      kitchenMode === "microwave_only"
-        ? energyFilter === "assembly"
-          ? "assembly"
-          : "microwave"
-        : energyFilter === "microwave"
-        ? "microwave"
-        : energyFilter === "one_skillet"
-        ? "one_skillet"
-        : "assembly";
-
-    const ensureVisibleInFilter = (createdMeal: Meal) => {
+  // Adaptive AI Meal Generator ("Pick For Me" or "Try a Twist")
+  const handleGenerateMeal = async (upgradeTarget?: string) => {
+    const ensureVisible = () => {
       if (
         activeFilter === "favorites" ||
         activeFilter === "pantry" ||
-        activeFilter === "healthy_boost" ||
-        (activeFilter === "microwave" && createdMeal.category !== "microwave" && createdMeal.category !== "assembly") ||
-        (activeFilter === "assembly" && createdMeal.category !== "assembly") ||
-        (activeFilter === "one_skillet" && createdMeal.category !== "one_skillet" && createdMeal.category !== "sheet_pan")
+        activeFilter === "healthy_boost"
       ) {
         setActiveFilter("all");
       }
     };
 
+    const promoteSpotlight = (meal: Meal) => {
+      setCurrentSpotlightId(meal.id);
+      setRecentSpotlightIds((prev) => [meal.id, ...prev.filter((id) => id !== meal.id)].slice(0, 12));
+    };
+
     const pickLocalFallback = (customToast?: string) => {
-      const hardwareAllowed = DEFAULT_MEALS.filter((m) =>
-        isMealAllowedInKitchenMode(m, kitchenMode, noFreezer)
+      const strictEligible = meals.filter(
+        (m) =>
+          getMealEligibility(m, profile, {
+            mealType: mealTypeFilter,
+            effortMatchMode: "exact",
+            lessFrequentList: rutMeals
+          }).eligible
       );
-      const basePool = hardwareAllowed.length > 0 ? hardwareAllowed : DEFAULT_MEALS;
-      const freshOptions = basePool.filter(
-        (m) => !rutMeals.some((r) => m.title.toLowerCase().includes(r.name.toLowerCase()))
-      );
-      const pool = freshOptions.length > 0 ? freshOptions : basePool;
-      const randomMeal = pool[Math.floor(Math.random() * pool.length)] || DEFAULT_MEALS[0];
-      const cloned: Meal = {
-        ...randomMeal,
-        id: `fresh-pick-${Date.now()}`,
-        title: `${randomMeal.title} (Fresh Pick)`
-      };
-      setMeals((prev) => [cloned, ...prev]);
-      ensureVisibleInFilter(cloned);
-      setSpotlightIndex(0);
-      showToast(customToast || `Selected easy meal: "${cloned.title}"!`);
+      const eqEligible =
+        strictEligible.length > 0
+          ? strictEligible
+          : meals.filter((m) => isMealEquipmentCompatible(m, profile).compatible);
+      const pool = eqEligible.length > 0 ? eqEligible : DEFAULT_MEALS;
+      const picked =
+        pool.find((m) => !recentSpotlightIds.includes(m.id)) ||
+        pool[Math.floor(Math.random() * pool.length)] ||
+        DEFAULT_MEALS[0];
+
+      promoteSpotlight(picked);
+      ensureVisible();
+      showToast(customToast || `Selected for your setup: "${picked.title}"`);
     };
 
     if (typeof navigator !== "undefined" && !navigator.onLine) {
@@ -1004,16 +1229,19 @@ export default function App() {
     try {
       const res = await fetch("/api/generate-meal", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "X-SimpleChef-Client": getOrCreateClientToken(user?.uid)
+        },
         signal: controller.signal,
         body: JSON.stringify({
-          rutMeals: capApiStrings(rutMeals.map((r) => r.name)),
+          kitchenProfile: profile,
+          mealType: mealTypeFilter,
+          ...(maxTimeFilter ? { maxCookMinutes: maxTimeFilter } : {}),
+          lessFrequentMeals: capApiStrings(rutMeals.map((r) => r.name)),
           existingTitles: capApiStrings(meals.map((m) => m.title)),
           pantryItems: capApiStrings(pantryItems.map((p) => p.name)),
-          energyLevel: energyFilter,
-          timeLimit: 12,
-          kitchenMode,
-          noFreezer
+          ...(upgradeTarget ? { upgradeTarget } : {})
         })
       });
 
@@ -1034,11 +1262,12 @@ export default function App() {
       const newMeal: Meal = {
         ...data.meal,
         id: `ai-meal-${Date.now()}`,
-        category: data.meal.category || inferredCategory
+        effortLevel: data.meal.effortLevel || profile.effort,
+        ...(upgradeTarget ? { comfortVariationOf: upgradeTarget } : {})
       };
       setMeals((prev) => [newMeal, ...prev]);
-      ensureVisibleInFilter(newMeal);
-      setSpotlightIndex(0);
+      promoteSpotlight(newMeal);
+      ensureVisible();
       showToast(`Created fresh idea: "${newMeal.title}"!`);
     } catch {
       pickLocalFallback(
@@ -1050,19 +1279,8 @@ export default function App() {
     }
   };
 
-  // AI Batch Generator (3 diverse ideas across freezer, pantry, and fridge)
-  const handleGenerateBatch = async (energyFilter: string) => {
-    const inferredCategory: Meal["category"] =
-      kitchenMode === "microwave_only"
-        ? energyFilter === "assembly"
-          ? "assembly"
-          : "microwave"
-        : energyFilter === "microwave"
-        ? "microwave"
-        : energyFilter === "one_skillet"
-        ? "one_skillet"
-        : "one_skillet";
-
+  // AI Batch Generator (3 diverse ideas matching environment + effort + meal type)
+  const handleGenerateBatch = async () => {
     const ensureBatchVisible = () => {
       if (
         activeFilter === "favorites" ||
@@ -1074,27 +1292,26 @@ export default function App() {
     };
 
     const promoteLocalBatchFallback = (customToast?: string) => {
-      const hardwareAllowed = DEFAULT_MEALS.filter((m) =>
-        isMealAllowedInKitchenMode(m, kitchenMode, noFreezer)
+      const strictEligible = meals.filter(
+        (m) =>
+          getMealEligibility(m, profile, {
+            mealType: mealTypeFilter,
+            effortMatchMode: "exact",
+            lessFrequentList: rutMeals
+          }).eligible
       );
-      const basePool = hardwareAllowed.length > 0 ? hardwareAllowed : DEFAULT_MEALS;
-      const nonRut = basePool.filter(
-        (m) => !rutMeals.some((r) => m.title.toLowerCase().includes(r.name.toLowerCase()))
-      );
-      const shuffled = [...(nonRut.length >= 3 ? nonRut : basePool)].sort(
-        () => Math.random() - 0.5
-      );
-      const pickedSlice = shuffled.slice(0, 3);
-      const pickedIds = new Set(pickedSlice.map((m) => m.id));
-      setMeals((prev) => {
-        const promoted = prev.filter((m) => pickedIds.has(m.id));
-        const rest = prev.filter((m) => !pickedIds.has(m.id));
-        return [...promoted, ...rest];
-      });
-      setRecentSuggestions(pickedSlice);
+      const eqEligible =
+        strictEligible.length >= 3
+          ? strictEligible
+          : meals.filter((m) => isMealEquipmentCompatible(m, profile).compatible);
+      const basePool = eqEligible.length > 0 ? eqEligible : DEFAULT_MEALS;
+      const shuffled = [...basePool].sort(() => Math.random() - 0.5).slice(0, 3);
+      if (shuffled.length > 0) {
+        setRecentSuggestions(shuffled);
+        setCurrentSpotlightId(shuffled[0].id);
+      }
       ensureBatchVisible();
-      setSpotlightIndex(0);
-      showToast(customToast || "Surfaced 3 fresh meal picks — compare their ingredients below!");
+      showToast(customToast || "Surfaced fresh meal picks — compare their ingredients below!");
     };
 
     if (typeof navigator !== "undefined" && !navigator.onLine) {
@@ -1109,15 +1326,18 @@ export default function App() {
     try {
       const res = await fetch("/api/generate-batch", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "X-SimpleChef-Client": getOrCreateClientToken(user?.uid)
+        },
         signal: controller.signal,
         body: JSON.stringify({
-          rutMeals: capApiStrings(rutMeals.map((r) => r.name)),
+          kitchenProfile: profile,
+          mealType: mealTypeFilter,
+          ...(maxTimeFilter ? { maxCookMinutes: maxTimeFilter } : {}),
+          lessFrequentMeals: capApiStrings(rutMeals.map((r) => r.name)),
           existingTitles: capApiStrings(meals.map((m) => m.title)),
-          pantryItems: capApiStrings(pantryItems.map((p) => p.name)),
-          energyLevel: energyFilter,
-          kitchenMode,
-          noFreezer
+          pantryItems: capApiStrings(pantryItems.map((p) => p.name))
         })
       });
 
@@ -1134,7 +1354,7 @@ export default function App() {
       const stamped: Meal[] = batch.map((m, idx) => ({
         ...m,
         id: `ai-batch-${Date.now()}-${idx}`,
-        category: m.category || inferredCategory
+        effortLevel: m.effortLevel || profile.effort
       }));
 
       setMeals((prev) => {
@@ -1143,9 +1363,9 @@ export default function App() {
         return [...unique, ...prev];
       });
       setRecentSuggestions(stamped);
+      setCurrentSpotlightId(stamped[0].id);
       ensureBatchVisible();
-      setSpotlightIndex(0);
-      showToast(`Added ${stamped.length} brand-new meal ideas — check their ingredients below!`);
+      showToast(`Added ${stamped.length} new meal ideas — compare ingredients below!`);
     } catch {
       promoteLocalBatchFallback(
         rateLimited ? "Taking a breather — try again in a few minutes" : undefined
@@ -1163,7 +1383,7 @@ export default function App() {
     setIsRescuing(false);
   };
 
-  // Turn random ingredients into 3 distinct meal options so the user sees what they are making first
+  // Turn random ingredients into 3 distinct meal options before cooking
   const handleRescueIngredients = async (
     ingredients: string[],
     excludeTitles: string[] = []
@@ -1180,12 +1400,11 @@ export default function App() {
         walmartAisle: "Pantry / Canned"
       }));
 
-      // Include overlapping meals from the user's library first if any match (respecting kitchen setup!)
       const matchingLibrary = meals
         .filter(
           (m) =>
             !excludeLower.has(m.title.toLowerCase()) &&
-            isMealAllowedInKitchenMode(m, kitchenMode, noFreezer)
+            isMealEquipmentCompatible(m, profile).compatible
         )
         .map((m) => {
           const overlap = m.ingredients.filter((ing) =>
@@ -1203,136 +1422,159 @@ export default function App() {
         .map((x) => x.meal);
 
       const now = Date.now();
-      const secondOption: Meal =
-        kitchenMode === "microwave_only"
-          ? {
-              id: `rescue-nocook-${now}-2`,
-              title: `2-Min No-Cook ${ingLabel} Mix`,
-              tagline: `Zero heat or microwave wait—toss ${ingAll} together on a plate or bowl right now.`,
-              prepMinutes: 2,
-              cookMinutes: 0,
-              category: "assembly",
-              ingredients: baseIngs,
-              instructions: [
-                {
-                  stepNumber: 1,
-                  title: "Combine in Bowl or Wrap",
-                  instruction: `Put ${ingAll} together in a bowl (or fold into a tortilla if you have one).`,
-                  timerSeconds: 0
-                },
-                {
-                  stepNumber: 2,
-                  title: "Season & Eat",
-                  instruction: "Add a pinch of salt, pepper, or your favorite sauce/dressing and eat immediately.",
-                  timerSeconds: 0
-                }
-              ],
-              whyItWorks: "Works even when the dorm microwave has a line or zero dishes are clean.",
-              rutAlternativeNote: "Fastest zero-appliance meal from what you already have."
-            }
-          : {
-              id: `rescue-skillet-${now}-2`,
-              title: `Quick ${ingLabel} Skillet Toss`,
-              tagline: `A warm, lightly crisped 1-pan meal made with ${ingAll} in about 7 minutes.`,
-              prepMinutes: 2,
-              cookMinutes: 5,
-              category: "one_skillet",
-              ingredients: baseIngs,
-              instructions: [
-                {
-                  stepNumber: 1,
-                  title: "Heat Pan & Add Ingredients",
-                  instruction: `Warm a non-stick skillet over medium heat with 1 tablespoon of oil or butter. Add ${ingAll}.`,
-                  timerSeconds: 0
-                },
-                {
-                  stepNumber: 2,
-                  title: "Sizzle & Season",
-                  instruction: "Toss and stir for 5 minutes until heated through and lightly browned, adding salt and pepper.",
-                  timerSeconds: 300
-                },
-                {
-                  stepNumber: 3,
-                  title: "Plate & Serve",
-                  instruction: "Scoop onto a plate or into a bowl and enjoy hot.",
-                  timerSeconds: 0
-                }
-              ],
-              whyItWorks: "Pan heat makes simple staples taste like a cooked dinner with minimal effort.",
-              rutAlternativeNote: "Beats plain snacks while cleaning out the fridge before food spoils."
-            };
+      const hasStove = profile.equipment.includes("stove");
+      const hasMicro = profile.equipment.includes("microwave");
+
+      const noCookOption: Meal = {
+        id: `rescue-nocook-${now}-2`,
+        title: `2-Min No-Cook ${ingLabel} Mix`,
+        tagline: `Zero heat or pan cleanup — combine ${ingAll} together on a plate or bowl right now.`,
+        prepMinutes: 2,
+        cookMinutes: 0,
+        category: "assembly",
+        effortLevel: "very_low",
+        requiredEquipment: [],
+        ingredients: baseIngs,
+        instructions: [
+          {
+            stepNumber: 1,
+            title: "Combine in Bowl or Wrap",
+            instruction: `Put ${ingAll} together in a bowl (or fold into a tortilla if you have one).`,
+            timerSeconds: 0
+          },
+          {
+            stepNumber: 2,
+            title: "Season & Eat",
+            instruction:
+              "Add a pinch of salt, pepper, or your favorite sauce/dressing and eat immediately.",
+            timerSeconds: 0
+          }
+        ],
+        whyItWorks: "Works with zero appliances and almost zero dishes.",
+        rutAlternativeNote: "Fast no-heat meal from what you already have."
+      };
+
+      const skilletOption: Meal = {
+        id: `rescue-skillet-${now}-2`,
+        title: `Quick ${ingLabel} Skillet Toss`,
+        tagline: `A warm, lightly crisped 1-pan meal made with ${ingAll} in about 7 minutes.`,
+        prepMinutes: 2,
+        cookMinutes: 5,
+        category: "one_skillet",
+        effortLevel: "low",
+        requiredEquipment: ["stove"],
+        ingredients: baseIngs,
+        instructions: [
+          {
+            stepNumber: 1,
+            title: "Heat Pan & Add Ingredients",
+            instruction: `Warm a non-stick skillet over medium heat with 1 tablespoon of oil or butter. Add ${ingAll}.`,
+            timerSeconds: 0
+          },
+          {
+            stepNumber: 2,
+            title: "Sizzle & Season",
+            instruction:
+              "Toss and stir for 5 minutes until heated through and lightly browned, adding salt and pepper.",
+            timerSeconds: 300
+          },
+          {
+            stepNumber: 3,
+            title: "Plate & Serve",
+            instruction: "Scoop onto a plate or into a bowl and enjoy hot.",
+            timerSeconds: 0
+          }
+        ],
+        whyItWorks: "Pan heat makes simple staples taste like a cooked dinner with minimal effort.",
+        rutAlternativeNote: "Quick stovetop meal using items you want to finish."
+      };
+
+      const microBowlOption: Meal = {
+        id: `rescue-micro-${now}-1`,
+        title: `3-Min ${ingLabel} Warm Bowl`,
+        tagline: `A fast, no-pan microwave bowl combining ${ingAll} with minimal cleanup.`,
+        prepMinutes: 1,
+        cookMinutes: 2,
+        category: "microwave",
+        effortLevel: "very_low",
+        requiredEquipment: ["microwave"],
+        ingredients: baseIngs,
+        instructions: [
+          {
+            stepNumber: 1,
+            title: "Combine in Bowl",
+            instruction: `Add ${ingAll} into a microwave-safe bowl with a splash of water or pinch of salt.`,
+            timerSeconds: 0
+          },
+          {
+            stepNumber: 2,
+            title: "Microwave Hot",
+            instruction:
+              "Cover loosely with a paper towel and microwave for 90 seconds to 2 minutes until steaming hot.",
+            timerSeconds: 120
+          },
+          {
+            stepNumber: 3,
+            title: "Stir & Eat",
+            instruction: "Give it one quick stir and eat straight from the bowl.",
+            timerSeconds: 0
+          }
+        ],
+        whyItWorks: "Zero pans to wash and uses exactly what you picked right now.",
+        rutAlternativeNote: "Turns loose items into a hot bowl in 3 minutes."
+      };
+
+      const microPlateOption: Meal = {
+        id: `rescue-plate-${now}-3`,
+        title: `Easy ${ingLabel} Warm Plate`,
+        tagline: `A simple customizable plate pairing ${ingAll} together with zero fuss.`,
+        prepMinutes: 3,
+        cookMinutes: hasMicro ? 2 : 0,
+        category: hasMicro ? "microwave" : "assembly",
+        effortLevel: "very_low",
+        requiredEquipment: hasMicro ? ["microwave"] : [],
+        ingredients: baseIngs,
+        instructions: [
+          {
+            stepNumber: 1,
+            title: "Prep on One Plate",
+            instruction: `Arrange ${ingAll} together on a large microwave-safe plate or shallow bowl.`,
+            timerSeconds: 0
+          },
+          {
+            stepNumber: 2,
+            title: hasMicro ? "Warm Briefly" : "Toss & Dress",
+            instruction: hasMicro
+              ? "Cover lightly with a paper towel and microwave 90 seconds until warm, keeping cold toppings on the side."
+              : "Toss gently with olive oil, salt, pepper, or your favorite condiment.",
+            timerSeconds: hasMicro ? 90 : 0
+          },
+          {
+            stepNumber: 3,
+            title: "Season & Dig In",
+            instruction: "Finish with seasoning or sauce and eat right away.",
+            timerSeconds: 0
+          }
+        ],
+        whyItWorks: "Keeps ingredients balanced on one plate without extra cookware.",
+        rutAlternativeNote: "Simple meal from loose kitchen items."
+      };
 
       const syntheticOptions: Meal[] = [
-        {
-          id: `rescue-micro-${now}-1`,
-          title: `3-Min ${ingLabel} Warm Bowl`,
-          tagline: `A fast, no-pan microwave bowl combining ${ingAll} with zero cleanup.`,
-          prepMinutes: 1,
-          cookMinutes: 2,
-          category: "microwave",
-          ingredients: baseIngs,
-          instructions: [
-            {
-              stepNumber: 1,
-              title: "Combine in Bowl",
-              instruction: `Add ${ingAll} into a microwave-safe bowl with a splash of water or pinch of salt.`,
-              timerSeconds: 0
-            },
-            {
-              stepNumber: 2,
-              title: "Microwave Hot",
-              instruction: "Cover loosely with a paper towel and microwave for 90 seconds to 2 minutes until steaming hot.",
-              timerSeconds: 120
-            },
-            {
-              stepNumber: 3,
-              title: "Stir & Eat",
-              instruction: "Give it one quick stir and eat straight from the bowl.",
-              timerSeconds: 0
-            }
-          ],
-          whyItWorks: "Zero pans to wash and uses exactly what you picked right now.",
-          rutAlternativeNote: "Turns loose kitchen items into a warm bowl faster than boiling ramen."
-        },
-        secondOption,
-        {
-          id: `rescue-plate-${now}-3`,
-          title: `Easy ${ingLabel} Plate Mash-Up`,
-          tagline: `A simple, customizable comfort plate pairing ${ingAll} together with zero fuss.`,
-          prepMinutes: 3,
-          cookMinutes: 2,
-          category: "microwave",
-          ingredients: baseIngs,
-          instructions: [
-            {
-              stepNumber: 1,
-              title: "Prep on One Plate",
-              instruction: `Arrange ${ingAll} together on a large microwave-safe plate or shallow bowl.`,
-              timerSeconds: 0
-            },
-            {
-              stepNumber: 2,
-              title: "Warm If Needed",
-              instruction: "Cover lightly with a paper towel and microwave 90 seconds until warm, keeping cold toppings on the side.",
-              timerSeconds: 90
-            },
-            {
-              stepNumber: 3,
-              title: "Season & Dig In",
-              instruction: "Sprinkle with a pinch of salt, pepper, or your favorite condiment and eat right away.",
-              timerSeconds: 0
-            }
-          ],
-          whyItWorks: "Keeps ingredients balanced on one plate without extra cookware.",
-          rutAlternativeNote: "Gives you a filling meal without defaulting to packaged snacks."
-        }
+        ...(hasMicro ? [microBowlOption] : []),
+        ...(hasStove ? [skilletOption] : [noCookOption]),
+        microPlateOption,
+        noCookOption
       ];
 
       const picked: Meal[] = [...matchingLibrary];
       const usedTitles = new Set(picked.map((m) => m.title.toLowerCase()));
       for (const opt of syntheticOptions) {
         if (picked.length >= 3) break;
-        if (!usedTitles.has(opt.title.toLowerCase())) {
+        if (
+          !usedTitles.has(opt.title.toLowerCase()) &&
+          isMealEquipmentCompatible(opt, profile).compatible
+        ) {
           usedTitles.add(opt.title.toLowerCase());
           picked.push(opt);
         }
@@ -1357,14 +1599,17 @@ export default function App() {
     try {
       const res = await fetch("/api/ingredients-to-meal", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "X-SimpleChef-Client": getOrCreateClientToken(user?.uid)
+        },
         signal: controller.signal,
         body: JSON.stringify({
           ingredients: cleanIngredients,
-          rutMeals: capApiStrings(rutMeals.map((r) => r.name)),
+          lessFrequentMeals: capApiStrings(rutMeals.map((r) => r.name)),
           existingTitles: capApiStrings(excludeTitles),
-          kitchenMode,
-          noFreezer
+          kitchenProfile: profile,
+          mealType: mealTypeFilter
         })
       });
 
@@ -1389,7 +1634,7 @@ export default function App() {
         rawList.map((m, idx) => ({
           ...m,
           id: m.id || `rescue-${now}-${idx}`,
-          category: m.category || "one_skillet"
+          category: m.category || (profile.equipment.includes("stove") ? "one_skillet" : "microwave")
         }))
       );
 
@@ -1435,7 +1680,7 @@ export default function App() {
     ) {
       setActiveFilter("all");
     }
-    setSpotlightIndex(0);
+    setCurrentSpotlightId(chosen.id);
   };
 
   const handleCookRescueOption = (meal: Meal, allOptions: Meal[]) => {
@@ -1448,7 +1693,7 @@ export default function App() {
   const handleViewRescueOption = (meal: Meal, allOptions: Meal[]) => {
     saveRescueSelectionToLibrary(meal, allOptions);
     setShowRescueModal(false);
-    showToast(`"${meal.title}" is ready in Today's Spotlight!`);
+    showToast(`"${meal.title}" is ready in Spotlight!`);
   };
 
   // Suggest new meals from pantry items
@@ -1471,14 +1716,17 @@ export default function App() {
     try {
       const res = await fetch("/api/pantry-suggestions", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "X-SimpleChef-Client": getOrCreateClientToken(user?.uid)
+        },
         signal: controller.signal,
         body: JSON.stringify({
           pantryItems: capApiStrings(itemsToUse.map((i) => i.name)),
           existingTitles: capApiStrings(meals.map((m) => m.title)),
-          rutMeals: capApiStrings(rutMeals.map((r) => r.name)),
-          kitchenMode,
-          noFreezer
+          lessFrequentMeals: capApiStrings(rutMeals.map((r) => r.name)),
+          kitchenProfile: profile,
+          mealType: mealTypeFilter
         })
       });
 
@@ -1494,7 +1742,7 @@ export default function App() {
         const stamped: Meal[] = suggested.map((m, idx) => ({
           ...m,
           id: `pantry-meal-${Date.now()}-${idx}`,
-          category: m.category || (kitchenMode === "microwave_only" ? "microwave" : "one_skillet")
+          effortLevel: m.effortLevel || profile.effort
         }));
         setMeals((prev) => {
           const existingTitlesLower = new Set(prev.map((p) => p.title.toLowerCase()));
@@ -1538,77 +1786,176 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pantryItems]);
 
-  // Meals allowed by the active kitchen hardware setup (Microwave-Only / No-Freezer vs Full Kitchen)
-  const hardwareAllowedMeals = meals.filter((m) =>
-    isMealAllowedInKitchenMode(m, kitchenMode, noFreezer)
-  );
-  const visibleMealBase = hardwareAllowedMeals.length > 0 ? hardwareAllowedMeals : meals;
+  // Meals strictly compatible with active equipment, effort, dietary, variety, and meal type
+  const eligibleMeals = useMemo(() => {
+    return meals.filter(
+      (m) =>
+        getMealEligibility(m, profile, {
+          mealType: mealTypeFilter,
+          effortMatchMode: "exact",
+          lessFrequentList: rutMeals
+        }).eligible
+    );
+  }, [meals, profile, mealTypeFilter, rutMeals]);
 
-  // Meals matching pantry
+  // Pantry-matched count within the active environment/effort window
   const minMatchThreshold = pantryItems.length >= 2 ? 2 : 1;
-  const pantryMatchedMeals = pantryItems.length > 0
-    ? visibleMealBase.filter((m) => getPantryMatchStats(m, pantryItems).matchCount >= minMatchThreshold)
-    : [];
+  const pantryMatchedMeals = useMemo(() => {
+    if (pantryItems.length === 0) return [];
+    return eligibleMeals.filter(
+      (m) => getPantryMatchStats(m, pantryItems).matchCount >= minMatchThreshold
+    );
+  }, [eligibleMeals, pantryItems, minMatchThreshold]);
 
-  // Filtered & sorted meals (prioritizing pantry matches when pantry has items)
-  const filteredMeals = visibleMealBase
-    .filter((meal) => {
-      if (activeFilter === "pantry") {
-        return getPantryMatchStats(meal, pantryItems).matchCount >= 1;
-      }
-      if (activeFilter === "favorites") {
-        return favorites.includes(meal.id);
-      }
-      if (activeFilter === "microwave") {
-        return kitchenMode === "microwave_only"
-          ? meal.category === "microwave"
-          : meal.category === "microwave" || meal.category === "assembly";
-      }
-      if (activeFilter === "assembly") {
-        return meal.category === "assembly";
-      }
-      if (activeFilter === "one_skillet") {
-        return meal.category === "one_skillet" || meal.category === "sheet_pan";
-      }
-      if (activeFilter === "healthy_boost") {
-        return meal.ingredients.some(
-          (i) => i.walmartAisle === "Produce" || i.walmartAisle === "Frozen"
-        );
-      }
-      return true;
-    })
-    .sort((a, b) => {
-      if (pantryItems.length === 0) return 0;
-      const statsA = getPantryMatchStats(a, pantryItems);
-      const statsB = getPantryMatchStats(b, pantryItems);
-      if (statsB.matchCount !== statsA.matchCount) {
-        return statsB.matchCount - statsA.matchCount;
-      }
-      return statsB.ratio - statsA.ratio;
-    });
+  // Filtered & sorted meal catalog
+  const filteredMeals = useMemo(() => {
+    return eligibleMeals
+      .filter((meal) => {
+        const reqs = inferMealRequirements(meal);
+        if (maxTimeFilter !== null && meal.prepMinutes + meal.cookMinutes > maxTimeFilter) {
+          return false;
+        }
+        if (activeFilter === "pantry") {
+          return getPantryMatchStats(meal, pantryItems).matchCount >= 1;
+        }
+        if (activeFilter === "favorites") {
+          return favorites.includes(meal.id);
+        }
+        if (activeFilter === "microwave") {
+          return meal.category === "microwave" || reqs.requiredEquipment.includes("microwave");
+        }
+        if (activeFilter === "assembly") {
+          return meal.category === "assembly" || reqs.requiredEquipment.length === 0;
+        }
+        if (activeFilter === "one_skillet") {
+          return (
+            meal.category === "one_skillet" ||
+            meal.category === "sheet_pan" ||
+            reqs.requiredEquipment.includes("stove") ||
+            reqs.requiredEquipment.includes("oven") ||
+            reqs.requiredEquipment.includes("toaster") ||
+            reqs.requiredEquipment.includes("air_fryer")
+          );
+        }
+        if (activeFilter === "healthy_boost") {
+          return meal.ingredients.some(
+            (i) => i.walmartAisle === "Produce" || i.walmartAisle === "Frozen"
+          );
+        }
+        return true;
+      })
+      .sort((a, b) => {
+        if (pantryItems.length === 0) return 0;
+        const statsA = getPantryMatchStats(a, pantryItems);
+        const statsB = getPantryMatchStats(b, pantryItems);
+        if (statsB.matchCount !== statsA.matchCount) {
+          return statsB.matchCount - statsA.matchCount;
+        }
+        return statsB.ratio - statsA.ratio;
+      });
+  }, [eligibleMeals, maxTimeFilter, activeFilter, pantryItems, favorites]);
 
-  // Cycle Shuffle Pick through all non-rut meals allowed in the current kitchen setup
-  const spotlightPool = [...visibleMealBase]
-    .filter((m) => !rutMeals.some((r) => m.title.toLowerCase().includes(r.name.toLowerCase())))
-    .sort((a, b) => {
-      if (pantryItems.length === 0) return 0;
-      const statsA = getPantryMatchStats(a, pantryItems);
-      const statsB = getPantryMatchStats(b, pantryItems);
-      if (statsB.matchCount !== statsA.matchCount) {
-        return statsB.matchCount - statsA.matchCount;
-      }
-      return statsB.ratio - statsA.ratio;
+  // Adaptive Spotlight Selection (reacts immediately to equipment/effort/dietary/variety switches)
+  const spotlightResult = useMemo(() => {
+    const basePool =
+      maxTimeFilter !== null
+        ? meals.filter((m) => m.prepMinutes + m.cookMinutes <= maxTimeFilter)
+        : meals;
+    return selectSpotlightMeal({
+      meals: basePool,
+      profile,
+      lessFrequentList: rutMeals,
+      pantryItems,
+      recentSpotlightIds,
+      currentSpotlightId,
+      mealType: mealTypeFilter,
+      forceNewPick: false
     });
-  const activeSpotlightPool = spotlightPool.length > 0 ? spotlightPool : visibleMealBase;
-  const spotlightMeal = activeSpotlightPool[spotlightIndex % Math.max(1, activeSpotlightPool.length)] || visibleMealBase[0];
+  }, [
+    meals,
+    maxTimeFilter,
+    profile,
+    rutMeals,
+    pantryItems,
+    recentSpotlightIds,
+    currentSpotlightId,
+    mealTypeFilter
+  ]);
+
+  useEffect(() => {
+    if (spotlightResult.meal && spotlightResult.meal.id !== currentSpotlightId) {
+      setCurrentSpotlightId(spotlightResult.meal.id);
+    } else if (!spotlightResult.meal && currentSpotlightId !== null) {
+      setCurrentSpotlightId(null);
+    }
+  }, [spotlightResult.meal, currentSpotlightId]);
+
+  const handleNextSpotlightPick = () => {
+    const basePool =
+      maxTimeFilter !== null
+        ? meals.filter((m) => m.prepMinutes + m.cookMinutes <= maxTimeFilter)
+        : meals;
+    const nextRes = selectSpotlightMeal({
+      meals: basePool,
+      profile,
+      lessFrequentList: rutMeals,
+      pantryItems,
+      recentSpotlightIds,
+      currentSpotlightId,
+      mealType: mealTypeFilter,
+      forceNewPick: true
+    });
+    if (nextRes.meal) {
+      setCurrentSpotlightId(nextRes.meal.id);
+      setRecentSpotlightIds(nextRes.updatedRecentIds);
+    }
+  };
+
+  const handleSpotlightAdjustment = (
+    action: "relax_effort" | "add_fridge" | "reset_filters" | "generate_ai"
+  ) => {
+    if (action === "generate_ai") {
+      handleGenerateMeal();
+    } else if (action === "relax_effort") {
+      const nextEffort: CookingEffort =
+        profile.effort === "normal" &&
+        !profile.equipment.includes("stove") &&
+        !profile.equipment.includes("oven")
+          ? "moderate"
+          : "low";
+      handleChangeEffort(nextEffort);
+    } else if (action === "add_fridge") {
+      handleChangeEnvironment("microwave_mini_fridge");
+    } else if (action === "reset_filters") {
+      setMealTypeFilter("any");
+      setMaxTimeFilter(null);
+      setActiveFilter("all");
+      setProfile((prev) => ({
+        ...prev,
+        dietaryRestrictions: [],
+        varietyPreference: "balanced"
+      }));
+      showToast("Filters reset to match more meals.");
+    }
+  };
+
+  const spotlightMeal = spotlightResult.meal;
+  const spotlightEval = spotlightMeal
+    ? evaluateMealIngredients(spotlightMeal, pantryItems)
+    : null;
+  const spotlightReqs = spotlightMeal ? inferMealRequirements(spotlightMeal) : null;
+
+  const activeEnvLabel =
+    profile.environment === "custom"
+      ? `Custom (${profile.equipment.map((e) => e.replace(/_/g, " ")).join(", ") || "No-Cook"})`
+      : ENVIRONMENT_PRESETS[profile.environment].label;
 
   return (
     <div className="min-h-screen bg-stone-100/70 text-stone-900 flex flex-col font-sans">
-      
       {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed top-4 right-4 z-50 bg-stone-900 text-white text-xs sm:text-sm font-medium px-4 py-2.5 rounded-xl shadow-lg border border-stone-700 flex items-center gap-2 animate-in fade-in slide-in-from-top-3 duration-200">
-          <CheckCircle className="w-4 h-4 text-emerald-400" />
+          <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
           <span>{toastMessage}</span>
         </div>
       )}
@@ -1622,10 +1969,10 @@ export default function App() {
             </div>
             <div className="min-w-0">
               <h1 className="text-base sm:text-lg font-extrabold text-stone-900 tracking-tight leading-none truncate">
-                Easy Low-Effort Meals
+                Simple Chef
               </h1>
               <p className="text-xs text-stone-500 mt-0.5 truncate">
-                Low working memory • 3-5 ingredients • No Walmart ruts
+                {activeEnvLabel} · {EFFORT_PRESETS[profile.effort].label}
               </p>
             </div>
           </div>
@@ -1656,7 +2003,7 @@ export default function App() {
                   </>
                 ) : (
                   <>
-                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                    <Cloud className="w-3.5 h-3.5 text-emerald-700" />
                     <span className="hidden sm:inline">Synced</span>
                   </>
                 )
@@ -1670,13 +2017,16 @@ export default function App() {
 
             <button
               onClick={() => setShowRutModal(true)}
-              className="text-xs font-semibold px-2.5 sm:px-3 py-1.5 rounded-lg border border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100 flex items-center gap-1.5 transition-colors"
+              className="text-xs font-semibold px-2.5 sm:px-3 py-1.5 rounded-lg border border-stone-300 bg-white text-stone-700 hover:bg-stone-50 flex items-center gap-1.5 transition-colors"
+              title="Meal variety & comfort preferences"
             >
-              <ShieldCheck className="w-3.5 h-3.5 text-amber-700" />
-              <span className="hidden sm:inline">Rut Tracker</span>
-              <span className="bg-amber-200/80 text-amber-950 px-1.5 py-0.2 rounded text-[10px]">
-                {rutMeals.length}
-              </span>
+              <SlidersHorizontal className="w-3.5 h-3.5 text-emerald-700" />
+              <span className="hidden sm:inline">Variety</span>
+              {rutMeals.length > 0 && (
+                <span className="bg-stone-200 text-stone-800 px-1.5 py-0.2 rounded text-[10px]">
+                  {rutMeals.length}
+                </span>
+              )}
             </button>
 
             <button
@@ -1698,24 +2048,14 @@ export default function App() {
 
       {/* Main Container */}
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-6 flex-1 w-full">
-        
-        {/* Working Memory Empathy & Mindset Banner */}
+        {/* Adaptive Welcome Banner */}
         <div className="bg-emerald-950 text-white rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div className="space-y-1.5 max-w-2xl">
-            <div className="inline-flex items-center gap-1.5 bg-emerald-800/80 text-emerald-200 text-xs font-semibold px-2.5 py-0.5 rounded-full">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Zero-Cognitive-Load Promise</span>
-            </div>
             <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-emerald-50">
-              {kitchenMode === "microwave_only"
-                ? "Microwave & no-cook meals without the guesswork."
-                : "Easy, balanced meals without the guesswork."}
+              Meals that fit your kitchen, energy, and pantry.
             </h2>
             <p className="text-emerald-200/90 text-xs sm:text-sm leading-relaxed">
-              Every meal uses <strong>3 to 5 everyday Walmart ingredients</strong>, takes under 15 minutes, and puts the exact amounts right inside each step.{" "}
-              {kitchenMode === "microwave_only"
-                ? "Defaulting to Dorm / Microwave-Only (no stove, kettle, or hot plate required)."
-                : "Update your pantry anytime to unlock more ideas."}
+              Pick your cooking equipment and desired effort level independently below — from zero-prep microwave dorm meals to full-kitchen cooking, with exact measurements inline inside every step.
             </p>
           </div>
 
@@ -1725,68 +2065,63 @@ export default function App() {
               className="bg-white text-emerald-950 hover:bg-emerald-50 text-xs sm:text-sm font-bold px-4 py-2.5 rounded-xl shadow-xs transition-colors flex items-center justify-center gap-2"
             >
               <PackageCheck className="w-4 h-4 text-emerald-800" />
-              <span>Update My Pantry ({pantryItems.length})</span>
+              <span>My Pantry ({pantryItems.length})</span>
             </button>
           </div>
         </div>
 
-        {/* Brain-Free Generator & Filter Bar */}
+        {/* Adaptive Hubs, Environment, Effort & Filter Bar */}
         <MealGeneratorBar
-          kitchenMode={kitchenMode}
-          onChangeKitchenMode={handleChangeKitchenMode}
-          noFreezer={noFreezer}
-          onToggleNoFreezer={handleToggleNoFreezer}
-          onGenerateMeal={handleGenerateMeal}
+          profile={profile}
+          onChangeEnvironment={handleChangeEnvironment}
+          onToggleCustomEquipment={handleToggleCustomEquipment}
+          onChangeEffort={handleChangeEffort}
+          onToggleDietary={handleToggleDietary}
+          onPickForMe={() => handleGenerateMeal()}
           onGenerateBatch={handleGenerateBatch}
+          onUseWhatIHave={() =>
+            setActiveFilter((prev) => (prev === "pantry" ? "all" : "pantry"))
+          }
           generatingMode={generatingMode}
-          activeFilter={activeFilter}
-          onSelectFilter={setActiveFilter}
-          rutCount={rutMeals.length}
-          groceryCount={groceryItems.length}
+          activeMethodFilter={activeFilter}
+          onSelectMethodFilter={setActiveFilter}
+          mealTypeFilter={mealTypeFilter}
+          onChangeMealTypeFilter={setMealTypeFilter}
+          maxTimeFilter={maxTimeFilter}
+          onChangeMaxTimeFilter={setMaxTimeFilter}
           pantryCount={pantryItems.length}
           pantryMatchCount={pantryMatchedMeals.length}
-          onOpenRutModal={() => setShowRutModal(true)}
+          groceryCount={groceryItems.length}
+          favoritesCount={favorites.length}
+          lessFrequentCount={rutMeals.length}
+          onOpenPreferencesModal={() => setShowRutModal(true)}
           onOpenGroceryModal={() => setShowGroceryModal(true)}
           onOpenRescueModal={() => setShowRescueModal(true)}
           onOpenPantryModal={() => setShowPantryModal(true)}
         />
 
-        {/* Active Kitchen Window Summary + Live Results Anchor */}
+        {/* Active Setup Summary Window */}
         <div
           ref={resultsSectionRef}
-          className={`rounded-2xl border px-4 py-3 flex flex-wrap items-center justify-between gap-2 transition-all duration-300 ${
-            modePulse
-              ? "bg-emerald-100 border-emerald-500 ring-2 ring-emerald-400/50"
-              : kitchenMode === "microwave_only"
-              ? "bg-amber-50/80 border-amber-200"
-              : "bg-stone-50 border-stone-200"
-          }`}
+          className="rounded-2xl border border-stone-200 bg-white px-4 py-3 flex flex-wrap items-center justify-between gap-2"
         >
           <div className="text-xs sm:text-sm font-semibold text-stone-800">
-            {kitchenMode === "microwave_only" ? (
-              <span>
-                Microwave &amp; No-Cook Window: Showing{" "}
-                <strong className="text-emerald-900">{hardwareAllowedMeals.length} dorm-safe meals</strong>
-                {meals.length > hardwareAllowedMeals.length && (
-                  <span className="text-stone-600 font-normal">
-                    {" "}
-                    ({meals.length - hardwareAllowedMeals.length} stove, oven &amp; skillet meals hidden
-                    {noFreezer ? ", freezer items hidden" : ""})
-                  </span>
-                )}
-              </span>
-            ) : (
-              <span>
-                Full Kitchen Window: Showing all{" "}
-                <strong className="text-stone-900">{hardwareAllowedMeals.length} meals</strong>
-                {noFreezer && (
-                  <span className="text-stone-600 font-normal"> (freezer items hidden)</span>
-                )}
+            <span>
+              {activeEnvLabel} + {EFFORT_PRESETS[profile.effort].label}:{" "}
+              <strong className="text-emerald-800">
+                {eligibleMeals.length} matching meal{eligibleMeals.length === 1 ? "" : "s"}
+              </strong>
+            </span>
+            {profile.environment === "microwave_only" && (
+              <span className="text-stone-500 font-normal ml-2">
+                (Shelf-stable microwave &amp; no-cook only — pick Micro + Mini-Fridge for chilled items)
               </span>
             )}
           </div>
           <span className="text-xs text-stone-500">
-            Every meal below lists what you need to buy before cooking
+            {pantryItems.length > 0
+              ? `${pantryMatchedMeals.length} match your pantry`
+              : "Add pantry items to see what you already own"}
           </span>
         </div>
 
@@ -1796,10 +2131,10 @@ export default function App() {
             <div className="flex items-center justify-between gap-2">
               <div>
                 <h3 className="text-sm sm:text-base font-bold text-stone-900">
-                  Compare Your {recentSuggestions.length} New Ideas (See What Each Needs)
+                  Compare Your {recentSuggestions.length} New Ideas
                 </h3>
                 <p className="text-xs text-stone-600">
-                  Check the ingredients below to pick whichever one you have or are willing to grab at Walmart.
+                  Review ingredients and pantry matches below before picking one to cook.
                 </p>
               </div>
               <button
@@ -1814,18 +2149,19 @@ export default function App() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               {recentSuggestions.map((item) => {
-                const missing = getMissingIngredients(item, pantryItems);
+                const evalRes = evaluateMealIngredients(item, pantryItems);
+                const missing = evalRes.missing;
                 const totalMins = item.prepMinutes + item.cookMinutes;
                 const methodLabel =
                   item.category === "assembly"
                     ? "No-Cook"
                     : item.category === "microwave"
-                    ? "Microwave Only"
+                    ? "Microwave"
                     : item.category === "sheet_pan"
-                    ? "Sheet Pan"
+                    ? "Oven / Air Fryer"
                     : item.category === "comfort"
-                    ? "Cozy Meal"
-                    : "1 Skillet";
+                    ? "Classic"
+                    : "Skillet / Pot";
                 return (
                   <div
                     key={item.id}
@@ -1837,7 +2173,7 @@ export default function App() {
                           {item.title}
                         </h4>
                         <div className="text-[11px] text-stone-500 font-medium mt-0.5">
-                          {methodLabel} · {totalMins} min · {item.ingredients.length} items
+                          {methodLabel} · {totalMins}m · {item.ingredients.length} items
                           {pantryItems.length > 0 && (
                             <span className="text-emerald-700 font-semibold">
                               {" "}
@@ -1855,22 +2191,27 @@ export default function App() {
                         </div>
                         <ul className="space-y-0.5">
                           {item.ingredients.map((ing, i) => {
-                            const inPantry =
-                              pantryItems.length > 0 &&
-                              !missing.some((m) => m.item === ing.item);
+                            const res = evalRes.resolutions[i];
+                            const hasIt = pantryItems.length > 0 && res?.hasInPantry;
                             return (
                               <li key={i} className="text-xs text-stone-700 flex items-start gap-1.5">
                                 <span
                                   className={`w-1.5 h-1.5 rounded-full shrink-0 mt-1.5 ${
-                                    inPantry ? "bg-emerald-600" : "bg-stone-300"
+                                    res?.tier === "exact"
+                                      ? "bg-emerald-600"
+                                      : res?.tier === "substitution"
+                                      ? "bg-teal-500"
+                                      : "bg-stone-300"
                                   }`}
                                 />
                                 <span>
                                   <strong className="font-semibold text-stone-900">{ing.amount}</strong>{" "}
                                   {ing.item}
-                                  {inPantry && (
+                                  {hasIt && (
                                     <span className="text-[10px] text-emerald-700 font-semibold ml-1">
-                                      (have)
+                                      {res?.tier === "substitution"
+                                        ? `(sub: ${res.matchedItem?.name})`
+                                        : "(have)"}
                                     </span>
                                   )}
                                 </span>
@@ -1911,41 +2252,33 @@ export default function App() {
           </div>
         )}
 
-        {/* Quick Spotlight "What Should I Eat Right Now?" Card */}
-        {spotlightMeal && (
-          <div className="bg-white border-2 border-emerald-700/30 rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col lg:flex-row items-start lg:items-center justify-between gap-5 relative overflow-hidden">
-            <div className="absolute top-0 left-0 bg-emerald-700 text-white text-[10px] font-bold uppercase tracking-wider px-3 py-0.5 rounded-br-lg">
-              {kitchenMode === "microwave_only"
-                ? "Today's Dorm Pick (Microwave / No-Cook)"
-                : "Today's Recommended Rut-Buster"}
-            </div>
-
-            <div className="space-y-2.5 max-w-2xl pt-2 flex-1 w-full">
+        {/* Adaptive Spotlight Card (or Clear Empty Explanation + Adjustment Buttons) */}
+        {spotlightMeal && spotlightEval && spotlightReqs ? (
+          <div className="bg-white border-2 border-emerald-700/30 rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col lg:flex-row items-start lg:items-center justify-between gap-5">
+            <div className="space-y-2.5 max-w-2xl flex-1 w-full">
               <div className="flex flex-wrap items-center gap-2 text-xs text-stone-500 font-medium">
-                <Clock className="w-3.5 h-3.5 text-emerald-700" />
-                <span>{spotlightMeal.prepMinutes + spotlightMeal.cookMinutes} minutes total</span>
-                <span>·</span>
-                <span>
-                  {spotlightMeal.category === "assembly"
-                    ? "No-Cook"
-                    : spotlightMeal.category === "microwave"
-                    ? "Microwave Only"
-                    : spotlightMeal.category === "sheet_pan"
-                    ? "Sheet Pan / Oven"
-                    : "1 Skillet"}
+                <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800">
+                  Spotlight Pick
                 </span>
-                <span>·</span>
-                <span>{spotlightMeal.ingredients.length} items from Walmart</span>
+                <span aria-hidden="true">·</span>
+                <span className="inline-flex items-center gap-1">
+                  <Clock className="w-3.5 h-3.5 text-emerald-700" />
+                  <span>{spotlightMeal.prepMinutes + spotlightMeal.cookMinutes}m total</span>
+                </span>
+                <span aria-hidden="true">·</span>
+                <span>{EFFORT_PRESETS[spotlightReqs.effortLevel].label}</span>
+                <span aria-hidden="true">·</span>
+                <span>{spotlightMeal.ingredients.length} ingredients</span>
+                <span aria-hidden="true">·</span>
+                <span>{spotlightResult.eligiblePoolCount} eligible in pool</span>
               </div>
 
               <h3 className="text-xl font-bold text-stone-900 tracking-tight">
                 {spotlightMeal.title}
               </h3>
-              <p className="text-sm text-stone-600">
-                {spotlightMeal.tagline}
-              </p>
+              <p className="text-sm text-stone-600">{spotlightMeal.tagline}</p>
 
-              {/* Visible Ingredient Checklist on Spotlight so user knows what to buy before cooking */}
+              {/* Ingredient Checklist with 3-tier clarity */}
               <div className="bg-stone-50 border border-stone-200 rounded-xl p-3 space-y-1.5">
                 <div className="flex items-center justify-between gap-2 text-xs">
                   <span className="font-bold uppercase tracking-wider text-stone-600">
@@ -1953,22 +2286,18 @@ export default function App() {
                   </span>
                   {pantryItems.length > 0 && (
                     <span className="font-semibold text-emerald-700">
-                      {(() => {
-                        const mCount = getMissingIngredients(spotlightMeal, pantryItems).length;
-                        return mCount === 0
-                          ? "All in pantry"
-                          : `Need to buy ${mCount} of ${spotlightMeal.ingredients.length}`;
-                      })()}
+                      {spotlightEval.missing.length === 0
+                        ? "All covered in pantry"
+                        : `Need ${spotlightEval.missing.length} of ${spotlightMeal.ingredients.length}`}
                     </span>
                   )}
                 </div>
                 <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
                   {spotlightMeal.ingredients.map((ing, idx) => {
-                    const stats =
-                      pantryItems.length > 0
-                        ? getPantryMatchStats(spotlightMeal, pantryItems)
-                        : null;
-                    const inPantry = stats?.matchedIngredients[idx] ?? false;
+                    const res = pantryItems.length > 0 ? spotlightEval.resolutions[idx] : undefined;
+                    const isExact = res?.tier === "exact";
+                    const isSub = res?.tier === "substitution";
+                    const isRelated = res?.tier === "related_not_equivalent";
                     return (
                       <li
                         key={idx}
@@ -1977,15 +2306,36 @@ export default function App() {
                         <span className="flex items-start gap-1.5 min-w-0">
                           <span
                             className={`w-1.5 h-1.5 rounded-full shrink-0 mt-1.5 ${
-                              inPantry ? "bg-emerald-600 ring-2 ring-emerald-200" : "bg-stone-300"
+                              isExact
+                                ? "bg-emerald-600"
+                                : isSub
+                                ? "bg-teal-500"
+                                : isRelated
+                                ? "bg-amber-400"
+                                : "bg-stone-300"
                             }`}
                           />
                           <span>
                             <strong className="font-semibold text-stone-900">{ing.amount}</strong>{" "}
                             {ing.item}
-                            {inPantry && (
+                            {isExact && res.quantitySufficient && (
                               <span className="ml-1 text-[10px] font-semibold text-emerald-700">
-                                (have)
+                                (in pantry)
+                              </span>
+                            )}
+                            {isExact && !res.quantitySufficient && (
+                              <span className="ml-1 text-[10px] font-semibold text-amber-700">
+                                ({res.note})
+                              </span>
+                            )}
+                            {isSub && (
+                              <span className="ml-1 text-[10px] font-semibold text-teal-700">
+                                (sub: {res.matchedItem?.name})
+                              </span>
+                            )}
+                            {isRelated && (
+                              <span className="ml-1 text-[10px] font-medium text-amber-800">
+                                (have {res.matchedItem?.name} — different)
                               </span>
                             )}
                           </span>
@@ -1999,8 +2349,8 @@ export default function App() {
                 </ul>
               </div>
 
-              <div className="text-xs text-emerald-900 bg-emerald-50/70 p-2.5 rounded-lg border border-emerald-100 flex items-center gap-2">
-                <span className="font-bold">Why eat this:</span>
+              <div className="text-xs text-emerald-900 bg-emerald-50/70 p-2.5 rounded-lg border border-emerald-100">
+                <span className="font-bold">Why it works: </span>
                 <span>{spotlightMeal.whyItWorks}</span>
               </div>
             </div>
@@ -2010,7 +2360,7 @@ export default function App() {
                 onClick={() => setCookingMeal(spotlightMeal)}
                 className="bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-sm px-5 py-3 rounded-xl shadow-sm flex items-center justify-center gap-2 transition-colors"
               >
-                <span>Cook This (Step-by-Step)</span>
+                <span>Cook Step-by-Step</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
 
@@ -2022,25 +2372,54 @@ export default function App() {
                       : handleAddToGrocery(spotlightMeal)
                   }
                   className="flex-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 font-medium text-xs px-3.5 py-3 rounded-xl border border-emerald-200 flex items-center justify-center gap-1.5 transition-colors"
-                  title={
-                    pantryItems.length > 0
-                      ? "Add missing ingredients to Walmart list"
-                      : "Add ingredients to Walmart list"
-                  }
                 >
                   <ShoppingBag className="w-3.5 h-3.5 text-emerald-700" />
                   <span>{pantryItems.length > 0 ? "Add Missing" : "Add to List"}</span>
                 </button>
 
                 <button
-                  onClick={() => setSpotlightIndex((prev) => prev + 1)}
+                  onClick={handleNextSpotlightPick}
                   className="flex-1 bg-stone-100 hover:bg-stone-200 text-stone-700 font-medium text-xs px-3.5 py-3 rounded-xl border border-stone-200 flex items-center justify-center gap-1.5 transition-colors"
-                  title="Shuffle recommendation"
+                  title="Pick another eligible Spotlight meal without repeating recent picks"
                 >
                   <Shuffle className="w-3.5 h-3.5" />
-                  <span>Shuffle Pick</span>
+                  <span>Next Pick</span>
                 </button>
               </div>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-white border-2 border-amber-300/80 rounded-2xl p-6 shadow-sm space-y-3">
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-amber-100 text-amber-800 rounded-xl shrink-0">
+                <AlertCircle className="w-5 h-5" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-base font-bold text-stone-900">
+                  No Spotlight Meal Matches This Exact Combination Yet
+                </h3>
+                <p className="text-xs sm:text-sm text-stone-600">
+                  {spotlightResult.emptyReason ||
+                    "No saved meal fits all active equipment, effort, and filter constraints."}
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2 pt-1">
+              {spotlightResult.suggestedAdjustments.map((adj) => (
+                <button
+                  key={adj.id}
+                  type="button"
+                  onClick={() => handleSpotlightAdjustment(adj.action)}
+                  disabled={generatingMode !== null}
+                  className={`text-xs font-semibold px-3.5 py-2 rounded-xl border transition-colors ${
+                    adj.action === "generate_ai"
+                      ? "bg-emerald-700 hover:bg-emerald-800 text-white border-emerald-700"
+                      : "bg-stone-50 hover:bg-stone-100 text-stone-800 border-stone-300"
+                  }`}
+                >
+                  {adj.label}
+                </button>
+              ))}
             </div>
           </div>
         )}
@@ -2051,24 +2430,20 @@ export default function App() {
             <div className="flex items-center gap-2">
               <h3 className="text-lg font-bold text-stone-900">
                 {activeFilter === "pantry"
-                  ? "Meals Matching Your Pantry"
+                  ? "Use What I Have"
                   : activeFilter === "favorites"
                   ? "Saved Favorites"
                   : activeFilter === "microwave"
-                  ? kitchenMode === "microwave_only"
-                    ? "Microwave-Only Meals"
-                    : "Microwave & No-Cook Meals"
+                  ? "Microwave Meals"
                   : activeFilter === "assembly"
-                  ? "No-Cook Meals (Zero Heat)"
+                  ? "No-Cook Meals"
                   : activeFilter === "one_skillet"
-                  ? "One-Skillet & Sheet-Pan Meals"
+                  ? "Stove, Oven & Appliance Meals"
                   : activeFilter === "healthy_boost"
-                  ? "Veggie-Boosted Easy Meals"
+                  ? "Veggies & Produce"
                   : pantryItems.length > 0
-                  ? "Suggested Meals (Best Pantry Matches First)"
-                  : kitchenMode === "microwave_only"
-                  ? "Dorm-Safe Meals (Microwave & No-Cook)"
-                  : "All Easy Meals (Full Kitchen)"}
+                  ? "Browse Meals (Best Pantry Matches First)"
+                  : "Browse Meals"}
               </h3>
               <span className="text-xs text-stone-500 font-medium">
                 ({filteredMeals.length})
@@ -2102,7 +2477,11 @@ export default function App() {
                       : "bg-white text-stone-600 border-stone-200 hover:bg-stone-50"
                   }`}
                 >
-                  <Heart className={`w-3.5 h-3.5 ${activeFilter === "favorites" ? "fill-rose-500 text-rose-500" : ""}`} />
+                  <Heart
+                    className={`w-3.5 h-3.5 ${
+                      activeFilter === "favorites" ? "fill-rose-500 text-rose-500" : ""
+                    }`}
+                  />
                   <span>Favorites ({favorites.length})</span>
                 </button>
               )}
@@ -2117,23 +2496,43 @@ export default function App() {
               <h4 className="text-base font-semibold text-stone-800">
                 {activeFilter === "pantry" && pantryItems.length === 0
                   ? "Your pantry is empty"
-                  : "No meals found in this filter"}
+                  : "No meals match these filters"}
               </h4>
               <p className="text-xs text-stone-500 max-w-sm mx-auto">
                 {activeFilter === "pantry" && pantryItems.length === 0
-                  ? "Tap items in My Pantry to see meals you can make right now and unlock fresh suggestions."
-                  : "Try clicking \"All Easy Meals\" or tap \"Generate Fresh Idea\" to create a new one."}
+                  ? "Add items to My Pantry to see meals you can make right now."
+                  : "Try generating a custom meal with Pick For Me, or adjust your effort/filters above."}
               </p>
-              <button
-                onClick={() =>
-                  activeFilter === "pantry" && pantryItems.length === 0
-                    ? setShowPantryModal(true)
-                    : setActiveFilter("all")
-                }
-                className="text-xs font-semibold bg-emerald-700 text-white px-4 py-2 rounded-xl"
-              >
-                {activeFilter === "pantry" && pantryItems.length === 0 ? "Update My Pantry" : "Show All Meals"}
-              </button>
+              <div className="flex flex-wrap justify-center gap-2">
+                {activeFilter === "pantry" && pantryItems.length === 0 ? (
+                  <button
+                    onClick={() => setShowPantryModal(true)}
+                    className="text-xs font-semibold bg-emerald-700 text-white px-4 py-2 rounded-xl"
+                  >
+                    Open My Pantry
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => handleGenerateMeal()}
+                      disabled={generatingMode !== null}
+                      className="text-xs font-semibold bg-emerald-700 text-white px-4 py-2 rounded-xl"
+                    >
+                      Generate Custom Meal
+                    </button>
+                    <button
+                      onClick={() => {
+                        setActiveFilter("all");
+                        setMealTypeFilter("any");
+                        setMaxTimeFilter(null);
+                      }}
+                      className="text-xs font-semibold bg-stone-100 text-stone-800 px-4 py-2 rounded-xl border border-stone-200"
+                    >
+                      Clear Browse Filters
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -2141,6 +2540,7 @@ export default function App() {
                 <MealCard
                   key={meal.id}
                   meal={meal}
+                  profile={profile}
                   onCook={(m) => setCookingMeal(m)}
                   onAddToGrocery={handleAddToGrocery}
                   onAddMissingToGrocery={handleAddMissingToGrocery}
@@ -2159,10 +2559,10 @@ export default function App() {
       <footer className="bg-white border-t border-stone-200 mt-12 py-6 text-center text-xs text-stone-500">
         <div className="max-w-6xl mx-auto px-4 space-y-1">
           <p>
-            Crafted for low working memory, executive exhaustion, and healthy Walmart shopping.
+            Simple Chef · Adaptive meal planning for dorms, busy nights, and full kitchens.
           </p>
           <p className="text-stone-400">
-            No complex chopping • Single-step focus mode • Aisle-organized lists
+            Inline step measurements · Single-step focus mode · Walmart aisle shopping lists
           </p>
         </div>
       </footer>
@@ -2172,6 +2572,7 @@ export default function App() {
         <CookingFocusMode
           meal={cookingMeal}
           pantryItems={pantryItems}
+          profile={profile}
           onClose={() => setCookingMeal(null)}
           onAddToGrocery={handleAddToGrocery}
           onAddMissingToGrocery={handleAddMissingToGrocery}
@@ -2202,15 +2603,17 @@ export default function App() {
         />
       )}
 
-      {/* Rut Manager Modal */}
+      {/* Meal Variety & Comfort Preferences Modal */}
       {showRutModal && (
         <RutManagerModal
           rutMeals={rutMeals}
+          varietyPreference={profile.varietyPreference}
+          onChangeVarietyPreference={handleChangeVarietyPreference}
           onAddRutMeal={handleAddRutMeal}
           onRemoveRutMeal={handleRemoveRutMeal}
           onClose={() => setShowRutModal(false)}
-          onRequestSwap={(rutName) => {
-            handleGenerateMeal(`healthy swap for ${rutName}`);
+          onRequestSwap={(comfortFoodName) => {
+            handleGenerateMeal(comfortFoodName);
           }}
         />
       )}
@@ -2235,8 +2638,7 @@ export default function App() {
           pantryItems={pantryItems}
           matchingMealCount={pantryMatchedMeals.length}
           isSuggesting={isSuggestingFromPantry}
-          kitchenMode={kitchenMode}
-          noFreezer={noFreezer}
+          profile={profile}
           onTogglePantryItem={handleTogglePantryItem}
           onAddPantryItem={handleAddPantryItem}
           onUpdatePantryQuantity={handleUpdatePantryQuantity}
@@ -2249,8 +2651,7 @@ export default function App() {
       {/* Ingredient Rescue Modal */}
       {showRescueModal && (
         <IngredientRescueModal
-          kitchenMode={kitchenMode}
-          noFreezer={noFreezer}
+          profile={profile}
           onGenerateOptions={handleRescueIngredients}
           onCookOption={handleCookRescueOption}
           onViewOption={handleViewRescueOption}

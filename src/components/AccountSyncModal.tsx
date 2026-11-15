@@ -214,7 +214,7 @@ export const AccountSyncModal: React.FC<AccountSyncModalProps> = ({
                     </div>
 
                     <p className="text-xs text-emerald-900 leading-relaxed">
-                      Your <strong>My Pantry</strong> and <strong>Walmart List</strong> stay synced live with anyone using this code. Your Favorites, Rut Tracker, and custom meals stay private to you.
+                      Your <strong>My Pantry</strong> and <strong>Walmart List</strong> stay synced live with anyone using this code. Your Favorites, Variety Preferences, and custom meals stay private to you.
                     </p>
 
                     <div className="flex flex-wrap items-center gap-2 pt-1">

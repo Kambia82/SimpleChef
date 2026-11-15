@@ -1,6 +1,6 @@
 import { Meal } from "../types";
 
-export const DEFAULT_MEALS: Meal[] = [
+const BASE_MEALS: Meal[] = [
   {
     id: "dorm-buffalo-chicken-ranch-wrap",
     title: "3-Minute Buffalo Chicken & Ranch Wrap",
@@ -1278,6 +1278,673 @@ export const DEFAULT_MEALS: Meal[] = [
       }
     ],
     whyItWorks: "Sweet-and-savory handheld sandwich from freezer waffles and eggs with zero pans to wash.",
-    rutAlternativeNote: "Fast drive-thru style sandwich made from freezer and fridge staples."
+    rutAlternativeNote: "Fast diner-style breakfast sandwich you can customize any way you like."
+  },
+  // 100% Shelf-Stable Microwave-Only Meals (No Fridge, No Freezer Required)
+  {
+    id: "dorm-shelf-chili-rice-bowl",
+    title: "3-Minute Shelf-Stable Beef Chili & Rice Bowl",
+    tagline: "Zero fridge needed—microwave 90-second rice pouch with canned beef chili and crunchy corn chips.",
+    prepMinutes: 1,
+    cookMinutes: 2,
+    category: "microwave",
+    effortLevel: "very_low",
+    requiredEquipment: ["microwave"],
+    requiresFreezer: false,
+    mealType: "dinner",
+    dietaryTags: ["gluten_free", "dairy_free", "high_protein"],
+    ingredients: [
+      { item: "Canned beef chili with beans (pull-tab)", amount: "1 can (15 oz)", walmartAisle: "Pantry / Canned" },
+      { item: "Microwave rice pouch", amount: "1 pouch", walmartAisle: "Pantry / Canned" },
+      { item: "Corn tortilla chips or Fritos", amount: "1 handful", walmartAisle: "Pantry / Canned" }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Microwave Rice Pouch",
+        instruction: "Tear a 2-inch vent in 1 pouch of microwave rice and microwave on HIGH for 90 seconds.",
+        timerSeconds: 90
+      },
+      {
+        stepNumber: 2,
+        title: "Warm Chili Over Rice",
+        instruction: "Pour hot rice into a microwave-safe bowl, spoon 1 can of beef chili on top, cover loosely with a paper towel, and microwave 60 seconds.",
+        timerSeconds: 60
+      },
+      {
+        stepNumber: 3,
+        title: "Top With Crunchy Chips",
+        instruction: "Crush 1 handful of corn chips or tortilla chips right over the steaming chili and enjoy.",
+        timerSeconds: 0
+      }
+    ],
+    whyItWorks: "Every single ingredient keeps safely in a desk drawer or dorm shelf while giving you 28g+ of warm protein.",
+    rutAlternativeNote: "Hot, hearty comfort bowl without needing a fridge or freezer."
+  },
+  {
+    id: "dorm-teriyaki-pouch-chicken-rice",
+    title: "4-Minute Shelf-Stable Teriyaki Chicken & Corn Rice",
+    tagline: "Tear-open chicken pouch, 90-second rice, sweet corn, and teriyaki glaze—warmed in one microwave bowl.",
+    prepMinutes: 1,
+    cookMinutes: 3,
+    category: "microwave",
+    effortLevel: "low",
+    requiredEquipment: ["microwave"],
+    requiresFreezer: false,
+    mealType: "dinner",
+    dietaryTags: ["dairy_free", "high_protein"],
+    ingredients: [
+      { item: "Microwave jasmine rice pouch", amount: "1 pouch", walmartAisle: "Pantry / Canned" },
+      { item: "Tear-open chicken pouch or canned chicken", amount: "1 pouch (5 oz)", walmartAisle: "Meat & Deli" },
+      { item: "Canned sweet corn (small pull-tab, drained)", amount: "1/2 cup", walmartAisle: "Pantry / Canned" },
+      { item: "Teriyaki glaze or sauce", amount: "2 tablespoons", walmartAisle: "Pantry / Canned" }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Heat Rice Pouch",
+        instruction: "Vent 1 pouch of microwave jasmine rice 2 inches at the top and microwave for 90 seconds.",
+        timerSeconds: 90
+      },
+      {
+        stepNumber: 2,
+        title: "Mix Chicken, Corn & Sauce",
+        instruction: "Empty the rice into a microwave-safe bowl. Stir in 1 pouch of chicken, 1/2 cup drained sweet corn, and 2 tablespoons teriyaki glaze.",
+        timerSeconds: 0
+      },
+      {
+        stepNumber: 3,
+        title: "Warm Through",
+        instruction: "Microwave 60 seconds until hot throughout, give one quick stir, and serve.",
+        timerSeconds: 60
+      }
+    ],
+    whyItWorks: "Tastes like takeout teriyaki chicken bowls using zero-fridge pantry pouches.",
+    rutAlternativeNote: "A protein-packed warm grain bowl you can keep in a dorm closet."
+  },
+  {
+    id: "dorm-shelf-tuna-sesame-rice-bowl",
+    title: "4-Minute Sesame Tuna & Crispy Seaweed Rice Bowl",
+    tagline: "Warm microwave rice topped with a seasoned tuna pouch, soy sauce, sesame oil, and crunchy chips or seeds.",
+    prepMinutes: 1,
+    cookMinutes: 2,
+    category: "microwave",
+    effortLevel: "low",
+    requiredEquipment: ["microwave"],
+    requiresFreezer: false,
+    mealType: "lunch",
+    dietaryTags: ["dairy_free", "high_protein"],
+    ingredients: [
+      { item: "Microwave white rice pouch", amount: "1 pouch", walmartAisle: "Pantry / Canned" },
+      { item: "Tear-open tuna pouch", amount: "1 pouch (2.6 oz)", walmartAisle: "Pantry / Canned" },
+      { item: "Soy sauce", amount: "1 tablespoon", walmartAisle: "Spices & Condiments" },
+      { item: "Toasted sesame oil", amount: "1 teaspoon", walmartAisle: "Spices & Condiments" },
+      { item: "Sriracha or hot sauce (optional)", amount: "1 teaspoon", walmartAisle: "Spices & Condiments" }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Microwave Rice Pouch",
+        instruction: "Tear a 2-inch vent in 1 microwave white rice pouch and microwave 90 seconds until steaming.",
+        timerSeconds: 90
+      },
+      {
+        stepNumber: 2,
+        title: "Flake Tuna & Drizzle Sauces",
+        instruction: "Pour the hot rice into a bowl, flake 1 pouch of tuna on top, drizzle with 1 tablespoon soy sauce, 1 teaspoon sesame oil, and 1 teaspoon sriracha if desired.",
+        timerSeconds: 0
+      }
+    ],
+    whyItWorks: "Zero fridge needed, ready in 4 minutes, and tastes like a warm sushi-inspired bowl.",
+    rutAlternativeNote: "Savory shelf-stable dorm lunch packed with protein."
+  },
+  {
+    id: "dorm-spicy-peanut-chicken-ramen",
+    title: "7-Minute Microwave Spicy Peanut Chicken Noodles",
+    tagline: "Rich, saucy noodle bowl made with shelf-stable ramen, peanut butter, soy sauce, sriracha, and pouch chicken.",
+    prepMinutes: 2,
+    cookMinutes: 5,
+    category: "microwave",
+    effortLevel: "moderate",
+    requiredEquipment: ["microwave"],
+    requiresFreezer: false,
+    mealType: "dinner",
+    dietaryTags: ["dairy_free", "high_protein"],
+    comfortVariationOf: "Instant ramen",
+    ingredients: [
+      { item: "Ramen noodle brick", amount: "1 pack", walmartAisle: "Pantry / Canned" },
+      { item: "Tear-open chicken pouch", amount: "1 pouch (5 oz)", walmartAisle: "Meat & Deli" },
+      { item: "Creamy peanut butter", amount: "2 tablespoons", walmartAisle: "Pantry / Canned" },
+      { item: "Soy sauce", amount: "1 tablespoon", walmartAisle: "Spices & Condiments" },
+      { item: "Sriracha or chili crisp", amount: "1 teaspoon", walmartAisle: "Spices & Condiments" },
+      { item: "Garlic powder", amount: "1/4 teaspoon", walmartAisle: "Spices & Condiments" }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Cook Noodles in Microwave Bowl",
+        instruction: "Place 1 ramen noodle brick and 1.5 cups water in a deep microwave-safe bowl. Microwave 3 minutes, flip brick, and microwave 1 minute more until tender.",
+        timerSeconds: 180
+      },
+      {
+        stepNumber: 2,
+        title: "Reserve Splash & Whisk Peanut Sauce",
+        instruction: "Spoon out 3 tablespoons of hot noodle water into a mug or small bowl, drain the rest, then whisk 2 tablespoons peanut butter, 1 tablespoon soy sauce, 1 teaspoon sriracha, and 1/4 teaspoon garlic powder into the hot liquid until smooth.",
+        timerSeconds: 0
+      },
+      {
+        stepNumber: 3,
+        title: "Toss With Chicken & Warm",
+        instruction: "Pour the peanut sauce and 1 tear-open chicken pouch over the hot noodles, toss well, microwave 30 seconds if needed, and serve.",
+        timerSeconds: 30
+      }
+    ],
+    whyItWorks: "Instant ramen is already great—whisking a real spicy peanut sauce elevates it into an ultra-satisfying takeout-style bowl without a stove.",
+    rutAlternativeNote: "A fun flavor twist on classic instant ramen using shelf-stable dorm items."
+  },
+  // Moderate Microwave + Mini-Fridge Meal
+  {
+    id: "dorm-loaded-baked-potato-broccoli",
+    title: "10-Minute Microwave Loaded Broccoli & Chicken Baked Potato",
+    tagline: "Fluffy microwave-baked potato split open and loaded with chicken, cheddar, Greek yogurt, and steamed broccoli.",
+    prepMinutes: 3,
+    cookMinutes: 7,
+    category: "microwave",
+    effortLevel: "moderate",
+    requiredEquipment: ["microwave", "fridge"],
+    requiresFreezer: false,
+    mealType: "dinner",
+    dietaryTags: ["gluten_free", "high_protein"],
+    ingredients: [
+      { item: "Large russet baking potato", amount: "1 large potato", walmartAisle: "Produce" },
+      { item: "Fresh broccoli florets", amount: "1 cup", walmartAisle: "Produce" },
+      { item: "Pre-cooked shredded chicken", amount: "3/4 cup", walmartAisle: "Meat & Deli" },
+      { item: "Shredded cheddar cheese", amount: "1/3 cup", walmartAisle: "Dairy & Eggs" },
+      { item: "Sour cream or plain Greek yogurt", amount: "2 tablespoons", walmartAisle: "Dairy & Eggs" },
+      { item: "Butter", amount: "1 tablespoon", walmartAisle: "Dairy & Eggs" }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Pierce & Microwave Potato",
+        instruction: "Scrub 1 large russet potato, poke 6 holes all around with a fork, and microwave on a microwave-safe plate for 5 to 6 minutes (flipping halfway) until tender when squeezed.",
+        timerSeconds: 300
+      },
+      {
+        stepNumber: 2,
+        title: "Steam Fresh Broccoli",
+        instruction: "Put 1 cup of broccoli florets in a bowl with 2 tablespoons water, cover with a damp paper towel, and microwave 90 seconds until bright green and tender. Drain water.",
+        timerSeconds: 90
+      },
+      {
+        stepNumber: 3,
+        title: "Split, Load & Melt",
+        instruction: "Slice the hot potato open, mash in 1 tablespoon butter, then pile on 3/4 cup pre-cooked chicken, the steamed broccoli, and 1/3 cup shredded cheddar. Microwave 30 seconds to melt, then top with 2 tablespoons sour cream or Greek yogurt.",
+        timerSeconds: 30
+      }
+    ],
+    whyItWorks: "Feels like a steakhouse loaded potato dinner using zero pans and simple ingredients.",
+    rutAlternativeNote: "Hearty, customizable baked potato meal with real protein and veggies."
+  },
+  // Limited Kitchen (Toaster / Air Fryer / Microwave + Fridge, No Freezer Required)
+  {
+    id: "limited-toasted-bagel-bacon-egg-melt",
+    title: "6-Minute Toasted Bagel Egg, Bacon & Cheddar Sandwich",
+    tagline: "Crisp toasted bagel layered with microwave-fluffed egg, melty cheddar, and pre-cooked bacon.",
+    prepMinutes: 2,
+    cookMinutes: 4,
+    category: "microwave",
+    effortLevel: "low",
+    requiredEquipment: ["toaster", "microwave", "fridge"],
+    requiresFreezer: false,
+    mealType: "breakfast",
+    dietaryTags: ["high_protein"],
+    ingredients: [
+      { item: "Bagel (plain or everything)", amount: "1 bagel, sliced", walmartAisle: "Bakery" },
+      { item: "Large eggs", amount: "2 eggs", walmartAisle: "Dairy & Eggs" },
+      { item: "Shredded or sliced cheddar cheese", amount: "1/4 cup or 1 slice", walmartAisle: "Dairy & Eggs" },
+      { item: "Pre-cooked bacon slices", amount: "3 slices", walmartAisle: "Meat & Deli" },
+      { item: "Butter", amount: "1 teaspoon", walmartAisle: "Dairy & Eggs" }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Toast Bagel",
+        instruction: "Toast 1 sliced bagel in your toaster or toaster oven until golden brown, then spread with 1 teaspoon butter.",
+        timerSeconds: 120
+      },
+      {
+        stepNumber: 2,
+        title: "Microwave Egg & Cheese",
+        instruction: "Beat 2 eggs with a pinch of salt in a lightly greased small bowl and microwave 60 seconds until set. Top with 1/4 cup cheddar cheese and 3 pre-cooked bacon slices for the last 15 seconds.",
+        timerSeconds: 75
+      },
+      {
+        stepNumber: 3,
+        title: "Assemble & Serve",
+        instruction: "Slide the hot egg, melted cheese, and bacon onto the toasted bagel halves and enjoy.",
+        timerSeconds: 0
+      }
+    ],
+    whyItWorks: "Crispy café-style breakfast sandwich without pulling out a skillet.",
+    rutAlternativeNote: "Fast toasted breakfast option when you have a toaster and microwave."
+  },
+  {
+    id: "limited-air-fryer-garlic-chicken-bites",
+    title: "14-Minute Air-Fryer Garlic Parmesan Chicken & Green Beans",
+    tagline: "Juicy diced chicken and crisp green beans tossed in olive oil, garlic, and parmesan inside the air fryer.",
+    prepMinutes: 5,
+    cookMinutes: 9,
+    category: "sheet_pan",
+    effortLevel: "moderate",
+    requiredEquipment: ["air_fryer", "fridge"],
+    requiresFreezer: false,
+    mealType: "dinner",
+    dietaryTags: ["gluten_free", "high_protein"],
+    ingredients: [
+      { item: "Boneless skinless chicken breast", amount: "3/4 lb (cut into 1-inch cubes)", walmartAisle: "Meat & Deli" },
+      { item: "Fresh trimmed green beans", amount: "2 cups", walmartAisle: "Produce" },
+      { item: "Olive oil", amount: "1.5 tablespoons", walmartAisle: "Pantry / Canned" },
+      { item: "Garlic powder", amount: "1 teaspoon", walmartAisle: "Spices & Condiments" },
+      { item: "Italian seasoning", amount: "1/2 teaspoon", walmartAisle: "Spices & Condiments" },
+      { item: "Grated parmesan cheese", amount: "3 tablespoons", walmartAisle: "Dairy & Eggs" }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Toss Chicken & Seasonings",
+        instruction: "In a bowl, toss 3/4 lb diced chicken cubes with 1 tablespoon olive oil, 1 teaspoon garlic powder, 1/2 teaspoon Italian seasoning, and salt/pepper.",
+        timerSeconds: 0
+      },
+      {
+        stepNumber: 2,
+        title: "Air Fry Chicken & Beans",
+        instruction: "Spread chicken in the air fryer basket and cook at 390°F for 5 minutes. Toss 2 cups fresh green beans with the remaining 1/2 tablespoon olive oil, add to the basket, and air fry 4-5 more minutes until chicken reaches 165°F.",
+        timerSeconds: 300
+      },
+      {
+        stepNumber: 3,
+        title: "Finish With Parmesan",
+        instruction: "Transfer hot chicken and green beans to a plate and sprinkle 3 tablespoons grated parmesan evenly over top.",
+        timerSeconds: 0
+      }
+    ],
+    whyItWorks: "Full crisp restaurant texture and fresh protein without needing a stove or oven.",
+    rutAlternativeNote: "Great use of an air fryer for a complete warm dinner."
+  },
+  // Full Kitchen — Moderate Effort (4–9 Ingredients)
+  {
+    id: "full-honey-garlic-chicken-broccoli-skillet",
+    title: "18-Minute Honey Garlic Chicken & Broccoli Skillet",
+    tagline: "Tender seared chicken bites glazed in a sweet-savory honey soy garlic sauce with fresh broccoli and rice.",
+    prepMinutes: 6,
+    cookMinutes: 12,
+    category: "one_skillet",
+    effortLevel: "moderate",
+    requiredEquipment: ["stove", "fridge"],
+    requiresFreezer: false,
+    mealType: "dinner",
+    dietaryTags: ["dairy_free", "high_protein"],
+    ingredients: [
+      { item: "Boneless skinless chicken breast", amount: "1 lb (cut into bite-sized pieces)", walmartAisle: "Meat & Deli" },
+      { item: "Fresh broccoli florets", amount: "3 cups", walmartAisle: "Produce" },
+      { item: "Soy sauce", amount: "3 tablespoons", walmartAisle: "Spices & Condiments" },
+      { item: "Honey", amount: "2 tablespoons", walmartAisle: "Pantry / Canned" },
+      { item: "Garlic cloves (minced)", amount: "3 cloves", walmartAisle: "Produce" },
+      { item: "Olive oil or cooking oil", amount: "1.5 tablespoons", walmartAisle: "Pantry / Canned" },
+      { item: "Jasmine rice (cooked or microwave pouch)", amount: "2 cups cooked", walmartAisle: "Pantry / Canned" }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Whisk Sauce & Prep Chicken",
+        instruction: "Stir 3 tablespoons soy sauce, 2 tablespoons honey, 3 minced garlic cloves, and 2 tablespoons water in a small bowl. Cut 1 lb chicken breast into bite-sized chunks and season with salt and pepper.",
+        timerSeconds: 0
+      },
+      {
+        stepNumber: 2,
+        title: "Sear Chicken in Skillet",
+        instruction: "Heat 1.5 tablespoons oil in a large skillet over medium-high heat. Sear the chicken pieces for 5-6 minutes until browned and cooked through.",
+        timerSeconds: 330
+      },
+      {
+        stepNumber: 3,
+        title: "Steam Broccoli & Glaze",
+        instruction: "Add 3 cups broccoli florets and the honey-garlic sauce to the skillet. Cover and simmer 4 minutes until broccoli is tender-crisp and sauce thickens into a glossy glaze. Serve over 2 cups cooked jasmine rice.",
+        timerSeconds: 240
+      }
+    ],
+    whyItWorks: "Delivers rich homemade stir-fry flavor in under 20 minutes using simple pantry sauces.",
+    rutAlternativeNote: "A rewarding step up from takeout when you feel like doing a little chopping."
+  },
+  {
+    id: "full-lemon-garlic-salmon-asparagus",
+    title: "18-Minute Baked Lemon Garlic Salmon & Asparagus",
+    tagline: "Fresh salmon fillets and tender asparagus roasted together on one sheet pan with garlic butter and lemon.",
+    prepMinutes: 5,
+    cookMinutes: 13,
+    category: "sheet_pan",
+    effortLevel: "moderate",
+    requiredEquipment: ["oven", "fridge"],
+    requiresFreezer: false,
+    mealType: "dinner",
+    dietaryTags: ["gluten_free", "high_protein"],
+    ingredients: [
+      { item: "Fresh salmon fillets", amount: "2 fillets (about 12 oz total)", walmartAisle: "Meat & Deli" },
+      { item: "Fresh asparagus spears (trimmed)", amount: "1 bunch", walmartAisle: "Produce" },
+      { item: "Butter (melted)", amount: "2 tablespoons", walmartAisle: "Dairy & Eggs" },
+      { item: "Fresh lemon (juice + slices)", amount: "1 lemon", walmartAisle: "Produce" },
+      { item: "Garlic cloves (minced)", amount: "2 cloves", walmartAisle: "Produce" },
+      { item: "Grated parmesan cheese", amount: "2 tablespoons", walmartAisle: "Dairy & Eggs" }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Preheat Oven & Arrange Pan",
+        instruction: "Preheat oven to 400°F and line a baking sheet with foil. Lay 2 salmon fillets and 1 bunch trimmed asparagus side-by-side on the sheet.",
+        timerSeconds: 0
+      },
+      {
+        stepNumber: 2,
+        title: "Brush Garlic Lemon Butter",
+        instruction: "Mix 2 tablespoons melted butter, 2 minced garlic cloves, and juice of half a lemon. Spoon over the salmon and asparagus, season with salt and pepper, and top asparagus with 2 tablespoons grated parmesan and lemon slices.",
+        timerSeconds: 0
+      },
+      {
+        stepNumber: 3,
+        title: "Roast Until Flaky",
+        instruction: "Bake at 400°F for 12-13 minutes until the salmon flakes easily with a fork and asparagus tips are lightly blistered.",
+        timerSeconds: 750
+      }
+    ],
+    whyItWorks: "Bright, fresh restaurant-quality salmon dinner with minimal cleanup.",
+    rutAlternativeNote: "Simple sheet-pan cooking that highlights fresh produce and fish."
+  },
+  {
+    id: "full-mediterranean-chickpea-spinach-skillet",
+    title: "15-Minute Warm Chickpea, Spinach & Feta Skillet",
+    tagline: "Savory pan-warmed chickpeas simmered in garlic tomatoes with wilted spinach, lemon, and crumbled feta.",
+    prepMinutes: 4,
+    cookMinutes: 10,
+    category: "one_skillet",
+    effortLevel: "moderate",
+    requiredEquipment: ["stove", "fridge"],
+    requiresFreezer: false,
+    mealType: "lunch",
+    dietaryTags: ["vegetarian", "gluten_free"],
+    ingredients: [
+      { item: "Canned chickpeas (rinsed & drained)", amount: "2 cans (15 oz each)", walmartAisle: "Pantry / Canned" },
+      { item: "Baby spinach", amount: "3 cups", walmartAisle: "Produce" },
+      { item: "Diced tomatoes or marinara sauce", amount: "1 cup", walmartAisle: "Pantry / Canned" },
+      { item: "Crumbled feta cheese", amount: "1/3 cup", walmartAisle: "Dairy & Eggs" },
+      { item: "Garlic cloves (minced)", amount: "2 cloves", walmartAisle: "Produce" },
+      { item: "Olive oil", amount: "1.5 tablespoons", walmartAisle: "Pantry / Canned" }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Sizzle Garlic & Tomatoes",
+        instruction: "Warm 1.5 tablespoons olive oil in a skillet over medium heat. Add 2 minced garlic cloves for 30 seconds until fragrant, then pour in 1 cup diced tomatoes or marinara and 2 drained cans of chickpeas.",
+        timerSeconds: 30
+      },
+      {
+        stepNumber: 2,
+        title: "Simmer & Wilt Spinach",
+        instruction: "Simmer for 6 minutes until thickened slightly. Stir in 3 cups baby spinach for 2 minutes until wilted bright green.",
+        timerSeconds: 360
+      },
+      {
+        stepNumber: 3,
+        title: "Top With Feta",
+        instruction: "Scoop into bowls and top generously with 1/3 cup crumbled feta and black pepper.",
+        timerSeconds: 0
+      }
+    ],
+    whyItWorks: "Hearty vegetarian meal packed with plant protein and bright Mediterranean flavor.",
+    rutAlternativeNote: "Great warm meatless skillet ready in 15 minutes."
+  },
+  // Full Kitchen — Normal Cooking (More Involved Home Cooking, 7–11 Ingredients)
+  {
+    id: "full-homemade-beef-broccoli-stirfry",
+    title: "25-Minute Homemade Beef & Broccoli Stir-Fry",
+    tagline: "Thin-sliced beef seared hot and fast with crisp broccoli florets in a rich homemade ginger-garlic soy sauce over steamed rice.",
+    prepMinutes: 12,
+    cookMinutes: 13,
+    category: "one_skillet",
+    effortLevel: "normal",
+    requiredEquipment: ["stove", "fridge"],
+    requiresFreezer: false,
+    mealType: "dinner",
+    dietaryTags: ["dairy_free", "high_protein"],
+    ingredients: [
+      { item: "Flank steak or sirloin steak (thinly sliced across grain)", amount: "1 lb", walmartAisle: "Meat & Deli" },
+      { item: "Fresh broccoli crowns (cut into florets)", amount: "4 cups", walmartAisle: "Produce" },
+      { item: "Yellow onion (sliced)", amount: "1 medium onion", walmartAisle: "Produce" },
+      { item: "Fresh garlic cloves (minced)", amount: "3 cloves", walmartAisle: "Produce" },
+      { item: "Soy sauce", amount: "1/3 cup", walmartAisle: "Spices & Condiments" },
+      { item: "Brown sugar or honey", amount: "1.5 tablespoons", walmartAisle: "Pantry / Canned" },
+      { item: "Cornstarch", amount: "1 tablespoon", walmartAisle: "Pantry / Canned" },
+      { item: "Toasted sesame oil", amount: "1 teaspoon", walmartAisle: "Spices & Condiments" },
+      { item: "White rice (cooked on stove or rice cooker)", amount: "3 cups cooked", walmartAisle: "Pantry / Canned" }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Slice Beef & Mix Marinade Sauce",
+        instruction: "Slice 1 lb steak thinly against the grain. In a bowl, whisk 1/3 cup soy sauce, 1.5 tablespoons brown sugar, 1 tablespoon cornstarch, 1/3 cup water, and 1 teaspoon sesame oil. Toss 2 tablespoons of the mix with the beef.",
+        timerSeconds: 0
+      },
+      {
+        stepNumber: 2,
+        title: "Sear Beef Hot & Fast",
+        instruction: "Heat 1 tablespoon cooking oil in a large skillet over high heat. Spread beef in a single layer and sear 2 minutes per side until browned, then transfer beef to a plate.",
+        timerSeconds: 240
+      },
+      {
+        stepNumber: 3,
+        title: "Cook Broccoli, Onion & Garlic",
+        instruction: "In the same skillet over medium-high heat, cook 1 sliced yellow onion and 4 cups broccoli florets with 3 tablespoons water covered for 4 minutes until tender-crisp. Stir in 3 minced garlic cloves for 30 seconds.",
+        timerSeconds: 240
+      },
+      {
+        stepNumber: 4,
+        title: "Simmer Glaze & Serve Over Rice",
+        instruction: "Return seared beef and pour remaining sauce into the skillet. Stir 2 minutes until sauce turns glossy and thick, then serve over 3 cups warm white rice.",
+        timerSeconds: 120
+      }
+    ],
+    whyItWorks: "Classic scratch-cooked takeout favorite that rewards 10 minutes of slicing with crisp veggies and tender seared steak.",
+    rutAlternativeNote: "Traditional stovetop stir-fry when you have time and want real homemade cooking."
+  },
+  {
+    id: "full-herb-roasted-chicken-potatoes",
+    title: "40-Minute Roasted Herb Chicken Thighs & Crispy Potatoes",
+    tagline: "Golden, crispy-skin chicken thighs roasted over garlic-herb baby potatoes and carrots on a classic sheet pan.",
+    prepMinutes: 10,
+    cookMinutes: 30,
+    category: "sheet_pan",
+    effortLevel: "normal",
+    requiredEquipment: ["oven", "fridge"],
+    requiresFreezer: false,
+    mealType: "dinner",
+    dietaryTags: ["gluten_free", "dairy_free", "high_protein"],
+    ingredients: [
+      { item: "Chicken thighs (bone-in or boneless)", amount: "1.5 lbs (4-5 thighs)", walmartAisle: "Meat & Deli" },
+      { item: "Baby potatoes (halved)", amount: "1.5 lbs", walmartAisle: "Produce" },
+      { item: "Whole carrots (sliced into coins)", amount: "3 large carrots", walmartAisle: "Produce" },
+      { item: "Yellow onion (cut into wedges)", amount: "1 medium onion", walmartAisle: "Produce" },
+      { item: "Fresh garlic cloves (minced)", amount: "4 cloves", walmartAisle: "Produce" },
+      { item: "Olive oil", amount: "3 tablespoons", walmartAisle: "Pantry / Canned" },
+      { item: "Dried rosemary or Italian seasoning", amount: "2 teaspoons", walmartAisle: "Spices & Condiments" },
+      { item: "Smoked paprika", amount: "1 teaspoon", walmartAisle: "Spices & Condiments" }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Prep Pan & Toss Vegetables",
+        instruction: "Preheat oven to 425°F. Toss 1.5 lbs halved baby potatoes, 3 sliced carrots, 1 onion cut in wedges, and 2 minced garlic cloves with 2 tablespoons olive oil, 1 teaspoon herbs, salt, and pepper on a large baking sheet.",
+        timerSeconds: 0
+      },
+      {
+        stepNumber: 2,
+        title: "Season Chicken Thighs",
+        instruction: "Pat 1.5 lbs chicken thighs dry and rub with 1 tablespoon olive oil, remaining 2 minced garlic cloves, 1 teaspoon rosemary/Italian seasoning, 1 teaspoon smoked paprika, salt, and pepper.",
+        timerSeconds: 0
+      },
+      {
+        stepNumber: 3,
+        title: "Roast Until Golden & 165°F",
+        instruction: "Nestle chicken thighs skin-side up among the vegetables and roast at 425°F for 28-32 minutes until potatoes are fork-tender and chicken reaches 165°F inside.",
+        timerSeconds: 1800
+      }
+    ],
+    whyItWorks: "True Sunday-style comfort roast where the chicken drippings flavor the potatoes and carrots as they bake.",
+    rutAlternativeNote: "Wholesome oven-roasted dinner great for leftovers all week."
+  },
+  {
+    id: "full-hearty-turkey-black-bean-chili",
+    title: "35-Minute Homemade Turkey & Two-Bean Chili Pot",
+    tagline: "Rich, aromatic homemade chili simmered with ground turkey, onions, bell peppers, tomatoes, chili spices, and two kinds of beans.",
+    prepMinutes: 10,
+    cookMinutes: 25,
+    category: "one_skillet",
+    effortLevel: "normal",
+    requiredEquipment: ["stove", "fridge"],
+    requiresFreezer: false,
+    mealType: "dinner",
+    dietaryTags: ["gluten_free", "high_protein"],
+    ingredients: [
+      { item: "Lean ground turkey or beef", amount: "1 lb", walmartAisle: "Meat & Deli" },
+      { item: "Yellow onion (diced)", amount: "1 medium onion", walmartAisle: "Produce" },
+      { item: "Bell pepper (diced)", amount: "1 large pepper", walmartAisle: "Produce" },
+      { item: "Garlic cloves (minced)", amount: "3 cloves", walmartAisle: "Produce" },
+      { item: "Canned diced tomatoes", amount: "1 can (14.5 oz)", walmartAisle: "Pantry / Canned" },
+      { item: "Tomato paste", amount: "2 tablespoons", walmartAisle: "Pantry / Canned" },
+      { item: "Black beans (canned, drained)", amount: "1 can (15 oz)", walmartAisle: "Pantry / Canned" },
+      { item: "Kidney beans (canned, drained)", amount: "1 can (15 oz)", walmartAisle: "Pantry / Canned" },
+      { item: "Chili powder & ground cumin", amount: "2 tsp chili powder + 1 tsp cumin", walmartAisle: "Spices & Condiments" },
+      { item: "Shredded cheddar cheese (for topping)", amount: "1/2 cup", walmartAisle: "Dairy & Eggs" }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Sauté Aromatics & Brown Meat",
+        instruction: "Heat 1 tablespoon olive oil in a Dutch oven or large pot over medium-high heat. Sauté 1 diced onion and 1 diced bell pepper for 4 minutes, then add 1 lb ground turkey and 3 minced garlic cloves, cooking 6 minutes until browned.",
+        timerSeconds: 360
+      },
+      {
+        stepNumber: 2,
+        title: "Bloom Spices & Tomato Paste",
+        instruction: "Stir 2 tablespoons tomato paste, 2 teaspoons chili powder, and 1 teaspoon ground cumin into the meat for 1 minute until deeply fragrant.",
+        timerSeconds: 60
+      },
+      {
+        stepNumber: 3,
+        title: "Simmer Beans & Tomatoes",
+        instruction: "Pour in 1 can diced tomatoes, 1 can drained black beans, 1 can drained kidney beans, and 1/2 cup water. Simmer uncovered over medium-low heat for 15-18 minutes until thick.",
+        timerSeconds: 900
+      },
+      {
+        stepNumber: 4,
+        title: "Bowl & Top With Cheddar",
+        instruction: "Ladle into deep bowls and finish each with shredded cheddar cheese.",
+        timerSeconds: 0
+      }
+    ],
+    whyItWorks: "Deep homemade flavor from real aromatics and simmered spices—makes multiple generous bowls.",
+    rutAlternativeNote: "Traditional pot of chili made completely from scratch."
+  },
+  {
+    id: "full-baked-sausage-spinach-penne",
+    title: "30-Minute Baked Italian Sausage & Spinach Ricotta Penne",
+    tagline: "Hearty baked pasta tossed with browned sausage, marinara, baby spinach, creamy ricotta, and bubbling mozzarella.",
+    prepMinutes: 8,
+    cookMinutes: 22,
+    category: "sheet_pan",
+    effortLevel: "normal",
+    requiredEquipment: ["stove", "oven", "fridge"],
+    requiresFreezer: false,
+    mealType: "dinner",
+    dietaryTags: ["high_protein"],
+    comfortVariationOf: "Boxed mac & cheese",
+    ingredients: [
+      { item: "Penne pasta", amount: "8 oz dry", walmartAisle: "Pantry / Canned" },
+      { item: "Italian sausage (ground or casings removed)", amount: "1/2 lb", walmartAisle: "Meat & Deli" },
+      { item: "Jarred marinara sauce", amount: "2 cups", walmartAisle: "Pantry / Canned" },
+      { item: "Baby spinach", amount: "2 cups", walmartAisle: "Produce" },
+      { item: "Ricotta cheese (or cottage cheese)", amount: "1/2 cup", walmartAisle: "Dairy & Eggs" },
+      { item: "Shredded mozzarella cheese", amount: "1 cup", walmartAisle: "Dairy & Eggs" },
+      { item: "Garlic powder & Italian seasoning", amount: "1 teaspoon each", walmartAisle: "Spices & Condiments" }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Boil Penne & Preheat Oven",
+        instruction: "Preheat oven to 375°F. Boil 8 oz penne in salted water for 7 minutes (1 minute shy of package time), then drain.",
+        timerSeconds: 420
+      },
+      {
+        stepNumber: 2,
+        title: "Brown Sausage & Simmer Sauce",
+        instruction: "In a skillet over medium-high heat, brown 1/2 lb Italian sausage for 5 minutes. Pour in 2 cups marinara, 1 teaspoon garlic powder, 1 teaspoon Italian seasoning, and 2 cups baby spinach; stir 2 minutes until wilted.",
+        timerSeconds: 300
+      },
+      {
+        stepNumber: 3,
+        title: "Layer & Bake Bubbly",
+        instruction: "Toss drained penne with the sausage sauce and 1/2 cup ricotta in an oven-safe baking dish. Top with 1 cup shredded mozzarella and bake 15 minutes until melted and browned in spots.",
+        timerSeconds: 900
+      }
+    ],
+    whyItWorks: "Bubbly baked ziti comfort with rich ricotta pockets and greens baked right in.",
+    rutAlternativeNote: "A classic baked pasta casserole worth the extra 15 minutes."
   }
 ];
+
+const MEAL_METADATA_OVERRIDES: Record<
+  string,
+  Partial<Pick<Meal, "effortLevel" | "requiredEquipment" | "requiresFreezer" | "mealType" | "dietaryTags" | "comfortVariationOf">>
+> = {
+  "dorm-buffalo-chicken-ranch-wrap": { effortLevel: "very_low", requiredEquipment: ["fridge"], requiresFreezer: false, mealType: "lunch", dietaryTags: ["high_protein"] },
+  "dorm-pepperoni-pizza-quesadilla": { effortLevel: "very_low", requiredEquipment: ["microwave", "fridge"], requiresFreezer: false, mealType: "dinner" },
+  "dorm-bacon-egg-breakfast-burrito": { effortLevel: "low", requiredEquipment: ["microwave", "fridge"], requiresFreezer: false, mealType: "breakfast", dietaryTags: ["high_protein"] },
+  "black-bean-salsa-bowl": { effortLevel: "very_low", requiredEquipment: ["microwave", "fridge"], requiresFreezer: false, mealType: "dinner", dietaryTags: ["vegetarian", "gluten_free"], comfortVariationOf: "Chips and salsa" },
+  "dorm-teriyaki-chicken-rice-bowl": { effortLevel: "low", requiredEquipment: ["microwave", "fridge", "freezer"], requiresFreezer: true, mealType: "dinner", dietaryTags: ["dairy_free", "high_protein"] },
+  "dorm-chili-rice-cheese-bowl": { effortLevel: "very_low", requiredEquipment: ["microwave", "fridge"], requiresFreezer: false, mealType: "dinner", dietaryTags: ["gluten_free", "high_protein"] },
+  "dorm-loaded-chicken-nachos": { effortLevel: "very_low", requiredEquipment: ["microwave", "fridge"], requiresFreezer: false, mealType: "dinner", dietaryTags: ["gluten_free", "high_protein"], comfortVariationOf: "Chips and salsa" },
+  "dorm-turkey-bacon-club-wrap": { effortLevel: "very_low", requiredEquipment: ["fridge"], requiresFreezer: false, mealType: "lunch", dietaryTags: ["high_protein"] },
+  "dorm-chili-cheese-mac-bowl": { effortLevel: "low", requiredEquipment: ["microwave", "fridge"], requiresFreezer: false, mealType: "dinner", dietaryTags: ["high_protein"], comfortVariationOf: "Boxed mac & cheese" },
+  "dorm-cheesy-garlic-chicken-ramen": { effortLevel: "low", requiredEquipment: ["microwave", "fridge"], requiresFreezer: false, mealType: "dinner", dietaryTags: ["high_protein"], comfortVariationOf: "Instant ramen" },
+  "frozen-meatball-marinara-subs": { effortLevel: "very_low", requiredEquipment: ["microwave", "fridge", "freezer"], requiresFreezer: true, mealType: "dinner", dietaryTags: ["high_protein"] },
+  "crispy-chicken-tender-caesar-wrap": { effortLevel: "low", requiredEquipment: ["microwave", "fridge", "freezer"], requiresFreezer: true, mealType: "lunch", dietaryTags: ["high_protein"] },
+  "dorm-microwave-chicken-quesadilla": { effortLevel: "very_low", requiredEquipment: ["microwave", "fridge"], requiresFreezer: false, mealType: "lunch", dietaryTags: ["high_protein"] },
+  "dorm-microwave-pasta-marinara-bowl": { effortLevel: "low", requiredEquipment: ["microwave", "fridge"], requiresFreezer: false, mealType: "dinner", dietaryTags: ["high_protein"], comfortVariationOf: "Boxed mac & cheese" },
+  "microwave-egg-salsa-tacos": { effortLevel: "low", requiredEquipment: ["microwave", "fridge"], requiresFreezer: false, mealType: "breakfast", dietaryTags: ["vegetarian", "high_protein"] },
+  "dorm-bbq-chicken-cheddar-sliders": { effortLevel: "very_low", requiredEquipment: ["microwave", "fridge"], requiresFreezer: false, mealType: "lunch", dietaryTags: ["high_protein"] },
+  "dorm-pb-banana-granola-wrap": { effortLevel: "very_low", requiredEquipment: [], requiresFreezer: false, mealType: "snack", dietaryTags: ["vegetarian", "dairy_free"] },
+  "yogurt-berry-granola-bowl": { effortLevel: "very_low", requiredEquipment: ["fridge", "freezer"], requiresFreezer: true, mealType: "breakfast", dietaryTags: ["vegetarian", "high_protein"] },
+  "creamy-tuna-toast-melt": { effortLevel: "low", requiredEquipment: ["microwave", "fridge"], requiresFreezer: false, mealType: "lunch", dietaryTags: ["high_protein"] },
+  "rotisserie-pesto-tortellini": { effortLevel: "low", requiredEquipment: ["stove", "fridge"], requiresFreezer: false, mealType: "dinner", dietaryTags: ["high_protein"] },
+  "sheet-pan-smoked-sausage-veggies": { effortLevel: "low", requiredEquipment: ["oven", "fridge", "freezer"], requiresFreezer: true, mealType: "dinner", dietaryTags: ["gluten_free", "dairy_free", "high_protein"] },
+  "bbq-chicken-flatbread-pizza": { effortLevel: "low", requiredEquipment: ["oven", "fridge"], requiresFreezer: false, mealType: "dinner", dietaryTags: ["high_protein"] },
+  "dump-and-heat-chili-mac": { effortLevel: "very_low", requiredEquipment: ["stove", "fridge"], requiresFreezer: false, mealType: "dinner", dietaryTags: ["high_protein"], comfortVariationOf: "Boxed mac & cheese" },
+  "egg-roll-in-a-skillet": { effortLevel: "low", requiredEquipment: ["stove", "fridge"], requiresFreezer: false, mealType: "dinner", dietaryTags: ["gluten_free", "dairy_free", "high_protein"] },
+  "spinach-egg-quesadilla": { effortLevel: "low", requiredEquipment: ["stove", "fridge"], requiresFreezer: false, mealType: "breakfast", dietaryTags: ["vegetarian", "high_protein"] },
+  "chicken-black-bean-quesadilla": { effortLevel: "low", requiredEquipment: ["stove", "fridge"], requiresFreezer: false, mealType: "lunch", dietaryTags: ["high_protein"] },
+  "pasta-marinara-spinach": { effortLevel: "low", requiredEquipment: ["stove", "fridge"], requiresFreezer: false, mealType: "dinner", dietaryTags: ["vegetarian"] },
+  "sausage-rice-veggie-skillet": { effortLevel: "low", requiredEquipment: ["stove", "fridge", "freezer"], requiresFreezer: true, mealType: "dinner", dietaryTags: ["dairy_free", "high_protein"] },
+  "turkey-beef-taco-rice-skillet": { effortLevel: "low", requiredEquipment: ["stove", "fridge"], requiresFreezer: false, mealType: "dinner", dietaryTags: ["gluten_free", "high_protein"] },
+  "chicken-veggie-alfredo-pasta": { effortLevel: "low", requiredEquipment: ["stove", "fridge", "freezer"], requiresFreezer: true, mealType: "dinner", dietaryTags: ["high_protein"] },
+  "freezer-potsticker-broccoli-bowl": { effortLevel: "low", requiredEquipment: ["stove", "freezer"], requiresFreezer: true, mealType: "dinner", dietaryTags: ["dairy_free"] },
+  "frozen-shrimp-garlic-rice-bowl": { effortLevel: "low", requiredEquipment: ["stove", "fridge", "freezer"], requiresFreezer: true, mealType: "dinner", dietaryTags: ["gluten_free", "high_protein"] },
+  "upgraded-peanut-ramen": { effortLevel: "low", requiredEquipment: ["stove", "fridge", "freezer"], requiresFreezer: true, mealType: "dinner", dietaryTags: ["vegetarian", "dairy_free"], comfortVariationOf: "Instant ramen" },
+  "tomato-soup-crispy-grilled-cheese": { effortLevel: "low", requiredEquipment: ["stove", "microwave", "fridge"], requiresFreezer: false, mealType: "lunch", dietaryTags: ["vegetarian"] },
+  "hashbrown-egg-bacon-skillet": { effortLevel: "low", requiredEquipment: ["stove", "fridge", "freezer"], requiresFreezer: true, mealType: "breakfast", dietaryTags: ["gluten_free", "high_protein"] },
+  "english-muffin-mini-pizzas": { effortLevel: "very_low", requiredEquipment: ["toaster", "fridge"], requiresFreezer: false, mealType: "lunch" },
+  "waffle-egg-cheese-sandwich": { effortLevel: "very_low", requiredEquipment: ["toaster", "microwave", "fridge", "freezer"], requiresFreezer: true, mealType: "breakfast", dietaryTags: ["vegetarian"] }
+};
+
+export const DEFAULT_MEALS: Meal[] = BASE_MEALS.map((meal) => {
+  const override = MEAL_METADATA_OVERRIDES[meal.id];
+  return override ? { ...meal, ...override } : meal;
+});
