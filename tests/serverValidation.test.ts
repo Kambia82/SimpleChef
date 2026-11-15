@@ -3,6 +3,7 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 import {
+  DistributedRateLimiter,
   MAX_ARRAY_ITEMS,
   MAX_ITEM_CHARS,
   PersistentRateLimiter,
@@ -10,6 +11,7 @@ import {
   finalizeAndVerifyGeneratedMeal,
   getIngredientBoundsForEffort,
   normalizeGenerationRequest,
+  normalizeIpAddress,
   validateStringArrayInput,
 } from "../serverLogic";
 import { createProfileForEnvironment } from "../src/utils/kitchenProfile";
@@ -206,6 +208,22 @@ describe("Server API Validation, Effort Bounds & Persistent Rate Limiter", () =>
       expect(limiter2.checkAndConsume(key2, now + 20).allowed).toBe(true);
       const blocked = limiter2.checkAndConsume(key2, now + 21);
       expect(blocked.allowed).toBe(false);
+    } finally {
+      if (fs.existsSync(tmpFile)) fs.unlinkSync(tmpFile);
+    }
+  });
+
+  it("normalizes IPv6-mapped IPv4 addresses and supports DistributedRateLimiter fallback cleanly", async () => {
+    expect(normalizeIpAddress("::ffff:10.0.0.5")).toBe("10.0.0.5");
+    expect(deriveRateLimitKey({ reqIp: "::ffff:10.0.0.5" })).toBe("ip:10.0.0.5");
+
+    const tmpFile = path.join(os.tmpdir(), `sc-drl-test-${Date.now()}-${Math.random()}.json`);
+    try {
+      const limiter = new DistributedRateLimiter({ filePath: tmpFile, maxRequests: 2 });
+      expect(limiter.isDistributedConfigured).toBe(false);
+      expect((await limiter.checkAndConsumeAsync("ip:10.0.0.5")).allowed).toBe(true);
+      expect((await limiter.checkAndConsumeAsync("ip:10.0.0.5")).allowed).toBe(true);
+      expect((await limiter.checkAndConsumeAsync("ip:10.0.0.5")).allowed).toBe(false);
     } finally {
       if (fs.existsSync(tmpFile)) fs.unlinkSync(tmpFile);
     }

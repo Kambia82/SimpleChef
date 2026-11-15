@@ -3043,6 +3043,255 @@ const BASE_MEALS: Meal[] = [
     ],
     whyItWorks: "Takes 2 minutes with zero appliances and packs protein + fiber.",
     rutAlternativeNote: "Fast, protein-rich lunch bowl you can eat anywhere."
+  },
+  {
+    id: "dorm-normal-shelf-sesame-peanut-ramen-feast",
+    title: "Sesame Chili-Garlic Peanut Ramen Feast",
+    tagline: "Multi-step shelf-stable noodle feast with microwave-bloomed garlic oil, whisked peanut-soy-vinegar emulsion, and tear-open chicken.",
+    prepMinutes: 5,
+    cookMinutes: 6,
+    category: "microwave",
+    effortLevel: "normal",
+    requiredEquipment: ["microwave"],
+    requiresFreezer: false,
+    mealType: "dinner",
+    dietaryTags: ["dairy_free", "high_protein"],
+    comfortVariationOf: "Instant ramen",
+    ingredients: [
+      { item: "Ramen noodle brick (discard seasoning pack)", amount: "1 pack", walmartAisle: "Pantry / Canned", storage: "shelf_stable" },
+      { item: "Tear-open seasoned chicken pouch", amount: "1 pouch (2.6 oz)", walmartAisle: "Pantry / Canned", storage: "shelf_stable" },
+      { item: "Creamy peanut butter", amount: "2 tablespoons", walmartAisle: "Pantry / Canned", storage: "shelf_stable" },
+      { item: "Soy sauce", amount: "1.5 tablespoons", walmartAisle: "Spices & Condiments", storage: "shelf_stable" },
+      { item: "Rice vinegar or apple cider vinegar", amount: "1 teaspoon", walmartAisle: "Spices & Condiments", storage: "shelf_stable" },
+      { item: "Olive oil or sesame oil", amount: "1 teaspoon", walmartAisle: "Pantry / Canned", storage: "shelf_stable" },
+      { item: "Garlic powder & crushed red pepper flakes", amount: "1/2 teaspoon each", walmartAisle: "Spices & Condiments", storage: "shelf_stable" },
+      { item: "Toasted sesame seeds or crushed peanuts (optional)", amount: "1 tablespoon", walmartAisle: "Pantry / Canned", storage: "shelf_stable", optional: true }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Bloom Spices in Warm Oil",
+        instruction: "In a small microwave-safe mug, stir together 1 teaspoon sesame or olive oil, 1/2 teaspoon garlic powder, and 1/2 teaspoon crushed red pepper flakes. Microwave 25 seconds until fragrant.",
+        timerSeconds: 25
+      },
+      {
+        stepNumber: 2,
+        title: "Whisk the Emulsion Sauce",
+        instruction: "Whisk 2 tablespoons creamy peanut butter, 1.5 tablespoons soy sauce, 1 teaspoon rice vinegar, and 2 tablespoons warm water right into the mug of bloomed garlic oil until silky.",
+        timerSeconds: 0
+      },
+      {
+        stepNumber: 3,
+        title: "Steam-Absorb Ramen in Bowl",
+        instruction: "Place 1 ramen brick in a deep microwave-safe bowl with 1 cup water (just enough to soften without draining). Microwave 2 minutes, break noodles gently with a fork, flip, and microwave 1.5 minutes more until nearly all water is absorbed.",
+        timerSeconds: 210
+      },
+      {
+        stepNumber: 4,
+        title: "Fold Chicken & Sauce Together",
+        instruction: "Fold 1 tear-open chicken pouch and your mug of peanut-chili sauce into the hot noodles, tossing thoroughly so residual liquid turns glossy. Microwave 30 seconds if needed.",
+        timerSeconds: 30
+      },
+      {
+        stepNumber: 5,
+        title: "Garnish & Serve",
+        instruction: "Top with 1 tablespoon toasted sesame seeds or crushed peanuts if desired and serve hot straight from the bowl.",
+        timerSeconds: 0
+      }
+    ],
+    whyItWorks: "Builds real layered takeout flavor through a bloomed garlic-chili oil emulsion—completely shelf-stable and bowl-only.",
+    rutAlternativeNote: "A multi-step pantry ramen upgrade with balanced sweet, salty, tangy, and spicy layers."
+  },
+  {
+    id: "dorm-normal-shelf-fiesta-grain-chili",
+    title: "Spiced Chipotle Black Bean & Rice Fiesta Bowl",
+    tagline: "Layered shelf-stable dinner with microwave-bloomed spices, seasoned beans & tomatoes, quinoa-rice pouch, and crunchy chip garnish.",
+    prepMinutes: 5,
+    cookMinutes: 6,
+    category: "microwave",
+    effortLevel: "normal",
+    requiredEquipment: ["microwave"],
+    requiresFreezer: false,
+    mealType: "dinner",
+    dietaryTags: ["vegetarian", "gluten_free", "dairy_free", "high_protein"],
+    ingredients: [
+      { item: "Microwave quinoa & brown rice pouch", amount: "1 pouch", walmartAisle: "Pantry / Canned", storage: "shelf_stable" },
+      { item: "Canned black beans (drained)", amount: "1 cup", walmartAisle: "Pantry / Canned", storage: "shelf_stable" },
+      { item: "Canned diced tomatoes with green chiles (undrained)", amount: "1/2 cup", walmartAisle: "Pantry / Canned", storage: "shelf_stable" },
+      { item: "Canned sweet corn (drained)", amount: "1/2 cup", walmartAisle: "Pantry / Canned", storage: "shelf_stable" },
+      { item: "Olive oil", amount: "1 tablespoon", walmartAisle: "Pantry / Canned", storage: "shelf_stable" },
+      { item: "Ground cumin & smoked paprika", amount: "1/2 teaspoon each", walmartAisle: "Spices & Condiments", storage: "shelf_stable" },
+      { item: "Garlic powder & chili powder", amount: "1/4 teaspoon each", walmartAisle: "Spices & Condiments", storage: "shelf_stable" },
+      { item: "Tortilla chips & jarred salsa", amount: "1 handful chips + 2 tablespoons salsa", walmartAisle: "Pantry / Canned", storage: "shelf_stable" }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Bloom Fiesta Spices",
+        instruction: "In a microwave-safe bowl, mix 1 tablespoon olive oil, 1/2 teaspoon cumin, 1/2 teaspoon smoked paprika, 1/4 teaspoon garlic powder, and 1/4 teaspoon chili powder. Microwave 25 seconds to wake up the aromatics.",
+        timerSeconds: 25
+      },
+      {
+        stepNumber: 2,
+        title: "Simmer Seasoned Bean & Corn Medley",
+        instruction: "Stir 1 cup drained black beans, 1/2 cup diced tomatoes with green chiles, and 1/2 cup drained sweet corn into the spiced oil. Cover loosely with a paper towel and microwave 2.5 minutes until bubbling.",
+        timerSeconds: 150
+      },
+      {
+        stepNumber: 3,
+        title: "Heat Rice & Quinoa Separately",
+        instruction: "Tear a 2-inch vent in 1 microwave quinoa & brown rice pouch and microwave 90 seconds on HIGH.",
+        timerSeconds: 90
+      },
+      {
+        stepNumber: 4,
+        title: "Layer & Finish with Crunch",
+        instruction: "Spoon the hot rice pouch over half the bowl, nestle the spiced bean chili alongside, and top with 2 tablespoons jarred salsa and 1 handful crushed tortilla chips.",
+        timerSeconds: 0
+      }
+    ],
+    whyItWorks: "Blooming spices in oil before microwaving builds slow-simmered depth from 100% shelf-stable staples.",
+    rutAlternativeNote: "Restaurant-style layered fiesta grain bowl made in a dorm microwave."
+  },
+  {
+    id: "dorm-normal-shelf-mediterranean-couscous-platter",
+    title: "Warm Spiced Couscous, Chickpea & Olive Platter",
+    tagline: "Microwave-steamed Moroccan-spiced couscous paired with garlic-oregano chickpeas, diced tomatoes, lemon, and briny olives.",
+    prepMinutes: 6,
+    cookMinutes: 5,
+    category: "microwave",
+    effortLevel: "normal",
+    requiredEquipment: ["microwave"],
+    requiresFreezer: false,
+    mealType: "lunch",
+    dietaryTags: ["vegetarian", "dairy_free", "high_protein"],
+    ingredients: [
+      { item: "Dry plain couscous", amount: "1/2 cup", walmartAisle: "Pantry / Canned", storage: "shelf_stable" },
+      { item: "Canned chickpeas (drained)", amount: "3/4 cup", walmartAisle: "Pantry / Canned", storage: "shelf_stable" },
+      { item: "Canned diced tomatoes (drained)", amount: "1/2 cup", walmartAisle: "Pantry / Canned", storage: "shelf_stable" },
+      { item: "Shelf-stable olive snack cup or jarred olives", amount: "2 tablespoons chopped", walmartAisle: "Pantry / Canned", storage: "shelf_stable" },
+      { item: "Olive oil", amount: "1 tablespoon", walmartAisle: "Pantry / Canned", storage: "shelf_stable" },
+      { item: "Lemon juice bottle or packet", amount: "1 tablespoon", walmartAisle: "Spices & Condiments", storage: "shelf_stable" },
+      { item: "Ground cumin, dried oregano & garlic powder", amount: "1/2 teaspoon total mix", walmartAisle: "Spices & Condiments", storage: "shelf_stable" }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Steam Couscous by Absorption",
+        instruction: "Combine 1/2 cup dry couscous, 2/3 cup water, 1 teaspoon olive oil, and a pinch of salt in a microwave-safe bowl. Microwave 90 seconds until hot, cover with a microwave-safe plate for 4 minutes so all liquid absorbs cleanly, then fluff with a fork.",
+        timerSeconds: 90
+      },
+      {
+        stepNumber: 2,
+        title: "Warm Spiced Chickpeas & Tomatoes",
+        instruction: "Push fluffed couscous to one side (or use a second mug). Toss 3/4 cup drained chickpeas and 1/2 cup drained diced tomatoes with remaining olive oil and 1/2 teaspoon cumin-oregano-garlic mix, then microwave 90 seconds until warm.",
+        timerSeconds: 90
+      },
+      {
+        stepNumber: 3,
+        title: "Dress with Lemon & Olives",
+        instruction: "Drizzle 1 tablespoon lemon juice over the warm couscous and chickpeas, scatter 2 tablespoons chopped olives on top, and serve warm.",
+        timerSeconds: 0
+      }
+    ],
+    whyItWorks: "Zero draining required—couscous steams fluffy right in the bowl while spices bloom on the chickpeas.",
+    rutAlternativeNote: "Bright Mediterranean plate cooked entirely from shelf-stable pantry items."
+  },
+  {
+    id: "dorm-normal-fridge-baked-potato-chili-bar",
+    title: "Loaded Two-Step Microwave Chili & Cheddar Potato Bar",
+    tagline: "Fluffy fork-steamed baked russet potato topped with spiced black-bean chili, melted cheddar, sour cream, and salsa.",
+    prepMinutes: 6,
+    cookMinutes: 10,
+    category: "microwave",
+    effortLevel: "normal",
+    requiredEquipment: ["microwave", "fridge"],
+    requiresFreezer: false,
+    mealType: "dinner",
+    dietaryTags: ["gluten_free", "high_protein"],
+    ingredients: [
+      { item: "Large russet potato", amount: "1 whole potato", walmartAisle: "Produce", storage: "shelf_stable" },
+      { item: "Canned turkey or beef chili with beans", amount: "1 cup", walmartAisle: "Pantry / Canned", storage: "shelf_stable" },
+      { item: "Canned black beans (drained)", amount: "1/3 cup", walmartAisle: "Pantry / Canned", storage: "shelf_stable" },
+      { item: "Shredded cheddar cheese", amount: "1/3 cup", walmartAisle: "Dairy & Eggs", storage: "fridge" },
+      { item: "Sour cream or plain Greek yogurt", amount: "2 tablespoons", walmartAisle: "Dairy & Eggs", storage: "fridge" },
+      { item: "Jarred salsa", amount: "3 tablespoons", walmartAisle: "Pantry / Canned", storage: "shelf_stable" },
+      { item: "Garlic powder & smoked paprika", amount: "1/4 teaspoon each", walmartAisle: "Spices & Condiments", storage: "shelf_stable" },
+      { item: "Fresh green onions (optional)", amount: "2 tablespoons sliced", walmartAisle: "Produce", storage: "fridge", optional: true }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Steam-Bake the Russet Potato",
+        instruction: "Wash and prick 1 russet potato 6 times with a fork. Microwave 4 minutes on HIGH, flip carefully with a towel, and microwave 3 to 4 minutes more until fork-tender.",
+        timerSeconds: 240
+      },
+      {
+        stepNumber: 2,
+        title: "Simmer Spiced Two-Bean Chili",
+        instruction: "While potato rests 1 minute, stir 1 cup canned chili, 1/3 cup drained black beans, 1/4 teaspoon garlic powder, and 1/4 teaspoon smoked paprika in a small microwave bowl; cover and heat 90 seconds.",
+        timerSeconds: 90
+      },
+      {
+        stepNumber: 3,
+        title: "Fluff, Load & Melt Cheese",
+        instruction: "Split the potato lengthwise, fluff insides with a fork, spoon hot chili on top, sprinkle 1/3 cup shredded cheddar over everything, and microwave 30 seconds to melt.",
+        timerSeconds: 30
+      },
+      {
+        stepNumber: 4,
+        title: "Add Cool Toppings",
+        instruction: "Dollop 2 tablespoons sour cream or Greek yogurt, 3 tablespoons salsa, and optional green onions over the melted cheese and dig in.",
+        timerSeconds: 0
+      }
+    ],
+    whyItWorks: "Feels like a steakhouse loaded baked potato dinner using just a microwave and mini-fridge.",
+    rutAlternativeNote: "Multi-layered comfort dinner with crispy-hot-and-cool textures."
+  },
+  {
+    id: "limited-normal-airfryer-herb-chicken-medley",
+    title: "Crispy Herb Air-Fryer Chicken, Potatoes & Asparagus",
+    tagline: "Two-stage air fryer dinner: crispy garlic-herb potato bites roasted with juicy chicken strips, asparagus, parmesan, and lemon.",
+    prepMinutes: 8,
+    cookMinutes: 16,
+    category: "sheet_pan",
+    effortLevel: "normal",
+    requiredEquipment: ["air_fryer", "fridge"],
+    requiresFreezer: false,
+    mealType: "dinner",
+    dietaryTags: ["gluten_free", "high_protein"],
+    ingredients: [
+      { item: "Russet or baby potatoes (diced small)", amount: "1.5 cups", walmartAisle: "Produce", storage: "shelf_stable" },
+      { item: "Pre-cooked or raw chicken breast strips", amount: "8 oz", walmartAisle: "Meat & Deli", storage: "fridge" },
+      { item: "Fresh asparagus spears or trimmed green beans", amount: "1 cup chopped", walmartAisle: "Produce", storage: "fridge" },
+      { item: "Olive oil", amount: "1.5 tablespoons", walmartAisle: "Pantry / Canned", storage: "shelf_stable" },
+      { item: "Italian seasoning & garlic powder", amount: "1/2 teaspoon each", walmartAisle: "Spices & Condiments", storage: "shelf_stable" },
+      { item: "Salt & black pepper", amount: "1/4 teaspoon each", walmartAisle: "Spices & Condiments", storage: "shelf_stable" },
+      { item: "Grated parmesan cheese", amount: "2 tablespoons", walmartAisle: "Dairy & Eggs", storage: "fridge" },
+      { item: "Lemon juice", amount: "1 tablespoon", walmartAisle: "Produce", storage: "shelf_stable" }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Start Crispy Garlic-Herb Potatoes",
+        instruction: "Toss 1.5 cups small-diced potatoes with 1 tablespoon olive oil, half the Italian seasoning, garlic powder, salt, and pepper. Air fry at 400°F for 9 minutes, shaking halfway.",
+        timerSeconds: 540
+      },
+      {
+        stepNumber: 2,
+        title: "Add Chicken & Asparagus",
+        instruction: "Toss 8 oz chicken strips and 1 cup chopped asparagus with remaining 1/2 tablespoon olive oil and spices. Add to the air fryer basket with the potatoes and cook at 400°F for 6–7 minutes until chicken reaches 165°F and veggies are blistered.",
+        timerSeconds: 420
+      },
+      {
+        stepNumber: 3,
+        title: "Finish with Lemon & Parmesan",
+        instruction: "Transfer to a plate, drizzle 1 tablespoon lemon juice over everything, dust with 2 tablespoons grated parmesan, and serve hot.",
+        timerSeconds: 0
+      }
+    ],
+    whyItWorks: "Staggered air-fryer timing delivers genuinely crisp potatoes, tender greens, and juicy chicken with no oven or stove needed.",
+    rutAlternativeNote: "Full home-cooked style dinner crafted for countertop air fryers."
   }
 ];
 

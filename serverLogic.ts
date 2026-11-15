@@ -756,6 +756,107 @@ export class PersistentRateLimiter {
     this.persistToDisk();
     return { allowed: true, remaining: Math.max(0, this.maxRequests - recent.length) };
   }
+  async checkAndConsumeAsync(
+    key: string,
+    now = Date.now()
+  ): Promise<{ allowed: true; remaining: number } | { allowed: false; retryAfterSec: number }> {
+    return this.checkAndConsume(key, now);
+  }
+}
+
+/**
+ * Distributed sliding/fixed-window rate limiter supporting Redis/Upstash REST
+ * (RATE_LIMIT_REDIS_REST_URL + RATE_LIMIT_REDIS_REST_TOKEN) for multi-instance Cloud Run,
+ * with automatic local file-backed PersistentRateLimiter fallback.
+ */
+export class DistributedRateLimiter {
+  private readonly fallback: PersistentRateLimiter;
+  private readonly redisUrl: string | null;
+  private readonly redisToken: string | null;
+  private readonly windowMs: number;
+  private readonly maxRequests: number;
+
+  constructor(options?: {
+    redisUrl?: string;
+    redisToken?: string;
+    filePath?: string;
+    windowMs?: number;
+    maxRequests?: number;
+  }) {
+    this.windowMs = options?.windowMs ?? RATE_LIMIT_WINDOW_MS;
+    this.maxRequests = options?.maxRequests ?? RATE_LIMIT_MAX_REQUESTS;
+    this.redisUrl =
+      (options?.redisUrl ?? process.env.RATE_LIMIT_REDIS_REST_URL ?? "").trim().replace(/\/+$/, "") ||
+      null;
+    this.redisToken =
+      (options?.redisToken ?? process.env.RATE_LIMIT_REDIS_REST_TOKEN ?? "").trim() || null;
+    this.fallback = new PersistentRateLimiter({
+      filePath: options?.filePath,
+      windowMs: this.windowMs,
+      maxRequests: this.maxRequests,
+    });
+  }
+
+  get isDistributedConfigured(): boolean {
+    return Boolean(this.redisUrl && this.redisToken);
+  }
+
+  async checkAndConsumeAsync(
+    key: string,
+    now = Date.now()
+  ): Promise<{ allowed: true; remaining: number } | { allowed: false; retryAfterSec: number }> {
+    if (!this.redisUrl || !this.redisToken) {
+      return this.fallback.checkAndConsume(key, now);
+    }
+
+    const bucket = Math.floor(now / this.windowMs);
+    const redisKey = `sc:rl:${bucket}:${key}`;
+    const windowSec = Math.ceil(this.windowMs / 1000);
+
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 1200);
+      const res = await fetch(`${this.redisUrl}/pipeline`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${this.redisToken}`,
+          "Content-Type": "application/json",
+        },
+        signal: controller.signal,
+        body: JSON.stringify([
+          ["INCR", redisKey],
+          ["EXPIRE", redisKey, windowSec, "NX"],
+          ["TTL", redisKey],
+        ]),
+      });
+      clearTimeout(timeout);
+
+      if (!res.ok) {
+        return this.fallback.checkAndConsume(key, now);
+      }
+
+      const data = (await res.json()) as Array<{ result?: unknown }>;
+      const count = typeof data?.[0]?.result === "number" ? data[0].result : null;
+      const ttl = typeof data?.[2]?.result === "number" && data[2].result > 0 ? data[2].result : windowSec;
+      if (count === null) {
+        return this.fallback.checkAndConsume(key, now);
+      }
+      if (count > this.maxRequests) {
+        return { allowed: false, retryAfterSec: Math.max(1, ttl) };
+      }
+      return { allowed: true, remaining: Math.max(0, this.maxRequests - count) };
+    } catch {
+      return this.fallback.checkAndConsume(key, now);
+    }
+  }
+}
+
+export function normalizeIpAddress(raw: string): string {
+  const trimmed = raw.trim().slice(0, 64);
+  if (trimmed.startsWith("::ffff:")) {
+    return trimmed.slice(7);
+  }
+  return trimmed;
 }
 
 export function deriveRateLimitKey(opts: {
@@ -763,12 +864,12 @@ export function deriveRateLimitKey(opts: {
   remoteAddress?: string;
   userIdHeader?: unknown;
 }): string {
-  // Enforce rate limit strictly on verified connection IP so clients cannot bypass limits by rotating headers
+  // Enforce rate limit strictly on normalized connection IP so clients cannot bypass limits by rotating headers
   const safeIp =
     typeof opts.reqIp === "string" && opts.reqIp.trim()
-      ? opts.reqIp.trim().slice(0, 64)
+      ? normalizeIpAddress(opts.reqIp)
       : typeof opts.remoteAddress === "string" && opts.remoteAddress.trim()
-      ? opts.remoteAddress.trim().slice(0, 64)
+      ? normalizeIpAddress(opts.remoteAddress)
       : "unknown";
 
   return `ip:${safeIp}`;

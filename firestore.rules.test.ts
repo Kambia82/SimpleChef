@@ -169,6 +169,7 @@ describe("firestore.rules security specification & static invariants", () => {
     expect(rulesText).toContain("incoming().ownerId == existing().ownerId");
     expect(rulesText).toContain("incoming().createdAt == existing().createdAt");
     expect(rulesText).toContain("data.keys().hasOnly([");
+    expect(rulesText).toContain("function isValidKitchenProfile(kp)");
   });
 
   it("blocks household privilege escalation and orphaned members", () => {

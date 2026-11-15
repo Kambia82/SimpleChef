@@ -77,6 +77,7 @@ import {
   sanitizeRutForCloud,
   sanitizeFavoritesForCloud,
   sanitizeCustomMealsForCloud,
+  sanitizeKitchenProfileForCloud,
   generateHouseholdCode
 } from "./firebase";
 import {
@@ -280,11 +281,13 @@ export default function App() {
   const localFavoritesRef = useRef<string[]>(favorites);
   const localRutRef = useRef<RutMeal[]>(rutMeals);
   const localMealsRef = useRef<Meal[]>(meals);
+  const localProfileRef = useRef<KitchenProfile>(profile);
   localPantryRef.current = pantryItems;
   localGroceryRef.current = groceryItems;
   localFavoritesRef.current = favorites;
   localRutRef.current = rutMeals;
   localMealsRef.current = meals;
+  localProfileRef.current = profile;
 
   const baselinePrivatePantryRef = useRef<PantryItem[]>([]);
   const baselinePrivateGroceryRef = useRef<GroceryItem[]>([]);
@@ -301,13 +304,15 @@ export default function App() {
     favorites: string;
     customMeals: string;
     householdId: string;
+    kitchenProfile: string;
   }>({
     pantry: "",
     grocery: "",
     rut: "",
     favorites: "",
     customMeals: "",
-    householdId: ""
+    householdId: "",
+    kitchenProfile: ""
   });
 
   const lastSharedSnapshotRef = useRef<{
@@ -554,6 +559,8 @@ export default function App() {
           const initCustom = sanitizeCustomMealsForCloud(
             localMealsRef.current.filter((m) => !DEFAULT_ID_SET.has(m.id))
           );
+          const initProfile =
+            sanitizeKitchenProfileForCloud(localProfileRef.current) ?? DEFAULT_KITCHEN_PROFILE;
 
           baselinePrivatePantryRef.current = initPantry;
           baselinePrivateGroceryRef.current = initGrocery;
@@ -565,7 +572,8 @@ export default function App() {
             rut: JSON.stringify(initRut),
             favorites: JSON.stringify(initFavs),
             customMeals: JSON.stringify(initCustom),
-            householdId: ""
+            householdId: "",
+            kitchenProfile: JSON.stringify(initProfile)
           };
 
           try {
@@ -577,6 +585,7 @@ export default function App() {
               favorites: initFavs,
               customMeals: initCustom,
               householdId: "",
+              kitchenProfile: initProfile,
               createdAt: serverTimestamp(),
               updatedAt: serverTimestamp()
             });
@@ -594,6 +603,7 @@ export default function App() {
         const remoteRut = sanitizeRutForCloud(data.rutMeals);
         const remoteFavs = sanitizeFavoritesForCloud(data.favorites);
         const remoteCustom = sanitizeCustomMealsForCloud(data.customMeals);
+        const remoteProfile = sanitizeKitchenProfileForCloud(data.kitchenProfile);
 
         const isFirstLoadForUser = mergedOnSignInUidRef.current !== user.uid;
         mergedOnSignInUidRef.current = user.uid;
@@ -630,13 +640,18 @@ export default function App() {
             rut: JSON.stringify(remoteRut),
             favorites: JSON.stringify(remoteFavs),
             customMeals: JSON.stringify(remoteCustom),
-            householdId: remoteHouseholdId
+            householdId: remoteHouseholdId,
+            kitchenProfile: remoteProfile ? JSON.stringify(remoteProfile) : ""
           };
 
           setRutMeals(cleanMergedRut);
           setFavorites(cleanMergedFavs);
           setMeals(mergeMealsWithDefaults(cleanMergedCustom));
           setHouseholdId(remoteHouseholdId);
+          if (remoteProfile) {
+            setProfile(remoteProfile);
+            triggerPreferenceRefresh(remoteProfile);
+          }
 
           if (!remoteHouseholdId) {
             setPantryItems(cleanMergedPantry);
@@ -655,13 +670,18 @@ export default function App() {
           rut: JSON.stringify(remoteRut),
           favorites: JSON.stringify(remoteFavs),
           customMeals: JSON.stringify(remoteCustom),
-          householdId: remoteHouseholdId
+          householdId: remoteHouseholdId,
+          kitchenProfile: remoteProfile ? JSON.stringify(remoteProfile) : ""
         };
 
         setRutMeals(remoteRut);
         setFavorites(remoteFavs);
         setMeals(mergeMealsWithDefaults(remoteCustom));
         setHouseholdId(remoteHouseholdId);
+        if (remoteProfile && JSON.stringify(remoteProfile) !== JSON.stringify(localProfileRef.current)) {
+          setProfile(remoteProfile);
+          triggerPreferenceRefresh(remoteProfile);
+        }
 
         if (!remoteHouseholdId) {
           const reconciledPantry = sanitizePantryForCloud(
@@ -803,12 +823,15 @@ export default function App() {
       const cleanCustom = sanitizeCustomMealsForCloud(
         meals.filter((m) => !DEFAULT_ID_SET.has(m.id))
       );
+      const cleanProfile =
+        sanitizeKitchenProfileForCloud(profile) ?? DEFAULT_KITCHEN_PROFILE;
 
       const pantryJson = JSON.stringify(cleanPantry);
       const groceryJson = JSON.stringify(cleanGrocery);
       const rutJson = JSON.stringify(cleanRut);
       const favsJson = JSON.stringify(cleanFavs);
       const customJson = JSON.stringify(cleanCustom);
+      const profileJson = JSON.stringify(cleanProfile);
 
       // 1. Update private personal fields (and pantry/grocery if not in a household)
       const privateUpdates: Record<string, unknown> = {};
@@ -820,6 +843,9 @@ export default function App() {
       }
       if (customJson !== lastPrivateSnapshotRef.current.customMeals) {
         privateUpdates.customMeals = cleanCustom;
+      }
+      if (profileJson !== lastPrivateSnapshotRef.current.kitchenProfile) {
+        privateUpdates.kitchenProfile = cleanProfile;
       }
       if (!householdId) {
         if (pantryJson !== lastPrivateSnapshotRef.current.pantry) {
@@ -852,6 +878,7 @@ export default function App() {
               favorites: cleanFavs,
               customMeals: cleanCustom,
               householdId,
+              kitchenProfile: cleanProfile,
               updatedAt: serverTimestamp()
             };
 
@@ -860,6 +887,7 @@ export default function App() {
           rut: rutJson,
           favorites: favsJson,
           customMeals: customJson,
+          kitchenProfile: profileJson,
           ...(householdId ? {} : { pantry: pantryJson, grocery: groceryJson })
         };
         if (!householdId) {
@@ -915,7 +943,8 @@ export default function App() {
     groceryItems,
     rutMeals,
     favorites,
-    meals
+    meals,
+    profile
   ]);
 
   // Auth & Household handlers
@@ -2288,7 +2317,13 @@ export default function App() {
         >
           <div className="text-xs sm:text-sm font-semibold text-stone-800">
             <span>
-              {activeEnvLabel} + {EFFORT_PRESETS[profile.effort].label}:{" "}
+              {activeEnvLabel} · {EFFORT_PRESETS[profile.effort].label}
+              {profile.livingSituation === "dorm"
+                ? profile.sharedKitchen === "available_use"
+                  ? " · Dorm Setup (Shared Kitchen)"
+                  : " · Dorm Setup"
+                : ""}
+              :{" "}
               <strong className="text-emerald-800">
                 {eligibleMeals.length} matching meal{eligibleMeals.length === 1 ? "" : "s"}
               </strong>

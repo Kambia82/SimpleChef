@@ -137,6 +137,40 @@ service cloud.firestore {
       );
     }
 
+    function isValidKitchenProfile(kp) {
+      return kp is map &&
+        kp.keys().hasAll([
+          'environment',
+          'equipment',
+          'hasFreezer',
+          'effort',
+          'varietyPreference',
+          'dietaryRestrictions'
+        ]) &&
+        kp.keys().hasOnly([
+          'environment',
+          'equipment',
+          'hasFreezer',
+          'effort',
+          'varietyPreference',
+          'dietaryRestrictions',
+          'livingSituation',
+          'dormConstraints',
+          'sharedKitchen',
+          'otherEquipmentLabel'
+        ]) &&
+        kp.environment is string && kp.environment in ['full_kitchen', 'microwave_only', 'microwave_mini_fridge', 'limited_kitchen', 'custom'] &&
+        kp.equipment is list && kp.equipment.size() <= 8 &&
+        kp.hasFreezer is bool &&
+        kp.effort is string && kp.effort in ['very_low', 'low', 'moderate', 'normal'] &&
+        kp.varietyPreference is string && kp.varietyPreference in ['familiar', 'balanced', 'new_ideas'] &&
+        kp.dietaryRestrictions is list && kp.dietaryRestrictions.size() <= 4 &&
+        (!('livingSituation' in kp) || (kp.livingSituation is string && kp.livingSituation in ['standard', 'dorm'])) &&
+        (!('dormConstraints' in kp) || (kp.dormConstraints is map && kp.dormConstraints.keys().size() <= 8)) &&
+        (!('sharedKitchen' in kp) || (kp.sharedKitchen is string && kp.sharedKitchen in ['none', 'available_avoid', 'available_use'])) &&
+        (!('otherEquipmentLabel' in kp) || (kp.otherEquipmentLabel is string && kp.otherEquipmentLabel.size() <= 60));
+    }
+
     function isValidUserAppState(data) {
       return data.keys().hasAll([
           'ownerId',
@@ -157,6 +191,7 @@ service cloud.firestore {
           'favorites',
           'customMeals',
           'householdId',
+          'kitchenProfile',
           'createdAt',
           'updatedAt'
         ]) &&
@@ -167,6 +202,7 @@ service cloud.firestore {
         isValidFavoritesList(data.favorites) &&
         isValidCustomMealsList(data.customMeals) &&
         data.householdId is string && data.householdId.size() <= 32 && data.householdId.matches('^$|^[A-Z0-9]{6,12}$') &&
+        (!('kitchenProfile' in data) || isValidKitchenProfile(data.kitchenProfile)) &&
         data.createdAt is timestamp &&
         data.updatedAt is timestamp;
     }
@@ -225,8 +261,10 @@ service cloud.firestore {
           incoming().diff(existing()).affectedKeys().hasOnly(['favorites', 'updatedAt']) ||
           incoming().diff(existing()).affectedKeys().hasOnly(['customMeals', 'updatedAt']) ||
           incoming().diff(existing()).affectedKeys().hasOnly(['householdId', 'updatedAt']) ||
+          incoming().diff(existing()).affectedKeys().hasOnly(['kitchenProfile', 'updatedAt']) ||
           incoming().diff(existing()).affectedKeys().hasOnly(['pantryItems', 'groceryItems', 'updatedAt']) ||
           incoming().diff(existing()).affectedKeys().hasOnly(['pantryItems', 'groceryItems', 'householdId', 'updatedAt']) ||
+          incoming().diff(existing()).affectedKeys().hasOnly(['pantryItems', 'groceryItems', 'rutMeals', 'favorites', 'customMeals', 'householdId', 'kitchenProfile', 'updatedAt']) ||
           incoming().diff(existing()).affectedKeys().hasOnly(['pantryItems', 'groceryItems', 'rutMeals', 'favorites', 'customMeals', 'householdId', 'updatedAt'])
         );
       allow delete: if isVerifiedUser() && isValidId(userId) && stateId == 'main' && isOwner(userId);

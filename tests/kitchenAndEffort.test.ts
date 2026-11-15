@@ -199,4 +199,19 @@ describe("Independent Cooking Environment & Effort Engine", () => {
     expect(getMealEligibility(skilletDish!, dormAvoid, { effortMatchMode: "any" }).eligible).toBe(false);
     expect(getMealEligibility(skilletDish!, dormUse, { effortMatchMode: "any" }).eligible).toBe(true);
   });
+
+  it("provides >= 3 Normal Cooking meals in every environment preset without forcing stove/oven", () => {
+    for (const env of [
+      "full_kitchen",
+      "microwave_only",
+      "microwave_mini_fridge",
+      "limited_kitchen",
+    ] as const) {
+      const p = createProfileForEnvironment(env, { effort: "normal" });
+      const normalMatches = DEFAULT_MEALS.filter(
+        (m) => getMealEligibility(m, p, { effortMatchMode: "exact" }).eligible
+      );
+      expect(normalMatches.length).toBeGreaterThanOrEqual(3);
+    }
+  });
 });

@@ -78,14 +78,14 @@ describe("Adaptive Spotlight Selection Engine", () => {
   });
 
   it("returns an explicit emptyReason and helpful 1-click adjustments when no meals match", () => {
-    const impossibleProfile = createProfileForEnvironment("microwave_only", {
+    const profileWithoutLibraryMatches = createProfileForEnvironment("microwave_only", {
       effort: "normal",
       dietaryRestrictions: ["dairy_free", "gluten_free", "vegetarian"],
     });
 
     const res = selectSpotlightMeal({
-      meals: DEFAULT_MEALS,
-      profile: impossibleProfile,
+      meals: DEFAULT_MEALS.filter((m) => m.effortLevel !== "normal"),
+      profile: profileWithoutLibraryMatches,
       lessFrequentList: [],
       pantryItems: [],
       recentSpotlightIds: [],
@@ -100,7 +100,7 @@ describe("Adaptive Spotlight Selection Engine", () => {
   });
 
   it("suggests Include Shared Kitchen when sharedKitchen is available_avoid and eligible pool is empty", () => {
-    const dormAvoidImpossible = createProfileForEnvironment("microwave_only", {
+    const dormAvoidNoMatch = createProfileForEnvironment("microwave_only", {
       effort: "normal",
       livingSituation: "dorm",
       sharedKitchen: "available_avoid",
@@ -108,8 +108,8 @@ describe("Adaptive Spotlight Selection Engine", () => {
     });
 
     const res = selectSpotlightMeal({
-      meals: DEFAULT_MEALS,
-      profile: dormAvoidImpossible,
+      meals: DEFAULT_MEALS.filter((m) => m.effortLevel !== "normal"),
+      profile: dormAvoidNoMatch,
       lessFrequentList: [],
       pantryItems: [],
       recentSpotlightIds: [],

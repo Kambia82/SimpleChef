@@ -7,6 +7,7 @@ import {
 import {
   sanitizeCustomMealsForCloud,
   sanitizeGroceryForCloud,
+  sanitizeKitchenProfileForCloud,
   sanitizePantryForCloud,
   sanitizeRutForCloud,
 } from "../src/firebase";
@@ -119,5 +120,34 @@ describe("Offline Sync Merge & Client Cloud Sanitization", () => {
         },
       ])
     ).toHaveLength(1);
+  });
+
+  it("validates and sanitizes synced KitchenProfile objects while ignoring corrupted payloads", () => {
+    expect(sanitizeKitchenProfileForCloud(null)).toBeUndefined();
+    expect(sanitizeKitchenProfileForCloud({ environment: "spaceship" })).toBeUndefined();
+
+    const cleaned = sanitizeKitchenProfileForCloud({
+      environment: "custom",
+      equipment: ["microwave", "other", "not_real"],
+      otherEquipmentLabel: "   Mini Waffle Maker   ",
+      hasFreezer: false,
+      effort: "moderate",
+      varietyPreference: "familiar",
+      dietaryRestrictions: ["high_protein", "bogus"],
+      livingSituation: "dorm",
+      sharedKitchen: "available_avoid",
+      dormConstraints: {
+        minimalCookware: true,
+        preferShelfStable: true,
+      },
+    });
+
+    expect(cleaned).toBeDefined();
+    expect(cleaned!.equipment).toEqual(["microwave", "other"]);
+    expect(cleaned!.otherEquipmentLabel).toBe("Mini Waffle Maker");
+    expect(cleaned!.dietaryRestrictions).toEqual(["high_protein"]);
+    expect(cleaned!.livingSituation).toBe("dorm");
+    expect(cleaned!.sharedKitchen).toBe("available_avoid");
+    expect(cleaned!.dormConstraints?.minimalCookware).toBe(true);
   });
 });

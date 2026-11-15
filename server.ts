@@ -5,7 +5,7 @@ import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, ThinkingLevel } from "@google/genai";
 import dotenv from "dotenv";
 import {
-  PersistentRateLimiter,
+  DistributedRateLimiter,
   buildAdaptiveRecipePrompt,
   deriveRateLimitKey,
   finalizeAndVerifyGeneratedMeal,
@@ -24,9 +24,9 @@ const PORT = 3000;
 app.set("trust proxy", 1);
 app.use(express.json({ limit: "64kb" }));
 
-const rateLimiter = new PersistentRateLimiter();
+const rateLimiter = new DistributedRateLimiter();
 
-function aiRateLimiter(
+async function aiRateLimiter(
   req: express.Request,
   res: express.Response,
   next: express.NextFunction
@@ -36,7 +36,7 @@ function aiRateLimiter(
     remoteAddress: req.socket.remoteAddress,
   });
 
-  const decision = rateLimiter.checkAndConsume(key);
+  const decision = await rateLimiter.checkAndConsumeAsync(key);
   if (decision.allowed === false && "retryAfterSec" in decision) {
     res.setHeader("Retry-After", String(decision.retryAfterSec));
     return res.status(429).json({
@@ -205,21 +205,45 @@ app.post("/api/ingredients-to-meal", aiRateLimiter, async (req, res) => {
     const hasToasterOrAirFryer =
       effectiveEqSet.has("toaster") || effectiveEqSet.has("air_fryer");
 
+    const hasMicrowave = effectiveEqSet.has("microwave");
     const formatAngles: Array<{ style: string; category: Meal["category"] }> = [
-      {
-        style: "microwave warm bowl, mug scramble, or melted quesadilla",
-        category: "microwave",
-      },
+      ...(hasMicrowave
+        ? [
+            {
+              style: "microwave warm bowl, mug scramble, or melted quesadilla",
+              category: "microwave" as const,
+            },
+          ]
+        : []),
       {
         style: "zero-cook assembly wrap, plate mash-up, or cold salad toss",
-        category: "assembly",
+        category: "assembly" as const,
       },
       ...(hasStove
-        ? [{ style: "warm 1-skillet stir-fry, melt, or pan sauté", category: "one_skillet" as const }]
-        : hasOven || hasToasterOrAirFryer
-        ? [{ style: "crisp roasted tray bake or toasted melt", category: "sheet_pan" as const }]
-        : [{ style: "hearty deep-bowl microwave fusion dish", category: "microwave" as const }]),
-    ];
+        ? [
+            {
+              style: "warm 1-skillet stir-fry, melt, or pan sauté",
+              category: "one_skillet" as const,
+            },
+          ]
+        : []),
+      ...(hasOven || hasToasterOrAirFryer
+        ? [
+            {
+              style: "crisp roasted tray bake or toasted melt",
+              category: "sheet_pan" as const,
+            },
+          ]
+        : []),
+      ...(hasMicrowave && !hasStove && !hasOven && !hasToasterOrAirFryer
+        ? [
+            {
+              style: "hearty deep-bowl microwave fusion dish",
+              category: "microwave" as const,
+            },
+          ]
+        : []),
+    ].slice(0, 3);
 
     const buildRescuePrompt = (style: string) => {
       const base = buildAdaptiveRecipePrompt(request, style);

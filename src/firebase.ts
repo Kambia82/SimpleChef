@@ -13,15 +13,22 @@ import {
 import firebaseConfig from "../firebase-applet-config.json";
 import {
   CookingEffort,
+  CookingEnvironment,
   CookingEquipment,
   DietaryRestriction,
+  DormConstraints,
   GroceryItem,
   IngredientStorage,
+  KitchenProfile,
+  LivingSituation,
   Meal,
   PantryItem,
   RutMeal,
+  SharedKitchenPreference,
+  VarietyPreference,
   WalmartAisle
 } from "./types";
+import { normalizeDormConstraints } from "./utils/kitchenProfile";
 
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
@@ -445,6 +452,97 @@ export function sanitizeCustomMealsForCloud(items: unknown): Meal[] {
   }
 
   return result;
+}
+
+const VALID_ENVIRONMENTS = new Set<CookingEnvironment>([
+  "full_kitchen",
+  "microwave_only",
+  "microwave_mini_fridge",
+  "limited_kitchen",
+  "custom"
+]);
+const VALID_VARIETIES = new Set<VarietyPreference>(["familiar", "balanced", "new_ideas"]);
+
+export function sanitizeKitchenProfileForCloud(raw: unknown): KitchenProfile | undefined {
+  if (!isPlainObject(raw)) return undefined;
+  if (
+    typeof raw.environment !== "string" ||
+    !VALID_ENVIRONMENTS.has(raw.environment as CookingEnvironment)
+  ) {
+    return undefined;
+  }
+  if (!Array.isArray(raw.equipment) || typeof raw.hasFreezer !== "boolean") {
+    return undefined;
+  }
+  if (typeof raw.effort !== "string" || !VALID_EFFORTS.has(raw.effort as CookingEffort)) {
+    return undefined;
+  }
+
+  const equipment = Array.from(
+    new Set(
+      raw.equipment.filter(
+        (e): e is CookingEquipment =>
+          typeof e === "string" && VALID_EQUIPMENT.has(e as CookingEquipment)
+      )
+    )
+  ).slice(0, 8);
+
+  const varietyPreference: VarietyPreference =
+    typeof raw.varietyPreference === "string" &&
+    VALID_VARIETIES.has(raw.varietyPreference as VarietyPreference)
+      ? (raw.varietyPreference as VarietyPreference)
+      : "balanced";
+
+  const dietaryRestrictions = Array.isArray(raw.dietaryRestrictions)
+    ? Array.from(
+        new Set(
+          raw.dietaryRestrictions.filter(
+            (d): d is DietaryRestriction =>
+              typeof d === "string" && VALID_DIETARY.has(d as DietaryRestriction)
+          )
+        )
+      ).slice(0, 4)
+    : [];
+
+  const livingSituation: LivingSituation =
+    raw.livingSituation === "dorm" ? "dorm" : "standard";
+
+  const rawDorm = isPlainObject(raw.dormConstraints)
+    ? (raw.dormConstraints as Partial<DormConstraints>)
+    : undefined;
+  const dormConstraints = normalizeDormConstraints(livingSituation, {
+    limitedFridgeSpace: typeof rawDorm?.limitedFridgeSpace === "boolean" ? rawDorm.limitedFridgeSpace : undefined,
+    limitedFreezerSpace: typeof rawDorm?.limitedFreezerSpace === "boolean" ? rawDorm.limitedFreezerSpace : undefined,
+    limitedFoodStorage: typeof rawDorm?.limitedFoodStorage === "boolean" ? rawDorm.limitedFoodStorage : undefined,
+    limitedCounterSpace: typeof rawDorm?.limitedCounterSpace === "boolean" ? rawDorm.limitedCounterSpace : undefined,
+    sharedAppliances: typeof rawDorm?.sharedAppliances === "boolean" ? rawDorm.sharedAppliances : undefined,
+    minimalCookware: typeof rawDorm?.minimalCookware === "boolean" ? rawDorm.minimalCookware : undefined,
+    preferShelfStable: typeof rawDorm?.preferShelfStable === "boolean" ? rawDorm.preferShelfStable : undefined,
+    smallerQuantities: typeof rawDorm?.smallerQuantities === "boolean" ? rawDorm.smallerQuantities : undefined
+  });
+
+  const sharedKitchen: SharedKitchenPreference =
+    raw.sharedKitchen === "available_use" || raw.sharedKitchen === "available_avoid"
+      ? raw.sharedKitchen
+      : "none";
+
+  const otherEquipmentLabel =
+    typeof raw.otherEquipmentLabel === "string"
+      ? raw.otherEquipmentLabel.trim().slice(0, 60)
+      : "";
+
+  return {
+    environment: raw.environment as CookingEnvironment,
+    equipment,
+    hasFreezer: raw.hasFreezer,
+    effort: raw.effort as CookingEffort,
+    varietyPreference,
+    dietaryRestrictions,
+    livingSituation,
+    dormConstraints,
+    sharedKitchen,
+    otherEquipmentLabel
+  };
 }
 
 export function generateHouseholdCode(): string {

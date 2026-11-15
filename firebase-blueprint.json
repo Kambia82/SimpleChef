@@ -37,6 +37,10 @@
           "pattern": "^$|^[A-Z0-9]{6,12}$",
           "description": "Optional household invite code if sharing pantry and grocery list."
         },
+        "kitchenProfile": {
+          "type": "object",
+          "description": "Optional persisted cooking equipment, living situation / dorm constraints, effort level, dietary filters, and variety preferences."
+        },
         "createdAt": {
           "type": "string",
           "format": "date-time",
