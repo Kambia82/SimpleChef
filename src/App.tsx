@@ -49,6 +49,7 @@ import {
   DEFAULT_KITCHEN_PROFILE,
   EFFORT_PRESETS,
   ENVIRONMENT_PRESETS,
+  STANDARD_DORM_CONSTRAINTS,
   createProfileForEnvironment,
   getEffectiveEquipment,
   getMealEligibility,
@@ -137,7 +138,13 @@ function loadInitialProfile(): KitchenProfile {
           parsed.environment === "custom"
             ? parsed.environment
             : DEFAULT_KITCHEN_PROFILE.environment;
-        return createProfileForEnvironment(validEnv, parsed);
+        const normalizedEnv: CookingEnvironment =
+          parsed.livingSituation === "dorm" &&
+          validEnv === "full_kitchen" &&
+          parsed.sharedKitchen !== "available_use"
+            ? "microwave_mini_fridge"
+            : validEnv;
+        return createProfileForEnvironment(normalizedEnv, parsed);
       }
     }
 
@@ -267,6 +274,8 @@ export default function App() {
   });
   const [currentSpotlightId, setCurrentSpotlightId] = useState<string | null>(null);
   const [recentSuggestions, setRecentSuggestions] = useState<Meal[]>([]);
+  const [resultsRefreshTick, setResultsRefreshTick] = useState<number>(0);
+  const [pulseHighlight, setPulseHighlight] = useState<boolean>(false);
 
   const toastTimerRef = useRef<number | null>(null);
   const resultsSectionRef = useRef<HTMLDivElement | null>(null);
@@ -371,36 +380,83 @@ export default function App() {
     }, 3500);
   };
 
+  const pulseTimerRef = useRef<number | null>(null);
+
+  const flashResultsUpdated = () => {
+    setResultsRefreshTick((prev) => prev + 1);
+    setPulseHighlight(true);
+    if (pulseTimerRef.current !== null) {
+      window.clearTimeout(pulseTimerRef.current);
+    }
+    pulseTimerRef.current = window.setTimeout(() => {
+      setPulseHighlight(false);
+      pulseTimerRef.current = null;
+    }, 650);
+  };
+
   // Profile change handlers (Axis 1: Equipment; Axis 2: Effort; Axis 3: Living Situation & Dorm)
-  const triggerPreferenceRefresh = (nextProfile: KitchenProfile) => {
+  const triggerPreferenceRefresh = (
+    nextProfile: KitchenProfile,
+    nextMealType: MealType = mealTypeFilter
+  ) => {
     setRecentSuggestions((prev) =>
       prev.filter(
         (m) =>
-          isMealEquipmentCompatible(m, nextProfile).compatible &&
-          isMealDormCompatible(m, nextProfile).compatible
+          getMealEligibility(m, nextProfile, {
+            mealType: nextMealType,
+            effortMatchMode: "exact",
+            lessFrequentList: rutMeals
+          }).eligible
       )
     );
     setCurrentSpotlightId(null);
+    flashResultsUpdated();
   };
 
-  const handleChangeEnvironment = (env: CookingEnvironment) => {
-    const nextProfile = createProfileForEnvironment(env, profile);
-    setProfile(nextProfile);
-
-    const effEq = getEffectiveEquipment(nextProfile);
+  const syncBrowseFilterToEquipment = (effEq: Set<CookingEquipment>) => {
     const hasHeatOtherThanMicro =
       effEq.has("stove") || effEq.has("oven") || effEq.has("toaster") || effEq.has("air_fryer");
 
     if (!hasHeatOtherThanMicro && activeFilter === "one_skillet") {
       setActiveFilter("all");
     }
+    if (!effEq.has("microwave") && activeFilter === "microwave") {
+      setActiveFilter("all");
+    }
+  };
 
+  const handleChangeEnvironment = (env: CookingEnvironment) => {
+    let overrides: Partial<KitchenProfile> = { ...profile };
+
+    if (env === "full_kitchen" && profile.livingSituation === "dorm") {
+      overrides = {
+        ...overrides,
+        livingSituation: "standard",
+        dormConstraints: { ...STANDARD_DORM_CONSTRAINTS },
+        sharedKitchen: "none"
+      };
+    } else if (
+      (env === "microwave_only" || env === "microwave_mini_fridge" || env === "limited_kitchen") &&
+      profile.livingSituation === "dorm" &&
+      profile.sharedKitchen === "available_use"
+    ) {
+      overrides = {
+        ...overrides,
+        sharedKitchen: "available_avoid"
+      };
+    }
+
+    const nextProfile = createProfileForEnvironment(env, overrides);
+    setProfile(nextProfile);
+    syncBrowseFilterToEquipment(getEffectiveEquipment(nextProfile));
     triggerPreferenceRefresh(nextProfile);
 
     if (env === "microwave_only") {
       showToast(
-        "Microwave Only active — showing shelf-stable microwave & no-cook meals (add Mini-Fridge for chilled items)."
+        "Microwave Only active — showing shelf-stable microwave & no-cook meals."
       );
+    } else if (env === "full_kitchen" && profile.livingSituation === "dorm") {
+      showToast("Full Kitchen active (switched to Standard setup so stove & oven recipes show).");
     } else if (env === "custom") {
       showToast("Custom Equipment active — toggle any appliances you have below.");
     } else {
@@ -426,12 +482,22 @@ export default function App() {
         nextEq.push(eq);
       }
 
+      const nextDormConstraints =
+        prev.livingSituation === "dorm" && eq === "freezer"
+          ? {
+              ...(prev.dormConstraints ?? DEFAULT_DORM_CONSTRAINTS),
+              limitedFreezerSpace: !nextHasFreezer
+            }
+          : prev.dormConstraints;
+
       const updated: KitchenProfile = {
         ...prev,
         environment: "custom",
         equipment: nextEq,
-        hasFreezer: nextHasFreezer
+        hasFreezer: nextHasFreezer,
+        ...(nextDormConstraints ? { dormConstraints: nextDormConstraints } : {})
       };
+      syncBrowseFilterToEquipment(getEffectiveEquipment(updated));
       triggerPreferenceRefresh(updated);
       return updated;
     });
@@ -453,18 +519,37 @@ export default function App() {
 
   const handleChangeLivingSituation = (livingSituation: LivingSituation) => {
     setProfile((prev) => {
-      const updated: KitchenProfile = {
-        ...prev,
-        livingSituation,
-        dormConstraints: normalizeDormConstraints(livingSituation),
-        sharedKitchen: livingSituation === "standard" ? "none" : prev.sharedKitchen ?? "none"
-      };
+      const nextSharedKitchen: SharedKitchenPreference =
+        livingSituation === "standard" ? "none" : prev.sharedKitchen ?? "none";
+
+      // If switching to Dorm while still on the Full Kitchen default (without shared stove/oven),
+      // immediately switch equipment to Microwave + Mini-Fridge so full-kitchen meals don't appear.
+      const shouldSwitchOutOfFullKitchen =
+        livingSituation === "dorm" &&
+        prev.environment === "full_kitchen" &&
+        nextSharedKitchen !== "available_use";
+
+      const updated: KitchenProfile = shouldSwitchOutOfFullKitchen
+        ? createProfileForEnvironment("microwave_mini_fridge", {
+            ...prev,
+            livingSituation: "dorm",
+            dormConstraints: normalizeDormConstraints("dorm"),
+            sharedKitchen: nextSharedKitchen
+          })
+        : {
+            ...prev,
+            livingSituation,
+            dormConstraints: normalizeDormConstraints(livingSituation),
+            sharedKitchen: nextSharedKitchen
+          };
+
+      syncBrowseFilterToEquipment(getEffectiveEquipment(updated));
       triggerPreferenceRefresh(updated);
       return updated;
     });
     showToast(
       livingSituation === "dorm"
-        ? "Dorm / College profile active — cookware & storage tailored independently."
+        ? "Dorm / College profile active — showing dorm-safe meals only."
         : "Standard kitchen profile active."
     );
   };
@@ -472,12 +557,27 @@ export default function App() {
   const handleToggleDormConstraint = (key: keyof DormConstraints) => {
     setProfile((prev) => {
       const currentDorm = prev.dormConstraints ?? DEFAULT_DORM_CONSTRAINTS;
+      const nextVal = !currentDorm[key];
+      let nextHasFreezer = prev.hasFreezer;
+      let nextEquipment = [...prev.equipment];
+
+      if (key === "limitedFreezerSpace" && prev.environment !== "microwave_only") {
+        nextHasFreezer = !nextVal;
+        if (nextHasFreezer && !nextEquipment.includes("freezer")) {
+          nextEquipment.push("freezer");
+        } else if (!nextHasFreezer) {
+          nextEquipment = nextEquipment.filter((e) => e !== "freezer");
+        }
+      }
+
       const updated: KitchenProfile = {
         ...prev,
         livingSituation: "dorm",
+        hasFreezer: nextHasFreezer,
+        equipment: nextEquipment,
         dormConstraints: {
           ...currentDorm,
-          [key]: !currentDorm[key]
+          [key]: nextVal
         }
       };
       triggerPreferenceRefresh(updated);
@@ -491,6 +591,7 @@ export default function App() {
         ...prev,
         sharedKitchen
       };
+      syncBrowseFilterToEquipment(getEffectiveEquipment(updated));
       triggerPreferenceRefresh(updated);
       return updated;
     });
@@ -498,6 +599,8 @@ export default function App() {
       showToast("Shared dorm kitchen included — stovetop & oven recipes unlocked.");
     } else if (sharedKitchen === "available_avoid") {
       showToast("Keeping meals in-room (avoiding shared hall kitchen).");
+    } else {
+      showToast("No shared kitchen — showing in-room meals only.");
     }
   };
 
@@ -507,14 +610,16 @@ export default function App() {
       const nextTags = exists
         ? prev.dietaryRestrictions.filter((d) => d !== tag)
         : [...prev.dietaryRestrictions, tag];
-      return { ...prev, dietaryRestrictions: nextTags };
+      const updated: KitchenProfile = { ...prev, dietaryRestrictions: nextTags };
+      triggerPreferenceRefresh(updated);
+      return updated;
     });
-    setCurrentSpotlightId(null);
   };
 
   const handleChangeVarietyPreference = (varietyPreference: VarietyPreference) => {
-    setProfile((prev) => ({ ...prev, varietyPreference }));
-    setCurrentSpotlightId(null);
+    const updated: KitchenProfile = { ...profile, varietyPreference };
+    setProfile(updated);
+    triggerPreferenceRefresh(updated);
   };
 
   // Listen to Firebase Auth
@@ -2025,10 +2130,12 @@ export default function App() {
       });
   }, [eligibleMeals, maxTimeFilter, activeFilter, pantryItems, favorites]);
 
-  // Adaptive Spotlight Selection (reacts immediately to equipment/effort/dietary/variety switches)
+  // Adaptive Spotlight Selection (reacts immediately to equipment/effort/dietary/variety/browse filters)
   const spotlightResult = useMemo(() => {
     const basePool =
-      maxTimeFilter !== null
+      activeFilter !== "all"
+        ? filteredMeals
+        : maxTimeFilter !== null
         ? meals.filter((m) => m.prepMinutes + m.cookMinutes <= maxTimeFilter)
         : meals;
     return selectSpotlightMeal({
@@ -2043,6 +2150,8 @@ export default function App() {
     });
   }, [
     meals,
+    filteredMeals,
+    activeFilter,
     maxTimeFilter,
     profile,
     rutMeals,
@@ -2063,7 +2172,9 @@ export default function App() {
 
   const handleNextSpotlightPick = () => {
     const basePool =
-      maxTimeFilter !== null
+      activeFilter !== "all"
+        ? filteredMeals
+        : maxTimeFilter !== null
         ? meals.filter((m) => m.prepMinutes + m.cookMinutes <= maxTimeFilter)
         : meals;
     const nextRes = selectSpotlightMeal({
@@ -2110,6 +2221,7 @@ export default function App() {
         varietyPreference: "balanced"
       }));
       setCurrentSpotlightId(null);
+      flashResultsUpdated();
       showToast("Filters reset to match more meals.");
     }
   };
@@ -2276,28 +2388,39 @@ export default function App() {
           onGenerateBatch={handleGenerateBatch}
           onUseWhatIHave={() => {
             setActiveFilter((prev) => (prev === "pantry" ? "all" : "pantry"));
+            setCurrentSpotlightId(null);
+            flashResultsUpdated();
             resultsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
           }}
           onBrowseMeals={() => {
             setActiveFilter("all");
+            setCurrentSpotlightId(null);
+            flashResultsUpdated();
             resultsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
           }}
           onOpenFavorites={() => {
             setActiveFilter((prev) => (prev === "favorites" ? "all" : "favorites"));
+            setCurrentSpotlightId(null);
+            flashResultsUpdated();
             resultsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
           }}
           generatingMode={generatingMode}
           activeMethodFilter={activeFilter}
-          onSelectMethodFilter={setActiveFilter}
+          onSelectMethodFilter={(nextFilter) => {
+            setActiveFilter(nextFilter);
+            setCurrentSpotlightId(null);
+            flashResultsUpdated();
+          }}
           mealTypeFilter={mealTypeFilter}
           onChangeMealTypeFilter={(nextType) => {
             setMealTypeFilter(nextType);
-            setCurrentSpotlightId(null);
+            triggerPreferenceRefresh(profile, nextType);
           }}
           maxTimeFilter={maxTimeFilter}
           onChangeMaxTimeFilter={(nextMax) => {
             setMaxTimeFilter(nextMax);
             setCurrentSpotlightId(null);
+            flashResultsUpdated();
           }}
           pantryCount={pantryItems.length}
           pantryMatchCount={pantryMatchedMeals.length}
@@ -2308,12 +2431,21 @@ export default function App() {
           onOpenGroceryModal={() => setShowGroceryModal(true)}
           onOpenRescueModal={() => setShowRescueModal(true)}
           onOpenPantryModal={() => setShowPantryModal(true)}
+          spotlightTitle={spotlightMeal?.title ?? null}
+          resultsRefreshTick={resultsRefreshTick}
+          onJumpToResults={() =>
+            resultsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+          }
         />
 
         {/* Active Setup Summary Window */}
         <div
           ref={resultsSectionRef}
-          className="rounded-2xl border border-stone-200 bg-white px-4 py-3 flex flex-wrap items-center justify-between gap-2"
+          className={`scroll-mt-20 rounded-2xl border px-4 py-3 flex flex-wrap items-center justify-between gap-2 transition-all duration-300 ${
+            pulseHighlight
+              ? "border-emerald-500 bg-emerald-50/70 ring-2 ring-emerald-500/30"
+              : "border-stone-200 bg-white"
+          }`}
         >
           <div className="text-xs sm:text-sm font-semibold text-stone-800">
             <span>
@@ -2325,7 +2457,7 @@ export default function App() {
                 : ""}
               :{" "}
               <strong className="text-emerald-800">
-                {eligibleMeals.length} matching meal{eligibleMeals.length === 1 ? "" : "s"}
+                {filteredMeals.length} matching meal{filteredMeals.length === 1 ? "" : "s"}
               </strong>
             </span>
             {profile.environment === "microwave_only" && (
@@ -2334,11 +2466,25 @@ export default function App() {
               </span>
             )}
           </div>
-          <span className="text-xs text-stone-500">
-            {pantryItems.length > 0
-              ? `${pantryMatchedMeals.length} match your pantry`
-              : "Add pantry items to see what you already own"}
-          </span>
+          <div className="flex items-center gap-3">
+            {(activeFilter !== "all" ||
+              mealTypeFilter !== "any" ||
+              maxTimeFilter !== null ||
+              profile.dietaryRestrictions.length > 0) && (
+              <button
+                type="button"
+                onClick={() => handleSpotlightAdjustment("reset_filters")}
+                className="text-xs font-semibold text-emerald-800 hover:text-emerald-950 underline underline-offset-2"
+              >
+                Reset Filters
+              </button>
+            )}
+            <span className="text-xs text-stone-500">
+              {pantryItems.length > 0
+                ? `${pantryMatchedMeals.length} match your pantry`
+                : "Add pantry items to see what you already own"}
+            </span>
+          </div>
         </div>
 
         {/* Side-by-Side Comparison Strip When New Suggestions Arrive */}
@@ -2491,7 +2637,13 @@ export default function App() {
 
         {/* Adaptive Spotlight Card (or Clear Empty Explanation + Adjustment Buttons) */}
         {spotlightMeal && spotlightEval && spotlightReqs && spotlightStorage ? (
-          <div className="bg-white border-2 border-emerald-700/30 rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col lg:flex-row items-start lg:items-center justify-between gap-5">
+          <div
+            className={`bg-white border-2 rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col lg:flex-row items-start lg:items-center justify-between gap-5 transition-all duration-300 ${
+              pulseHighlight
+                ? "border-emerald-500 ring-2 ring-emerald-500/20"
+                : "border-emerald-700/30"
+            }`}
+          >
             <div className="space-y-2.5 max-w-2xl flex-1 w-full">
               <div className="flex flex-wrap items-center gap-2 text-xs text-stone-500 font-medium">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800">

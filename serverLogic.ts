@@ -319,7 +319,17 @@ export function getIngredientBoundsForEffort(effort: CookingEffort): {
 }
 
 export function buildEquipmentPromptRules(profile: KitchenProfile): string {
-  const owned = getEffectiveEquipment(profile);
+  const owned = new Set(getEffectiveEquipment(profile));
+  if (profile.livingSituation === "dorm" && profile.sharedKitchen !== "available_use") {
+    if (profile.dormConstraints?.minimalCookware) {
+      owned.delete("stove");
+      owned.delete("oven");
+    }
+    if (profile.dormConstraints?.limitedFreezerSpace) {
+      owned.delete("freezer");
+    }
+  }
+
   const equipmentLabels = Array.from(owned).map((eq) =>
     eq === "other" && profile.otherEquipmentLabel
       ? `other (${profile.otherEquipmentLabel})`

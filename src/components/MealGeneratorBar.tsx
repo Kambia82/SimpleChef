@@ -70,6 +70,9 @@ interface MealGeneratorBarProps {
   onOpenGroceryModal: () => void;
   onOpenRescueModal: () => void;
   onOpenPantryModal: () => void;
+  spotlightTitle?: string | null;
+  resultsRefreshTick?: number;
+  onJumpToResults?: () => void;
 }
 
 const ENVIRONMENTS: Array<{
@@ -142,7 +145,10 @@ export const MealGeneratorBar: React.FC<MealGeneratorBarProps> = ({
   onOpenPreferencesModal,
   onOpenGroceryModal,
   onOpenRescueModal,
-  onOpenPantryModal
+  onOpenPantryModal,
+  spotlightTitle,
+  resultsRefreshTick = 0,
+  onJumpToResults
 }) => {
   const [setupExpanded, setSetupExpanded] = useState(true);
   const effectiveEq = getEffectiveEquipment(profile);
@@ -277,9 +283,12 @@ export const MealGeneratorBar: React.FC<MealGeneratorBarProps> = ({
         </div>
       </div>
 
-      {/* Active Setup Status Line */}
-      <div className="bg-stone-50 border border-stone-200 rounded-xl px-3.5 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-stone-700">
+      {/* Active Setup Status Line (with live count & instant top-pick preview) */}
+      <div
+        key={`setup-status-${resultsRefreshTick}`}
+        className="bg-stone-50 border border-stone-200 rounded-xl px-3.5 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs transition-colors"
+      >
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-stone-700 min-w-0">
           <span className="font-bold text-stone-900">Active Setup:</span>
           <span>{envLabel}</span>
           <span aria-hidden="true">·</span>
@@ -296,14 +305,37 @@ export const MealGeneratorBar: React.FC<MealGeneratorBarProps> = ({
               <span className="text-emerald-800 font-semibold">Shared Kitchen Included</span>
             </>
           )}
+          <span aria-hidden="true">·</span>
+          <span className="font-bold text-emerald-800">
+            {eligibleCount} matching meal{eligibleCount === 1 ? "" : "s"}
+          </span>
+          {spotlightTitle && (
+            <>
+              <span aria-hidden="true">·</span>
+              <span className="text-stone-600 truncate max-w-[260px]">
+                Top Pick: <strong className="text-stone-900">{spotlightTitle}</strong>
+              </span>
+            </>
+          )}
         </div>
-        <button
-          type="button"
-          onClick={onOpenPreferencesModal}
-          className="text-emerald-800 hover:text-emerald-950 font-semibold underline underline-offset-2"
-        >
-          Variety &amp; Comfort{lessFrequentCount > 0 ? ` (${lessFrequentCount})` : ""}
-        </button>
+        <div className="flex items-center gap-3 shrink-0">
+          {onJumpToResults && (
+            <button
+              type="button"
+              onClick={onJumpToResults}
+              className="text-emerald-800 hover:text-emerald-950 font-semibold underline underline-offset-2"
+            >
+              View Meals ↓
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onOpenPreferencesModal}
+            className="text-emerald-800 hover:text-emerald-950 font-semibold underline underline-offset-2"
+          >
+            Variety &amp; Comfort{lessFrequentCount > 0 ? ` (${lessFrequentCount})` : ""}
+          </button>
+        </div>
       </div>
 
       {/* Decoupled 3-Axis Cooking Preferences Panel */}

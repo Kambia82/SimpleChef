@@ -238,8 +238,8 @@ export function deriveLegacyKitchenMode(profile: KitchenProfile): KitchenMode {
 }
 
 const FROZEN_TEXT_REGEX = /\bfrozen\b|\bfreezer\b/i;
-const STOVE_REGEX = /\b(skillet|frying pan|stovetop|stove top|burner|medium heat|medium-high heat|simmer|boil in a pot|medium pot|large pot|colander|dutch oven|spatula.*pan|pan.*sear)\b/i;
-const OVEN_REGEX = /\b(preheat.*oven|baking sheet|sheet pan|sheet-pan|broiler|bake at \d{3})\b/i;
+const STOVE_REGEX = /\b(skillet|frying pan|saucepan|stovetop|stove top|burner|medium heat|medium-high heat|simmer on (?:the )?stove|simmer in a (?:pot|pan|skillet|saucepan)|boil in a pot|medium pot|large pot|colander|dutch oven|spatula.*pan|pan.*sear)\b/i;
+const OVEN_REGEX = /\b(preheat.*oven|baking sheet|sheet pan|sheet-pan|broiler|bake at \d{3}|in the oven)\b/i;
 const TOASTER_REGEX = /\b(pop .* in the toaster|toaster oven|in a toaster)\b/i;
 const AIR_FRYER_REGEX = /\b(air fryer|air-fry)\b/i;
 const MICROWAVE_REGEX = /\b(microwave|micro-wave)\b/i;
@@ -372,14 +372,22 @@ export function inferMealRequirements(meal: Meal): {
     if (meal.category === "microwave" || MICROWAVE_REGEX.test(stepText)) {
       eq.add("microwave");
     }
-    if (meal.category === "one_skillet" || STOVE_REGEX.test(stepText)) {
+    if (meal.category === "one_skillet") {
       eq.add("stove");
     }
-    if (meal.category === "sheet_pan" || OVEN_REGEX.test(stepText)) {
-      if (!TOASTER_REGEX.test(stepText) && !AIR_FRYER_REGEX.test(stepText)) {
-        eq.add("oven");
-      }
+    if (meal.category === "sheet_pan" && !TOASTER_REGEX.test(stepText) && !AIR_FRYER_REGEX.test(stepText)) {
+      eq.add("oven");
     }
+  }
+
+  // Always inspect step instructions so explicit requiredEquipment metadata cannot mask stove/oven/appliance steps
+  if (STOVE_REGEX.test(stepText)) {
+    eq.add("stove");
+  }
+  if (OVEN_REGEX.test(stepText) && !TOASTER_REGEX.test(stepText) && !AIR_FRYER_REGEX.test(stepText)) {
+    eq.add("oven");
+  }
+  if (!meal.requiredEquipment || !eq.has("oven")) {
     if (TOASTER_REGEX.test(stepText)) {
       eq.add("toaster");
     }
@@ -516,9 +524,14 @@ export function isMealEquipmentCompatible(
     missing.push("freezer");
   }
 
+  const ovenBlockedByDorm =
+    profile.livingSituation === "dorm" &&
+    (profile.dormConstraints?.minimalCookware ?? true) &&
+    profile.sharedKitchen !== "available_use";
+
   for (const eq of reqs.requiredEquipment) {
     if (eq === "freezer") continue;
-    if ((eq === "toaster" || eq === "air_fryer") && owned.has("oven")) {
+    if ((eq === "toaster" || eq === "air_fryer") && owned.has("oven") && !ovenBlockedByDorm) {
       continue;
     }
     if (eq === "oven" && (owned.has("toaster") || owned.has("air_fryer"))) {
@@ -558,7 +571,18 @@ export function isMealDormCompatible(meal: Meal, profile: KitchenProfile): {
   ) {
     return {
       compatible: false,
-      reason: "Needs full-kitchen pots, pans, or colander (dorm minimal cookware active)",
+      reason: "Needs full-kitchen pots, pans, or oven (dorm minimal cookware active)",
+    };
+  }
+
+  if (
+    constraints.limitedFreezerSpace &&
+    profile.sharedKitchen !== "available_use" &&
+    reqs.requiresFreezer
+  ) {
+    return {
+      compatible: false,
+      reason: "Needs freezer storage (dorm no/tiny freezer active)",
     };
   }
 

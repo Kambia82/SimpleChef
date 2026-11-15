@@ -214,4 +214,83 @@ describe("Independent Cooking Environment & Effort Engine", () => {
       expect(normalMatches.length).toBeGreaterThanOrEqual(3);
     }
   });
+
+  it("blocks stove, oven, air-fryer, toaster, and freezer meals in Dorm mode even if environment was left on full_kitchen", () => {
+    const dormWithFullPreset = createProfileForEnvironment("full_kitchen", {
+      livingSituation: "dorm",
+      sharedKitchen: "none",
+      effort: "very_low",
+    });
+
+    const eligibleAllEfforts = DEFAULT_MEALS.filter(
+      (m) => getMealEligibility(m, dormWithFullPreset, { effortMatchMode: "any" }).eligible
+    );
+    expect(eligibleAllEfforts.length).toBeGreaterThan(0);
+
+    for (const meal of eligibleAllEfforts) {
+      expect(meal.requiresFreezer).not.toBe(true);
+      expect(meal.requiredEquipment).not.toContain("stove");
+      expect(meal.requiredEquipment).not.toContain("oven");
+      expect(meal.requiredEquipment).not.toContain("air_fryer");
+      expect(meal.requiredEquipment).not.toContain("toaster");
+    }
+
+    const airFryerMeal = DEFAULT_MEALS.find((m) => m.id === "limited-air-fryer-garlic-chicken-bites");
+    const miniPizzas = DEFAULT_MEALS.find((m) => m.id === "english-muffin-mini-pizzas");
+    const frozenSub = DEFAULT_MEALS.find((m) => m.id === "frozen-meatball-marinara-subs");
+    expect(getMealEligibility(airFryerMeal!, dormWithFullPreset, { effortMatchMode: "any" }).eligible).toBe(false);
+    expect(getMealEligibility(miniPizzas!, dormWithFullPreset, { effortMatchMode: "any" }).eligible).toBe(false);
+    expect(getMealEligibility(frozenSub!, dormWithFullPreset, { effortMatchMode: "any" }).eligible).toBe(false);
+
+    // Unchecking limitedFreezerSpace + enabling hasFreezer unlocks freezer dorm meals without unlocking stove/oven
+    const dormWithMiniFreezerBase = createProfileForEnvironment("microwave_mini_fridge", {
+      livingSituation: "dorm",
+      dormConstraints: {
+        limitedFridgeSpace: true,
+        limitedFreezerSpace: false,
+        limitedFoodStorage: true,
+        limitedCounterSpace: true,
+        sharedAppliances: true,
+        minimalCookware: true,
+        preferShelfStable: true,
+        smallerQuantities: true,
+      },
+    });
+    const dormWithMiniFreezer: KitchenProfile = {
+      ...dormWithMiniFreezerBase,
+      hasFreezer: true,
+      equipment: ["microwave", "fridge", "freezer"],
+    };
+    expect(getMealEligibility(frozenSub!, dormWithMiniFreezer, { effortMatchMode: "any" }).eligible).toBe(true);
+    expect(getMealEligibility(airFryerMeal!, dormWithMiniFreezer, { effortMatchMode: "any" }).eligible).toBe(false);
+  });
+
+  it("detects hidden stove or oven instructions even when requiredEquipment claims microwave only", () => {
+    const disguisedSkilletMeal: Meal = {
+      id: "disguised-skillet",
+      title: "Sneaky Skillet Pasta",
+      tagline: "Claims microwave but uses a skillet",
+      prepMinutes: 3,
+      cookMinutes: 5,
+      category: "microwave",
+      requiredEquipment: ["microwave"],
+      ingredients: [{ item: "Pasta", amount: "1 cup", walmartAisle: "Pantry / Canned" }],
+      instructions: [
+        {
+          stepNumber: 1,
+          title: "Cook in Skillet",
+          instruction: "Heat olive oil in a frying pan over medium heat and simmer for 4 minutes.",
+        },
+      ],
+      whyItWorks: "Test",
+      rutAlternativeNote: "Test",
+    };
+
+    const microProfile = createProfileForEnvironment("microwave_only", {
+      livingSituation: "dorm",
+      effort: "low",
+    });
+    expect(isMealEquipmentCompatible(disguisedSkilletMeal, microProfile).compatible).toBe(false);
+    expect(getMealEligibility(disguisedSkilletMeal, microProfile, { effortMatchMode: "any" }).eligible).toBe(false);
+  });
 });
