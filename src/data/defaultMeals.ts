@@ -2,8 +2,118 @@ import { Meal } from "../types";
 
 export const DEFAULT_MEALS: Meal[] = [
   {
+    id: "dorm-buffalo-chicken-ranch-wrap",
+    title: "3-Minute Buffalo Chicken & Ranch Wrap",
+    tagline: "Zero cooking needed—spicy buffalo chicken, ranch, shredded cheese, and crisp lettuce rolled in a tortilla.",
+    prepMinutes: 3,
+    cookMinutes: 0,
+    category: "assembly",
+    ingredients: [
+      { item: "Pre-cooked grilled chicken strips (or tear-open chicken pouch)", amount: "1 cup", walmartAisle: "Meat & Deli", tip: "Found in the refrigerated deli meat section" },
+      { item: "Large flour tortillas", amount: "2 tortillas", walmartAisle: "Bakery" },
+      { item: "Buffalo wing sauce", amount: "2 tablespoons", walmartAisle: "Spices & Condiments" },
+      { item: "Ranch dressing", amount: "2 tablespoons", walmartAisle: "Pantry / Canned" },
+      { item: "Shredded cheddar cheese & bagged shredded lettuce", amount: "1/3 cup cheese + 1 handful lettuce", walmartAisle: "Produce" }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Toss Chicken in Buffalo Sauce",
+        instruction: "Put 1 cup of pre-cooked grilled chicken strips in a bowl and toss with 2 tablespoons of buffalo wing sauce using a fork (or microwave 30 seconds if you want the chicken warm).",
+        timerSeconds: 0
+      },
+      {
+        stepNumber: 2,
+        title: "Layer Tortillas with Cheese & Ranch",
+        instruction: "Lay 2 large flour tortillas flat on a plate. Drizzle 1 tablespoon of ranch dressing down the center of each tortilla and sprinkle 1/3 cup total shredded cheddar cheese over both.",
+        timerSeconds: 0
+      },
+      {
+        stepNumber: 3,
+        title: "Add Buffalo Chicken, Lettuce & Roll",
+        instruction: "Split the buffalo chicken and 1 handful of shredded lettuce between both tortillas, fold the sides in, and roll up tightly like burritos.",
+        timerSeconds: 0
+      }
+    ],
+    whyItWorks: "Hits the exact takeout buffalo wrap craving in 3 minutes flat with 30g+ of protein and zero pans to clean.",
+    rutAlternativeNote: "Replaces drive-thru wraps or plain snacks with a spicy, filling, high-protein dorm meal."
+  },
+  {
+    id: "dorm-pepperoni-pizza-quesadilla",
+    title: "3-Minute Microwave Pepperoni Pizza Quesadilla",
+    tagline: "Melted mozzarella, pepperoni, and marinara folded in a tortilla—microwave 60 seconds on a paper plate.",
+    prepMinutes: 2,
+    cookMinutes: 1,
+    category: "microwave",
+    ingredients: [
+      { item: "Large flour tortilla", amount: "1-2 tortillas", walmartAisle: "Bakery" },
+      { item: "Shredded mozzarella cheese", amount: "3/4 cup", walmartAisle: "Dairy & Eggs" },
+      { item: "Sliced pepperoni", amount: "12-15 slices", walmartAisle: "Meat & Deli", tip: "Shelf-stable bags work until opened" },
+      { item: "Jarred pizza sauce or marinara", amount: "3 tablespoons", walmartAisle: "Pantry / Canned" }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Spread Sauce & Cheese on Half",
+        instruction: "Lay 1 large flour tortilla flat on a microwave-safe plate. Spread 3 tablespoons of pizza or marinara sauce on one half, then pile on 3/4 cup shredded mozzarella cheese and 12-15 slices of pepperoni.",
+        timerSeconds: 0
+      },
+      {
+        stepNumber: 2,
+        title: "Fold & Microwave Until Melty",
+        instruction: "Fold the empty half of the tortilla over the toppings and press down lightly. Microwave on HIGH for 60 to 75 seconds until the mozzarella is completely melted.",
+        timerSeconds: 60
+      },
+      {
+        stepNumber: 3,
+        title: "Cool 30 Seconds & Eat",
+        instruction: "Let cool 30 seconds so the melted cheese sets slightly, cut into triangles with a butter knife or fold in half, and eat.",
+        timerSeconds: 0
+      }
+    ],
+    whyItWorks: "Tastes like hot pizza night for a fraction of delivery cost, with zero soggy bread or dirty dishes.",
+    rutAlternativeNote: "Satisfies late-night pizza cravings in 3 minutes using only a dorm microwave."
+  },
+  {
+    id: "dorm-bacon-egg-breakfast-burrito",
+    title: "4-Minute Cheesy Bacon & Egg Breakfast Burrito",
+    tagline: "Scramble eggs in a mug in 75 seconds, dump in pre-cooked bacon and cheddar, and wrap in a warm tortilla.",
+    prepMinutes: 2,
+    cookMinutes: 2,
+    category: "microwave",
+    ingredients: [
+      { item: "Large eggs", amount: "3 eggs", walmartAisle: "Dairy & Eggs" },
+      { item: "Pre-cooked bacon slices or real bacon bits", amount: "3 slices (or 3 tablespoons bits)", walmartAisle: "Meat & Deli" },
+      { item: "Shredded cheddar or Mexican blend cheese", amount: "1/3 cup", walmartAisle: "Dairy & Eggs" },
+      { item: "Large flour tortillas", amount: "1-2 tortillas", walmartAisle: "Bakery" },
+      { item: "Salsa or hot sauce", amount: "2 tablespoons", walmartAisle: "Pantry / Canned" }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Scramble Eggs in a Mug",
+        instruction: "Lightly spray or butter a microwave-safe mug or bowl. Crack in 3 large eggs, add a pinch of salt, and beat with a fork. Microwave 45 seconds, stir, then microwave 30 seconds more until cooked.",
+        timerSeconds: 75
+      },
+      {
+        stepNumber: 2,
+        title: "Melt Cheese & Add Bacon",
+        instruction: "Drop 1/3 cup of shredded cheddar cheese and 3 torn pre-cooked bacon slices (or 3 tablespoons bacon bits) directly onto the hot eggs in the mug and stir.",
+        timerSeconds: 0
+      },
+      {
+        stepNumber: 3,
+        title: "Wrap in Warm Tortilla",
+        instruction: "Warm 1-2 large flour tortillas on a plate for 15 seconds, scoop the cheesy bacon eggs inside, top with 2 tablespoons salsa or hot sauce, and roll up tightly.",
+        timerSeconds: 15
+      }
+    ],
+    whyItWorks: "Packs 28g+ of real protein into a handheld burrito you can grab before class or after the gym.",
+    rutAlternativeNote: "Faster and way cheaper than a fast-food breakfast run with just one mug to rinse."
+  },
+  {
     id: "black-bean-salsa-bowl",
-    title: "5-Minute Cheesy Fiesta Rice Bowl",
+    title: "5-Minute Cheesy Fiesta Rice & Bean Bowl",
     tagline: "Zesty, warm, and filling—zero chopping and done in 4 minutes.",
     prepMinutes: 2,
     cookMinutes: 2,
@@ -13,7 +123,7 @@ export const DEFAULT_MEALS: Meal[] = [
       { item: "Black beans (canned)", amount: "1 can (rinsed & drained)", walmartAisle: "Pantry / Canned" },
       { item: "Salsa of choice", amount: "1/2 cup", walmartAisle: "Pantry / Canned", tip: "Get your favorite jarred salsa" },
       { item: "Shredded Mexican blend cheese", amount: "1/2 cup", walmartAisle: "Dairy & Eggs" },
-      { item: "Guacamole cup or avocado", amount: "1 single-serve mini cup", walmartAisle: "Produce", tip: "Mini cups stay fresh in your fridge" }
+      { item: "Guacamole cup or tortilla chips", amount: "1 mini cup (or handful of chips)", walmartAisle: "Produce", tip: "Mini cups stay fresh in a mini-fridge" }
     ],
     instructions: [
       {
@@ -24,8 +134,8 @@ export const DEFAULT_MEALS: Meal[] = [
       },
       {
         stepNumber: 2,
-        title: "Rinse & Warm the Beans",
-        instruction: "Open 1 can of black beans, dump half the can into a colander to rinse under cold water, then shake off water and dump into an eating bowl.",
+        title: "Drain & Add the Beans",
+        instruction: "Open 1 can of black beans, drain out the liquid (rinse if you have a sink), and dump half to all the beans into a microwave-safe bowl.",
         timerSeconds: 0
       },
       {
@@ -36,14 +146,525 @@ export const DEFAULT_MEALS: Meal[] = [
       },
       {
         stepNumber: 4,
-        title: "Top with Guacamole & Eat",
-        instruction: "Spoon 1 mini cup of guacamole right on top and enjoy warm with a spoon or a handful of tortilla chips.",
+        title: "Top & Scoop",
+        instruction: "Spoon 1 mini cup of guacamole right on top and eat warm with a spoon or crush a handful of tortilla chips on top.",
         timerSeconds: 0
       }
     ],
-    whyItWorks: "Delivers zesty, cheesy comfort while giving your body 20g of protein and fiber so you stay satisfied for hours.",
-    rutAlternativeNote: "A warm, filling bowl you can put together in 4 minutes with zero prep."
+    whyItWorks: "Delivers zesty, cheesy Chipotle-bowl vibes while giving your body 20g of protein and fiber in 4 minutes.",
+    rutAlternativeNote: "Turns plain chips and salsa into a real hot burrito bowl."
   },
+  {
+    id: "dorm-teriyaki-chicken-rice-bowl",
+    title: "4-Minute Microwave Teriyaki Chicken & Rice Bowl",
+    tagline: "Tastes like takeout teriyaki chicken bowls—90-second rice pouch, pre-cooked chicken, steam-in-bag broccoli, and sauce.",
+    prepMinutes: 1,
+    cookMinutes: 3,
+    category: "microwave",
+    ingredients: [
+      { item: "Microwave Jasmine or White Rice pouch", amount: "1 pouch", walmartAisle: "Pantry / Canned" },
+      { item: "Pre-cooked grilled chicken strips (or tear-open chicken pouch)", amount: "1 cup", walmartAisle: "Meat & Deli" },
+      { item: "Teriyaki sauce", amount: "3 tablespoons", walmartAisle: "Pantry / Canned" },
+      { item: "Steam-in-bag frozen broccoli florets", amount: "1/2 bag (about 1.5 cups)", walmartAisle: "Frozen", tip: "Steams right inside its bag in the microwave" }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Steam Broccoli & Heat Rice",
+        instruction: "Microwave 1/2 to 1 bag of steam-in-bag frozen broccoli according to the bag (about 3 minutes) or microwave 1 pouch of rice for 90 seconds first, then the broccoli.",
+        timerSeconds: 180
+      },
+      {
+        stepNumber: 2,
+        title: "Warm Chicken & Sauce",
+        instruction: "Pour the hot microwaved rice and 1.5 cups of steamed broccoli into a deep bowl. Top with 1 cup of pre-cooked chicken strips and drizzle with 3 tablespoons of teriyaki sauce.",
+        timerSeconds: 0
+      },
+      {
+        stepNumber: 3,
+        title: "Quick Heat & Stir",
+        instruction: "Microwave the bowl for 45 seconds so the chicken and sauce are steaming hot, stir once, and eat.",
+        timerSeconds: 45
+      }
+    ],
+    whyItWorks: "Over 30g protein, filling rice, and real veggies with zero cutting board or pans.",
+    rutAlternativeNote: "Replaces pricey takeout bowls with a 4-minute dorm microwave version."
+  },
+  {
+    id: "dorm-chili-rice-cheese-bowl",
+    title: "4-Minute Dorm Beef Chili & Cheese Rice Bowl",
+    tagline: "100% shelf-stable pantry meal—microwave canned beef chili over a 90-second rice pouch with melted cheddar.",
+    prepMinutes: 1,
+    cookMinutes: 3,
+    category: "microwave",
+    ingredients: [
+      { item: "Canned beef chili with beans (pull-tab)", amount: "1 can (15 oz)", walmartAisle: "Pantry / Canned" },
+      { item: "Microwave rice pouch", amount: "1 pouch", walmartAisle: "Pantry / Canned" },
+      { item: "Shredded cheddar cheese", amount: "1/2 cup", walmartAisle: "Dairy & Eggs" },
+      { item: "Tortilla chips or Fritos (optional crunch)", amount: "1 handful", walmartAisle: "Pantry / Canned" }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Microwave the Rice Pouch",
+        instruction: "Tear a 2-inch vent in 1 pouch of microwave rice and heat on HIGH for 90 seconds.",
+        timerSeconds: 90
+      },
+      {
+        stepNumber: 2,
+        title: "Heat Chili in a Deep Bowl",
+        instruction: "Pour the hot rice into a deep microwave-safe bowl. Open 1 can of beef chili and spoon it right over the rice. Cover loosely with a paper towel and microwave 90 seconds until hot.",
+        timerSeconds: 90
+      },
+      {
+        stepNumber: 3,
+        title: "Top with Cheese & Chips",
+        instruction: "Sprinkle 1/2 cup shredded cheddar cheese on top so it melts into the hot chili, then crush a handful of tortilla chips on top if you want crunch.",
+        timerSeconds: 0
+      }
+    ],
+    whyItWorks: "No freezer needed, keeps for months in a dorm closet, and delivers 30g+ protein after late classes or workouts.",
+    rutAlternativeNote: "Hearty, filling hot bowl made purely in a shared dorm microwave."
+  },
+  {
+    id: "dorm-loaded-chicken-nachos",
+    title: "3-Minute Loaded Chicken & Queso Nachos",
+    tagline: "Real protein nachos on one plate—tortilla chips, pre-cooked chicken, black beans, and melted cheese or queso.",
+    prepMinutes: 2,
+    cookMinutes: 1,
+    category: "microwave",
+    ingredients: [
+      { item: "Tortilla chips", amount: "2 big handfuls", walmartAisle: "Pantry / Canned" },
+      { item: "Pre-cooked shredded or diced chicken (or pouch chicken)", amount: "3/4 cup", walmartAisle: "Meat & Deli" },
+      { item: "Shredded Mexican cheese (or jarred queso)", amount: "3/4 cup cheese (or 1/3 cup queso)", walmartAisle: "Dairy & Eggs" },
+      { item: "Canned black beans (drained)", amount: "1/3 cup", walmartAisle: "Pantry / Canned" },
+      { item: "Salsa or mini guacamole cup", amount: "1/4 cup", walmartAisle: "Produce" }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Load Up the Plate",
+        instruction: "Spread 2 big handfuls of tortilla chips across a large microwave-safe plate. Scatter 3/4 cup pre-cooked chicken, 1/3 cup drained black beans, and 3/4 cup shredded cheese (or 1/3 cup queso) evenly on top.",
+        timerSeconds: 0
+      },
+      {
+        stepNumber: 2,
+        title: "Microwave to Melt",
+        instruction: "Microwave on HIGH for 45 to 60 seconds until the cheese is melted and bubbly.",
+        timerSeconds: 60
+      },
+      {
+        stepNumber: 3,
+        title: "Top with Salsa or Guac",
+        instruction: "Spoon 1/4 cup of salsa or a mini guacamole cup right over the hot nachos and eat straight off the plate.",
+        timerSeconds: 0
+      }
+    ],
+    whyItWorks: "Turns a bag of chips into a legit high-protein dinner with zero extra dishes.",
+    rutAlternativeNote: "Upgrades plain chips and salsa into 25g+ protein loaded nachos in 3 minutes."
+  },
+  {
+    id: "dorm-turkey-bacon-club-wrap",
+    title: "3-Minute Turkey, Bacon & Cheddar Club Wrap",
+    tagline: "Zero microwave required—deli turkey, pre-cooked bacon, cheddar, shredded lettuce, and ranch rolled in a tortilla.",
+    prepMinutes: 3,
+    cookMinutes: 0,
+    category: "assembly",
+    ingredients: [
+      { item: "Deli turkey or ham slices", amount: "5-6 slices", walmartAisle: "Meat & Deli" },
+      { item: "Pre-cooked bacon slices", amount: "3 slices", walmartAisle: "Meat & Deli" },
+      { item: "Large flour tortillas", amount: "2 tortillas", walmartAisle: "Bakery" },
+      { item: "Shredded cheddar cheese & ranch dressing", amount: "1/3 cup cheese + 2 tbsp ranch", walmartAisle: "Dairy & Eggs" },
+      { item: "Bagged shredded lettuce or salad greens", amount: "1 handful", walmartAisle: "Produce" }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Spread Ranch & Cheese",
+        instruction: "Lay 2 large flour tortillas flat on a plate. Spread 1 tablespoon of ranch dressing down the middle of each tortilla and sprinkle 1/3 cup total shredded cheddar cheese.",
+        timerSeconds: 0
+      },
+      {
+        stepNumber: 2,
+        title: "Stack Turkey, Bacon & Lettuce",
+        instruction: "Layer 2-3 slices of deli turkey, 1.5 pre-cooked bacon slices, and half of 1 handful of shredded lettuce onto each tortilla.",
+        timerSeconds: 0
+      },
+      {
+        stepNumber: 3,
+        title: "Roll Tight & Eat",
+        instruction: "Fold the ends in, roll each tortilla tightly like a deli wrap, slice in half if desired, and eat immediately.",
+        timerSeconds: 0
+      }
+    ],
+    whyItWorks: "Tastes like a deli sub shop club wrap with zero microwave line, zero freezer needed, and 25g+ protein.",
+    rutAlternativeNote: "Fast, crunchy, cold protein wrap when you want real food in 3 minutes."
+  },
+  {
+    id: "dorm-chili-cheese-mac-bowl",
+    title: "5-Minute Dorm Chili Cheese Mac Bowl",
+    tagline: "Cook quick elbow pasta or a mac cup right in a microwave bowl, stir in canned beef chili and cheddar—mega comfort.",
+    prepMinutes: 1,
+    cookMinutes: 4,
+    category: "microwave",
+    ingredients: [
+      { item: "Quick-cooking elbow macaroni (or 1 microwave mac & cheese cup)", amount: "1 cup dry (or 1 cup)", walmartAisle: "Pantry / Canned" },
+      { item: "Canned beef chili with beans", amount: "1/2 to 1 can", walmartAisle: "Pantry / Canned" },
+      { item: "Shredded cheddar cheese", amount: "1/2 cup", walmartAisle: "Dairy & Eggs" }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Microwave Pasta in Bowl",
+        instruction: "Put 1 cup dry elbow macaroni, 1.25 cups cold tap water, and a pinch of salt in a large deep microwave bowl (or cook 1 mac & cheese cup per its package). Microwave 2 minutes, stir, and microwave 2 minutes more until tender.",
+        timerSeconds: 120
+      },
+      {
+        stepNumber: 2,
+        title: "Stir in Beef Chili & Cheese",
+        instruction: "Pour off any extra water if using dry macaroni. Spoon 1/2 to 1 can of beef chili and 1/2 cup shredded cheddar cheese straight into the hot bowl and stir.",
+        timerSeconds: 0
+      },
+      {
+        stepNumber: 3,
+        title: "Heat Through & Eat",
+        instruction: "Cover loosely with a paper towel and microwave 60 seconds until the chili is piping hot and cheese is melted.",
+        timerSeconds: 60
+      }
+    ],
+    whyItWorks: "Turns basic mac & cheese into a 30g-protein comfort bowl using only shelf-stable items and cheese.",
+    rutAlternativeNote: "Massive upgrade over plain boxed mac & cheese in the exact same time."
+  },
+  {
+    id: "dorm-cheesy-garlic-chicken-ramen",
+    title: "5-Minute Cheesy Egg & Chicken Dorm Ramen",
+    tagline: "Cook noodles in a deep microwave bowl—no kettle or stove—then stir in a soft egg, shredded chicken, and cheddar.",
+    prepMinutes: 1,
+    cookMinutes: 4,
+    category: "microwave",
+    ingredients: [
+      { item: "Ramen noodle packet (chicken or spicy flavor)", amount: "1 packet", walmartAisle: "Pantry / Canned" },
+      { item: "Large egg", amount: "1 egg", walmartAisle: "Dairy & Eggs" },
+      { item: "Tear-open chicken pouch or shredded rotisserie chicken", amount: "1/2 cup", walmartAisle: "Meat & Deli" },
+      { item: "Shredded cheddar or American cheese", amount: "1/3 cup (or 1 slice)", walmartAisle: "Dairy & Eggs" }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Microwave Noodles in Deep Bowl",
+        instruction: "Put 1 ramen noodle brick and 1.5 cups cold tap water in a large deep microwave-safe bowl (save the seasoning packet for step 3). Microwave 3 minutes, flip noodles, and microwave 1 more minute until tender.",
+        timerSeconds: 180
+      },
+      {
+        stepNumber: 2,
+        title: "Swirl in Egg & Chicken",
+        instruction: "Pour off half the hot water so just a little broth stays at the bottom. Crack 1 egg straight into the bowl, add 1/2 cup chicken, stir briskly with a fork, and microwave 35 seconds to cook the egg.",
+        timerSeconds: 35
+      },
+      {
+        stepNumber: 3,
+        title: "Melt Cheese & Seasoning",
+        instruction: "Stir in half to all of the seasoning packet and 1/3 cup shredded cheese (or 1 cheese slice) until rich, creamy, and savory.",
+        timerSeconds: 0
+      }
+    ],
+    whyItWorks: "Turns 30-cent ramen into a rich, cheesy, 28g-protein noodle bowl without a stove or kettle.",
+    rutAlternativeNote: "Upgrades plain dorm ramen with real egg and chicken so you aren't hungry an hour later."
+  },
+  {
+    id: "frozen-meatball-marinara-subs",
+    title: "5-Minute Meatball & Mozzarella Sub",
+    tagline: "Microwave frozen meatballs right inside jarred pasta sauce, pile into sub rolls, and melt mozzarella on top.",
+    prepMinutes: 1,
+    cookMinutes: 4,
+    category: "microwave",
+    ingredients: [
+      { item: "Frozen fully-cooked meatballs", amount: "8 meatballs", walmartAisle: "Frozen", tip: "No thawing needed" },
+      { item: "Jarred pasta sauce (marinara)", amount: "1 cup", walmartAisle: "Pantry / Canned" },
+      { item: "Sub rolls, hot dog buns, or hoagie buns", amount: "2 rolls or buns", walmartAisle: "Bakery" },
+      { item: "Shredded mozzarella cheese", amount: "1/2 cup", walmartAisle: "Dairy & Eggs" }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Microwave Meatballs & Sauce",
+        instruction: "Put 8 frozen meatballs and 1 cup of jarred marinara sauce in a microwave-safe bowl. Cover loosely with a paper towel and microwave for 3 minutes, stirring halfway.",
+        timerSeconds: 180
+      },
+      {
+        stepNumber: 2,
+        title: "Fill Buns & Melt Cheese",
+        instruction: "Spoon the hot saucy meatballs into 2 sub rolls or hot dog buns on a plate. Sprinkle 1/2 cup of shredded mozzarella on top and microwave 30 seconds until melted.",
+        timerSeconds: 30
+      }
+    ],
+    whyItWorks: "Meatballs keep in a freezer for months, so you can make two hot meatball subs in 5 minutes flat.",
+    rutAlternativeNote: "Gives you warm, cheesy pizzeria subs without spending $15 on delivery."
+  },
+  {
+    id: "crispy-chicken-tender-caesar-wrap",
+    title: "4-Minute Crispy Chicken Caesar Wrap",
+    tagline: "Microwave frozen chicken tenders, toss with a bagged Caesar salad kit, and roll inside big tortillas.",
+    prepMinutes: 2,
+    cookMinutes: 2,
+    category: "assembly",
+    ingredients: [
+      { item: "Frozen breaded chicken tenders or nuggets", amount: "3-4 tenders", walmartAisle: "Frozen" },
+      { item: "Bagged Caesar salad kit", amount: "1/2 bag (with dressing)", walmartAisle: "Produce", tip: "Comes with dressing & parmesan" },
+      { item: "Large flour tortillas", amount: "2 tortillas", walmartAisle: "Bakery" }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Microwave Chicken Tenders",
+        instruction: "Place 3-4 frozen chicken tenders on a microwave-safe plate lined with a paper towel and microwave for 2 minutes until hot.",
+        timerSeconds: 120
+      },
+      {
+        stepNumber: 2,
+        title: "Toss Bagged Salad",
+        instruction: "Dump 1/2 bag of Caesar salad greens, the dressing packet, and parmesan packet into a bowl and toss with a fork.",
+        timerSeconds: 0
+      },
+      {
+        stepNumber: 3,
+        title: "Wrap & Eat",
+        instruction: "Lay 2 large tortillas flat, pile the dressed salad and hot chicken tenders in the center, fold the sides in, and roll up.",
+        timerSeconds: 0
+      }
+    ],
+    whyItWorks: "Only 3 items to buy at Walmart, and the salad kit includes all the dressing and cheese.",
+    rutAlternativeNote: "Crunchy, restaurant-style chicken Caesar wrap in 4 minutes."
+  },
+  {
+    id: "dorm-microwave-chicken-quesadilla",
+    title: "3-Minute Dorm Chicken & Black Bean Quesadilla",
+    tagline: "Fold chicken, black beans, and shredded cheese in a tortilla and microwave on a plate—zero pans.",
+    prepMinutes: 1,
+    cookMinutes: 2,
+    category: "microwave",
+    ingredients: [
+      { item: "Large flour tortillas", amount: "1-2 tortillas", walmartAisle: "Bakery" },
+      { item: "Pre-cooked chicken strips or tear-open chicken pouch", amount: "1/2 cup", walmartAisle: "Meat & Deli", tip: "Pantry chicken pouches need no fridge until opened" },
+      { item: "Shredded Mexican blend or cheddar cheese", amount: "1/2 cup", walmartAisle: "Dairy & Eggs" },
+      { item: "Black beans (canned, drained) or salsa", amount: "1/3 cup", walmartAisle: "Pantry / Canned" }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Fill Half the Tortilla",
+        instruction: "Lay 1 large flour tortilla flat on a microwave-safe plate or folded paper towel. Scatter 1/2 cup pre-cooked chicken, 1/3 cup black beans, and 1/2 cup shredded cheese onto one half.",
+        timerSeconds: 0
+      },
+      {
+        stepNumber: 2,
+        title: "Fold & Microwave",
+        instruction: "Fold the empty half of the tortilla over the filling. Microwave on HIGH for 60 to 75 seconds until the cheese is completely melted and bubbling.",
+        timerSeconds: 60
+      },
+      {
+        stepNumber: 3,
+        title: "Dip & Eat",
+        instruction: "Let cool 30 seconds, slice with a butter knife or fold, and dip into salsa.",
+        timerSeconds: 0
+      }
+    ],
+    whyItWorks: "Zero stove, zero skillet, zero freezer needed—just warm melted protein in 3 minutes.",
+    rutAlternativeNote: "Replaces vending machine snacks or plain chips with a hot cheesy quesadilla."
+  },
+  {
+    id: "dorm-microwave-pasta-marinara-bowl",
+    title: "5-Minute Microwave Pepperoni Mac & Marinara",
+    tagline: "Cook quick elbow macaroni right in a large microwave bowl with water, then stir in marinara, pepperoni, and mozzarella.",
+    prepMinutes: 1,
+    cookMinutes: 4,
+    category: "microwave",
+    ingredients: [
+      { item: "Quick-cooking elbow macaroni", amount: "1 cup dry", walmartAisle: "Pantry / Canned" },
+      { item: "Jarred marinara or pasta sauce", amount: "1/2 cup", walmartAisle: "Pantry / Canned" },
+      { item: "Shredded mozzarella cheese", amount: "1/2 cup", walmartAisle: "Dairy & Eggs" },
+      { item: "Sliced pepperoni or pre-cooked chicken", amount: "1/3 cup", walmartAisle: "Meat & Deli" }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Microwave Pasta in Water",
+        instruction: "Put 1 cup dry macaroni, 1.25 cups cold tap water, and a pinch of salt in a large deep microwave-safe bowl (leave room so water doesn't boil over). Microwave 2 minutes, stir, then microwave 2 more minutes.",
+        timerSeconds: 120
+      },
+      {
+        stepNumber: 2,
+        title: "Stir in Sauce, Meat & Cheese",
+        instruction: "If any water remains, pour off the extra spoonful. Stir in 1/2 cup marinara sauce, 1/3 cup sliced pepperoni or chicken, and 1/2 cup shredded mozzarella. Microwave 30 seconds until bubbly.",
+        timerSeconds: 30
+      }
+    ],
+    whyItWorks: "True hot pizza-pasta in a dorm room with just 1 bowl and 1 spoon—no pot or strainer needed.",
+    rutAlternativeNote: "Upgrades plain boxed mac & cheese with marinara, pepperoni, and melted mozzarella."
+  },
+  {
+    id: "microwave-egg-salsa-tacos",
+    title: "4-Minute Microwave Egg, Cheese & Salsa Tacos",
+    tagline: "Scramble fluffy eggs in a mug in 90 seconds and load into warm tortillas with cheddar and salsa.",
+    prepMinutes: 2,
+    cookMinutes: 2,
+    category: "microwave",
+    ingredients: [
+      { item: "Large eggs", amount: "3 eggs", walmartAisle: "Dairy & Eggs" },
+      { item: "Soft flour or corn tortillas", amount: "3 small tortillas", walmartAisle: "Bakery" },
+      { item: "Shredded cheddar or Mexican cheese", amount: "1/3 cup", walmartAisle: "Dairy & Eggs" },
+      { item: "Salsa", amount: "3 tablespoons", walmartAisle: "Pantry / Canned" }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Whisk Eggs in a Mug",
+        instruction: "Spray a microwave-safe mug or small bowl lightly with cooking spray. Crack 3 eggs in, add a pinch of salt, and whisk with a fork.",
+        timerSeconds: 0
+      },
+      {
+        stepNumber: 2,
+        title: "Microwave & Stir",
+        instruction: "Microwave the 3 whisked eggs for 45 seconds, stir with your fork, then microwave 30-45 seconds more until fluffy and set.",
+        timerSeconds: 45
+      },
+      {
+        stepNumber: 3,
+        title: "Fill Tortillas & Top",
+        instruction: "Warm 3 tortillas for 15 seconds in the microwave, spoon the eggs inside, and top with 1/3 cup shredded cheese and 3 tablespoons salsa.",
+        timerSeconds: 15
+      }
+    ],
+    whyItWorks: "No skillet to scrub—just one mug and a fork, plus 20g of warm protein.",
+    rutAlternativeNote: "Hot breakfast-for-dinner tacos ready in under 5 minutes."
+  },
+  {
+    id: "dorm-bbq-chicken-cheddar-sliders",
+    title: "3-Minute BBQ Pulled Chicken & Cheddar Sub",
+    tagline: "Mix pre-cooked chicken with BBQ sauce, microwave 45 seconds, and pile onto burger or sub buns with melted cheddar.",
+    prepMinutes: 2,
+    cookMinutes: 1,
+    category: "microwave",
+    ingredients: [
+      { item: "Pre-cooked shredded or grilled chicken", amount: "1 cup", walmartAisle: "Meat & Deli" },
+      { item: "BBQ sauce (Sweet Baby Ray's or similar)", amount: "3 tablespoons", walmartAisle: "Pantry / Canned" },
+      { item: "Burger buns or sub rolls", amount: "2 buns or 1 sub roll", walmartAisle: "Bakery" },
+      { item: "Shredded cheddar cheese", amount: "1/3 cup", walmartAisle: "Dairy & Eggs" }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Warm BBQ Chicken",
+        instruction: "Put 1 cup of pre-cooked chicken and 3 tablespoons of BBQ sauce in a microwave-safe bowl, stir, cover loosely with a paper towel, and microwave 45 seconds until hot.",
+        timerSeconds: 45
+      },
+      {
+        stepNumber: 2,
+        title: "Pile on Buns & Melt Cheddar",
+        instruction: "Spoon the hot BBQ chicken onto 2 burger buns (or 1 split sub roll), top with 1/3 cup shredded cheddar cheese, and microwave 20 seconds to melt.",
+        timerSeconds: 20
+      }
+    ],
+    whyItWorks: "Savory, smoky BBQ sandwiches in 3 minutes with zero freezer needed and over 25g protein.",
+    rutAlternativeNote: "Beats fast-food burgers or cold snacks with almost zero cleanup."
+  },
+  {
+    id: "dorm-pb-banana-granola-wrap",
+    title: "2-Minute Peanut Butter Banana Crunch Wrap",
+    tagline: "Zero microwave and zero fridge needed—spread peanut butter on a tortilla, add a banana and granola, and roll.",
+    prepMinutes: 2,
+    cookMinutes: 0,
+    category: "assembly",
+    ingredients: [
+      { item: "Large flour tortilla", amount: "1 tortilla", walmartAisle: "Bakery" },
+      { item: "Peanut butter", amount: "2 tablespoons", walmartAisle: "Pantry / Canned" },
+      { item: "Banana", amount: "1 whole banana", walmartAisle: "Produce" },
+      { item: "Granola or crunchy cereal", amount: "2 tablespoons", walmartAisle: "Pantry / Canned" }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Spread Peanut Butter",
+        instruction: "Lay 1 flour tortilla flat on a napkin or plate and spread 2 tablespoons of peanut butter down the middle.",
+        timerSeconds: 0
+      },
+      {
+        stepNumber: 2,
+        title: "Add Banana, Granola & Roll",
+        instruction: "Peel 1 whole banana and lay it directly on the peanut butter. Sprinkle 2 tablespoons of granola along the banana, roll up tightly like a burrito, and eat.",
+        timerSeconds: 0
+      }
+    ],
+    whyItWorks: "100% shelf-stable—works even without a mini-fridge, microwave, or clean dishes.",
+    rutAlternativeNote: "Fast 2-minute fuel before morning class or a workout."
+  },
+  {
+    id: "yogurt-berry-granola-bowl",
+    title: "2-Minute Greek Yogurt Power Bowl",
+    tagline: "No cooking at all—creamy Greek yogurt topped with berries and crunchy granola.",
+    prepMinutes: 2,
+    cookMinutes: 0,
+    category: "assembly",
+    ingredients: [
+      { item: "Plain or vanilla Greek yogurt", amount: "1 cup", walmartAisle: "Dairy & Eggs" },
+      { item: "Frozen or fresh berries", amount: "1/2 cup", walmartAisle: "Frozen" },
+      { item: "Granola or crunchy cereal", amount: "1/3 cup", walmartAisle: "Pantry / Canned" },
+      { item: "Honey or peanut butter (optional)", amount: "1 tablespoon", walmartAisle: "Pantry / Canned" }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Scoop Yogurt",
+        instruction: "Spoon 1 cup of Greek yogurt into your favorite bowl.",
+        timerSeconds: 0
+      },
+      {
+        stepNumber: 2,
+        title: "Add Berries & Crunch",
+        instruction: "Top with 1/2 cup of berries and 1/3 cup of granola. Drizzle 1 tablespoon of honey or peanut butter over top if you'd like.",
+        timerSeconds: 0
+      }
+    ],
+    whyItWorks: "Delivers 18g+ of protein in 2 minutes with zero dishes besides a spoon and bowl.",
+    rutAlternativeNote: "Fast grab-and-go breakfast or snack with real protein."
+  },
+  {
+    id: "creamy-tuna-toast-melt",
+    title: "4-Minute Cheesy Microwave Tuna Melt",
+    tagline: "Mix tuna with mayo or ranch, pile onto bread or English muffins with cheddar, and melt in the microwave.",
+    prepMinutes: 3,
+    cookMinutes: 1,
+    category: "microwave",
+    ingredients: [
+      { item: "Canned tuna or tear-open tuna pouch", amount: "1 can or pouch", walmartAisle: "Pantry / Canned" },
+      { item: "Mayonnaise or ranch dressing", amount: "2 tablespoons", walmartAisle: "Pantry / Canned" },
+      { item: "Bread or English muffins", amount: "2 slices or 1 muffin", walmartAisle: "Bakery" },
+      { item: "Shredded cheddar cheese", amount: "1/3 cup", walmartAisle: "Dairy & Eggs" }
+    ],
+    instructions: [
+      {
+        stepNumber: 1,
+        title: "Mix Tuna Salad",
+        instruction: "Drain 1 can of tuna (or tear open a no-drain tuna pouch) and stir in a small bowl with 2 tablespoons of mayo or ranch plus a pinch of salt and pepper.",
+        timerSeconds: 0
+      },
+      {
+        stepNumber: 2,
+        title: "Top Bread or Muffins",
+        instruction: "Lay 2 slices of bread (or 1 split English muffin) on a microwave-safe plate. Spoon the tuna mix on top and sprinkle with 1/3 cup of shredded cheddar cheese.",
+        timerSeconds: 0
+      },
+      {
+        stepNumber: 3,
+        title: "Microwave to Melt Cheese",
+        instruction: "Microwave for 40 to 50 seconds until the shredded cheddar cheese is melted and warm.",
+        timerSeconds: 45
+      }
+    ],
+    whyItWorks: "Tuna pouches sit in a desk drawer for months and pack 25g+ protein in under 5 minutes.",
+    rutAlternativeNote: "A hot, cheesy diner-style melt using basic pantry staples."
+  },
+  // Full-Kitchen (Stove / Oven / Toaster / Air Fryer) Meals
   {
     id: "rotisserie-pesto-tortellini",
     title: "10-Minute Pesto Tortellini with Shredded Chicken",
@@ -122,7 +743,7 @@ export const DEFAULT_MEALS: Meal[] = [
     tagline: "Better than delivery, takes 8 minutes, and uses ingredients you can keep in your freezer and fridge.",
     prepMinutes: 2,
     cookMinutes: 8,
-    category: "assembly",
+    category: "sheet_pan",
     ingredients: [
       { item: "Stonefire or Great Value Naan flatbreads", amount: "2 flatbreads", walmartAisle: "Bakery", tip: "Freeze what you don't use" },
       { item: "Rotisserie chicken (shredded)", amount: "1 cup", walmartAisle: "Meat & Deli" },
@@ -187,78 +808,6 @@ export const DEFAULT_MEALS: Meal[] = [
     ],
     whyItWorks: "Everything comes from long-shelf-life staples, meaning you can keep these in your pantry for weeks and always have dinner ready.",
     rutAlternativeNote: "Takes the exact same time as boxed mac and cheese, with way more protein and staying power."
-  },
-  {
-    id: "loaded-sweet-potato",
-    title: "Microwave Loaded Black Bean Sweet Potato",
-    tagline: "Poke with fork, 5 mins in microwave, split open and stuff. Naturally sweet, savory, and effortless.",
-    prepMinutes: 2,
-    cookMinutes: 5,
-    category: "microwave",
-    ingredients: [
-      { item: "Medium sweet potato", amount: "1 sweet potato", walmartAisle: "Produce", tip: "Wash skin with warm water" },
-      { item: "Black beans (canned)", amount: "1/3 can", walmartAisle: "Pantry / Canned" },
-      { item: "Salsa or sour cream", amount: "2 tablespoons", walmartAisle: "Dairy & Eggs" },
-      { item: "Feta or shredded cheddar cheese", amount: "2 tablespoons", walmartAisle: "Dairy & Eggs" }
-    ],
-    instructions: [
-      {
-        stepNumber: 1,
-        title: "Poke & Microwave Sweet Potato",
-        instruction: "Wash 1 medium sweet potato and poke it 5-6 times with a fork all over. Place on a microwave-safe plate and microwave on HIGH for 5 minutes (flip halfway if possible).",
-        timerSeconds: 300
-      },
-      {
-        stepNumber: 2,
-        title: "Slice Open",
-        instruction: "Use a knife to cut a slit down the middle lengthwise. Squeeze both ends with a paper towel to puff the soft orange potato interior open.",
-        timerSeconds: 0
-      },
-      {
-        stepNumber: 3,
-        title: "Stuff with Beans & Toppings",
-        instruction: "Spoon 1/3 cup of black beans into the opening. Top with 2 tablespoons of salsa or sour cream and 2 tablespoons of cheese.",
-        timerSeconds: 0
-      }
-    ],
-    whyItWorks: "Complex carbohydrates, vitamin A, and fiber that digest smoothly and keep your energy steady.",
-    rutAlternativeNote: "Satisfies savory cravings without needing to touch a stove or wash pots."
-  },
-  {
-    id: "greek-pita-chicken-pocket",
-    title: "4-Minute Greek Deli Chicken Pita",
-    tagline: "No cooking whatsoever. Warm pita pocket stuffed with crisp greens, chicken, and tzatziki.",
-    prepMinutes: 4,
-    cookMinutes: 0,
-    category: "assembly",
-    ingredients: [
-      { item: "Pita bread or Flatout flatbreads", amount: "1 pita pocket", walmartAisle: "Bakery" },
-      { item: "Tzatziki sauce or cucumber garlic dressing", amount: "2 tablespoons", walmartAisle: "Dairy & Eggs", tip: "Found near hummus in Walmart deli" },
-      { item: "Deli chicken breast or pre-cooked grilled chicken strips", amount: "3-4 slices (or 1/2 cup strips)", walmartAisle: "Meat & Deli" },
-      { item: "Baby spinach or pre-washed salad greens", amount: "1 big handful", walmartAisle: "Produce" }
-    ],
-    instructions: [
-      {
-        stepNumber: 1,
-        title: "Warm the Pita (Optional)",
-        instruction: "Pop 1 pita pocket into the microwave for 15 seconds to make it soft and pliable. Cut in half across the center to make two pockets.",
-        timerSeconds: 15
-      },
-      {
-        stepNumber: 2,
-        title: "Spread Tzatziki Inside",
-        instruction: "Using a spoon, spread 1 tablespoon of tzatziki sauce inside each pita pocket half.",
-        timerSeconds: 0
-      },
-      {
-        stepNumber: 3,
-        title: "Stuff & Enjoy",
-        instruction: "Slide 3-4 slices of chicken and 1 big handful of baby spinach inside. No pan, no heat, pure fresh crunch.",
-        timerSeconds: 0
-      }
-    ],
-    whyItWorks: "Zero heat required. Takes just 4 minutes to assemble with clean protein and crisp greens.",
-    rutAlternativeNote: "Fresh, crunchy lunch or dinner with zero stove time."
   },
   {
     id: "egg-roll-in-a-skillet",
@@ -442,72 +991,6 @@ export const DEFAULT_MEALS: Meal[] = [
     rutAlternativeNote: "A warm, hearty skillet meal faster than waiting for takeout."
   },
   {
-    id: "yogurt-berry-granola-bowl",
-    title: "2-Minute Greek Yogurt Power Bowl",
-    tagline: "No cooking at all—creamy Greek yogurt topped with sweet berries and crunchy granola.",
-    prepMinutes: 2,
-    cookMinutes: 0,
-    category: "assembly",
-    ingredients: [
-      { item: "Plain or vanilla Greek yogurt", amount: "1 cup", walmartAisle: "Dairy & Eggs" },
-      { item: "Frozen or fresh berries", amount: "1/2 cup", walmartAisle: "Frozen" },
-      { item: "Granola or crunchy cereal", amount: "1/3 cup", walmartAisle: "Pantry / Canned" },
-      { item: "Honey or peanut butter (optional)", amount: "1 tablespoon", walmartAisle: "Pantry / Canned" }
-    ],
-    instructions: [
-      {
-        stepNumber: 1,
-        title: "Scoop Yogurt",
-        instruction: "Spoon 1 cup of Greek yogurt into your favorite bowl.",
-        timerSeconds: 0
-      },
-      {
-        stepNumber: 2,
-        title: "Add Berries & Crunch",
-        instruction: "Top with 1/2 cup of berries and 1/3 cup of granola. Drizzle 1 tablespoon of honey or peanut butter over top if you'd like.",
-        timerSeconds: 0
-      }
-    ],
-    whyItWorks: "Delivers 18g+ of protein and probiotics in 2 minutes with zero dishes besides a spoon and bowl.",
-    rutAlternativeNote: "Gives you sweet crunch and lasting energy in 2 minutes flat."
-  },
-  {
-    id: "microwave-egg-salsa-tacos",
-    title: "4-Minute Microwave Egg & Cheese Tacos",
-    tagline: "Yes, you can scramble fluffy eggs in a mug in 90 seconds—wrap in warm tortillas with salsa.",
-    prepMinutes: 2,
-    cookMinutes: 2,
-    category: "microwave",
-    ingredients: [
-      { item: "Large eggs", amount: "3 eggs", walmartAisle: "Dairy & Eggs" },
-      { item: "Soft flour or corn tortillas", amount: "3 small tortillas", walmartAisle: "Bakery" },
-      { item: "Shredded cheddar or Mexican cheese", amount: "1/3 cup", walmartAisle: "Dairy & Eggs" },
-      { item: "Salsa", amount: "3 tablespoons", walmartAisle: "Pantry / Canned" }
-    ],
-    instructions: [
-      {
-        stepNumber: 1,
-        title: "Whisk Eggs in a Mug",
-        instruction: "Spray a microwave-safe mug or small bowl lightly with cooking spray. Crack 3 eggs in, add a pinch of salt, and whisk with a fork.",
-        timerSeconds: 0
-      },
-      {
-        stepNumber: 2,
-        title: "Microwave & Stir",
-        instruction: "Microwave the 3 whisked eggs for 45 seconds, stir with your fork, then microwave 30-45 seconds more until fluffy and set.",
-        timerSeconds: 45
-      },
-      {
-        stepNumber: 3,
-        title: "Fill Tortillas & Top",
-        instruction: "Warm 3 tortillas for 15 seconds in the microwave, spoon the eggs inside, and top with 1/3 cup shredded cheese and 3 tablespoons salsa.",
-        timerSeconds: 15
-      }
-    ],
-    whyItWorks: "No skillet to scrub—just one mug and a fork, plus 20g of warm protein.",
-    rutAlternativeNote: "Hot breakfast-for-dinner tacos ready in under 5 minutes."
-  },
-  {
     id: "turkey-beef-taco-rice-skillet",
     title: "10-Minute Taco Beef & Rice Bowl",
     tagline: "Brown ground turkey or beef with salsa and microwave rice—cheesy, bold, and foolproof.",
@@ -574,36 +1057,6 @@ export const DEFAULT_MEALS: Meal[] = [
     rutAlternativeNote: "Turns pantry pasta into a complete, creamy chicken-and-veggie dinner."
   },
   {
-    id: "frozen-meatball-marinara-subs",
-    title: "10-Minute Frozen Meatball Marinara Sub",
-    tagline: "Heat frozen meatballs right inside jarred pasta sauce, pile on toasted bread, and melt mozzarella.",
-    prepMinutes: 2,
-    cookMinutes: 8,
-    category: "microwave",
-    ingredients: [
-      { item: "Frozen fully-cooked meatballs", amount: "8 meatballs", walmartAisle: "Frozen", tip: "No thawing needed" },
-      { item: "Jarred pasta sauce (marinara)", amount: "1 cup", walmartAisle: "Pantry / Canned" },
-      { item: "Hot dog buns, sub rolls, or bread slices", amount: "2 buns or slices", walmartAisle: "Bakery" },
-      { item: "Shredded mozzarella cheese", amount: "1/2 cup", walmartAisle: "Dairy & Eggs" }
-    ],
-    instructions: [
-      {
-        stepNumber: 1,
-        title: "Microwave Meatballs & Sauce",
-        instruction: "Put 8 frozen meatballs and 1 cup of jarred marinara sauce in a microwave-safe bowl. Cover loosely with a paper towel and microwave for 3 minutes, stirring halfway.",
-        timerSeconds: 180
-      },
-      {
-        stepNumber: 2,
-        title: "Fill Buns & Melt Cheese",
-        instruction: "Spoon the hot saucy meatballs into 2 buns (or onto 2 pieces of toasted bread). Sprinkle 1/2 cup of shredded mozzarella on top and microwave 30 seconds until melted.",
-        timerSeconds: 30
-      }
-    ],
-    whyItWorks: "Meatballs keep in the freezer for months, so you can make a hot sub sandwich anytime with zero prep.",
-    rutAlternativeNote: "Gives you warm, cheesy comfort food straight from your freezer."
-  },
-  {
     id: "freezer-potsticker-broccoli-bowl",
     title: "8-Minute Crispy Potstickers & Broccoli",
     tagline: "Pan-steam frozen dumplings and frozen broccoli together in one skillet with soy or teriyaki sauce.",
@@ -640,44 +1093,9 @@ export const DEFAULT_MEALS: Meal[] = [
     rutAlternativeNote: "Tastes like takeout dumplings and veggies in 8 minutes."
   },
   {
-    id: "crispy-chicken-tender-caesar-wrap",
-    title: "10-Minute Crispy Chicken Caesar Wrap",
-    tagline: "Bake or air-fry frozen chicken tenders, toss with a bagged Caesar salad kit, and wrap in a tortilla.",
-    prepMinutes: 2,
-    cookMinutes: 8,
-    category: "assembly",
-    ingredients: [
-      { item: "Frozen breaded chicken tenders", amount: "3-4 tenders", walmartAisle: "Frozen" },
-      { item: "Bagged Caesar salad kit", amount: "1/2 bag (with dressing)", walmartAisle: "Produce", tip: "Comes with dressing & parmesan" },
-      { item: "Large flour tortillas", amount: "2 tortillas", walmartAisle: "Bakery" }
-    ],
-    instructions: [
-      {
-        stepNumber: 1,
-        title: "Cook Frozen Chicken Tenders",
-        instruction: "Air-fry 3-4 frozen chicken tenders at 380°F for 8 minutes (or microwave 2 minutes if in a hurry) until hot.",
-        timerSeconds: 480
-      },
-      {
-        stepNumber: 2,
-        title: "Toss Bagged Salad",
-        instruction: "Dump 1/2 bag of Caesar salad greens, dressing packet, and cheese packet into a bowl and toss with a fork.",
-        timerSeconds: 0
-      },
-      {
-        stepNumber: 3,
-        title: "Wrap & Eat",
-        instruction: "Lay 2 large tortillas flat, pile the dressed salad and hot chicken tenders in the center, fold the sides in, and roll up.",
-        timerSeconds: 0
-      }
-    ],
-    whyItWorks: "Only 3 items to buy at Walmart, and the salad kit includes all the dressing and cheese.",
-    rutAlternativeNote: "Crunchy, restaurant-style wrap using freezer tenders and a pre-washed salad bag."
-  },
-  {
     id: "frozen-shrimp-garlic-rice-bowl",
     title: "7-Minute Garlic Shrimp & Rice Bowl",
-    tagline: "Frozen cooked shrimp warms up in 3 minutes—pair with a rice pouch and steam-in-bag veggies.",
+    tagline: "Frozen cooked shrimp warms up in 3 minutes—pair with a rice pouch and frozen veggies.",
     prepMinutes: 1,
     cookMinutes: 6,
     category: "one_skillet",
@@ -706,45 +1124,9 @@ export const DEFAULT_MEALS: Meal[] = [
     rutAlternativeNote: "Feels fresh and satisfying while relying 100% on freezer and pantry staples."
   },
   {
-    id: "creamy-tuna-toast-melt",
-    title: "5-Minute Creamy Tuna Toast Melt",
-    tagline: "Mix canned tuna with Greek yogurt or mayo, pile on toast with cheese, and melt.",
-    prepMinutes: 3,
-    cookMinutes: 2,
-    category: "microwave",
-    ingredients: [
-      { item: "Canned tuna in water (drained)", amount: "1 can (5 oz)", walmartAisle: "Pantry / Canned" },
-      { item: "Plain Greek yogurt or mayonnaise", amount: "2 tablespoons", walmartAisle: "Dairy & Eggs" },
-      { item: "Bread or English muffins", amount: "2 slices or 1 muffin", walmartAisle: "Bakery" },
-      { item: "Shredded cheddar cheese", amount: "1/3 cup", walmartAisle: "Dairy & Eggs" }
-    ],
-    instructions: [
-      {
-        stepNumber: 1,
-        title: "Mix Tuna Salad",
-        instruction: "Drain 1 can of tuna and stir it in a small bowl with 2 tablespoons of Greek yogurt (or mayo) and a pinch of salt and pepper.",
-        timerSeconds: 0
-      },
-      {
-        stepNumber: 2,
-        title: "Toast Bread & Top",
-        instruction: "Toast 2 slices of bread (or 1 split English muffin). Spoon the tuna mix on top and sprinkle with 1/3 cup of shredded cheddar cheese.",
-        timerSeconds: 0
-      },
-      {
-        stepNumber: 3,
-        title: "Melt Cheese",
-        instruction: "Microwave for 30 seconds or pop under a toaster oven broiler for 90 seconds until cheese is melted.",
-        timerSeconds: 30
-      }
-    ],
-    whyItWorks: "Canned tuna sits in your pantry for years and gives 25g+ protein in under 5 minutes.",
-    rutAlternativeNote: "A warm, crispy diner-style melt using basic pantry staples."
-  },
-  {
     id: "upgraded-peanut-ramen",
     title: "6-Minute Upgraded Peanut Ramen with Egg & Peas",
-    tagline: "Keep the cozy noodle convenience—stir in peanut butter, frozen veggies, and an egg for real staying power.",
+    tagline: "Boil ramen on the stove and stir in peanut butter, frozen peas, and a swirled egg for real staying power.",
     prepMinutes: 1,
     cookMinutes: 5,
     category: "one_skillet",
@@ -844,12 +1226,12 @@ export const DEFAULT_MEALS: Meal[] = [
     tagline: "Halved English muffins topped with marinara and mozzarella—crisp in toaster oven or air fryer.",
     prepMinutes: 2,
     cookMinutes: 4,
-    category: "assembly",
+    category: "sheet_pan",
     ingredients: [
       { item: "English muffins", amount: "2 muffins (split into 4 halves)", walmartAisle: "Bakery" },
       { item: "Jarred pasta sauce (marinara)", amount: "1/2 cup", walmartAisle: "Pantry / Canned" },
       { item: "Shredded mozzarella cheese", amount: "3/4 cup", walmartAisle: "Dairy & Eggs" },
-      { item: "Pre-cooked bacon or sliced deli meat (optional)", amount: "1/3 cup", walmartAisle: "Meat & Deli" }
+      { item: "Sliced pepperoni or pre-cooked bacon", amount: "1/3 cup", walmartAisle: "Meat & Deli" }
     ],
     instructions: [
       {
@@ -861,7 +1243,7 @@ export const DEFAULT_MEALS: Meal[] = [
       {
         stepNumber: 2,
         title: "Add Cheese & Bake",
-        instruction: "Sprinkle 3/4 cup shredded mozzarella and optional meat over the halves. Bake or air-fry at 375°F for 4-5 minutes until bubbly and crisp.",
+        instruction: "Sprinkle 3/4 cup shredded mozzarella and 1/3 cup pepperoni or bacon over the halves. Bake or air-fry at 375°F for 4-5 minutes until bubbly and crisp.",
         timerSeconds: 240
       }
     ],
@@ -869,133 +1251,12 @@ export const DEFAULT_MEALS: Meal[] = [
     rutAlternativeNote: "Instant personal pizzas using bakery staples and jarred sauce."
   },
   {
-    id: "chickpea-pesto-warm-bowl",
-    title: "4-Minute Chickpea & Pesto Warm Bowl",
-    tagline: "Rinse canned chickpeas, warm with jarred pesto and spinach, and top with feta or mozzarella.",
-    prepMinutes: 2,
-    cookMinutes: 2,
-    category: "microwave",
-    ingredients: [
-      { item: "Canned chickpeas (garbanzo beans, drained)", amount: "1 can", walmartAisle: "Pantry / Canned" },
-      { item: "Jarred basil pesto", amount: "2 tablespoons", walmartAisle: "Pantry / Canned" },
-      { item: "Baby spinach", amount: "2 handfuls", walmartAisle: "Produce" },
-      { item: "Shredded parmesan or mozzarella", amount: "1/4 cup", walmartAisle: "Dairy & Eggs" }
-    ],
-    instructions: [
-      {
-        stepNumber: 1,
-        title: "Warm Chickpeas & Spinach",
-        instruction: "Dump 1 drained can of chickpeas and 2 handfuls of baby spinach into a microwave-safe bowl. Microwave for 90 seconds until hot and spinach wilts.",
-        timerSeconds: 90
-      },
-      {
-        stepNumber: 2,
-        title: "Stir in Pesto & Cheese",
-        instruction: "Stir in 2 tablespoons of jarred pesto and top with 1/4 cup of shredded parmesan or mozzarella.",
-        timerSeconds: 0
-      }
-    ],
-    whyItWorks: "Shelf-stable chickpeas give 15g+ protein and fiber with zero stove cleanup.",
-    rutAlternativeNote: "Savory Mediterranean bowl in 4 minutes from just 4 ingredients."
-  },
-  {
-    id: "deli-turkey-hummus-rollups",
-    title: "3-Minute Turkey & Hummus Roll-Ups with Carrots",
-    tagline: "Zero heat required—spread hummus on tortillas, layer deli turkey and spinach, roll and slice.",
-    prepMinutes: 3,
-    cookMinutes: 0,
-    category: "assembly",
-    ingredients: [
-      { item: "Deli turkey or ham slices", amount: "4-6 slices", walmartAisle: "Meat & Deli" },
-      { item: "Hummus (any flavor)", amount: "3 tablespoons", walmartAisle: "Meat & Deli" },
-      { item: "Large flour tortillas", amount: "2 tortillas", walmartAisle: "Bakery" },
-      { item: "Baby spinach", amount: "1 handful", walmartAisle: "Produce" },
-      { item: "Baby carrots (on the side)", amount: "1 handful", walmartAisle: "Produce" }
-    ],
-    instructions: [
-      {
-        stepNumber: 1,
-        title: "Spread Hummus",
-        instruction: "Lay 2 large tortillas flat on a plate. Spread 1.5 tablespoons of hummus onto each tortilla.",
-        timerSeconds: 0
-      },
-      {
-        stepNumber: 2,
-        title: "Layer & Roll",
-        instruction: "Place 2-3 slices of deli turkey and a small handful of baby spinach on each tortilla. Roll up tightly, slice in half, and eat with a handful of baby carrots.",
-        timerSeconds: 0
-      }
-    ],
-    whyItWorks: "No cooking, no pots, no mess—just clean protein, fiber, and crunch in 3 minutes.",
-    rutAlternativeNote: "Fast, fresh lunch or low-energy dinner when you don't want to cook."
-  },
-  {
-    id: "baked-frozen-salmon-green-beans",
-    title: "14-Minute Sheet-Pan Frozen Salmon & Broccoli",
-    tagline: "Roast a frozen salmon fillet straight from the freezer next to frozen broccoli with garlic butter.",
-    prepMinutes: 2,
-    cookMinutes: 12,
-    category: "sheet_pan",
-    ingredients: [
-      { item: "Frozen salmon fillets", amount: "1-2 fillets", walmartAisle: "Frozen" },
-      { item: "Frozen broccoli florets", amount: "2 cups", walmartAisle: "Frozen" },
-      { item: "Butter or olive oil", amount: "1 tablespoon", walmartAisle: "Dairy & Eggs" },
-      { item: "Garlic powder or lemon pepper", amount: "1 teaspoon", walmartAisle: "Spices & Condiments" }
-    ],
-    instructions: [
-      {
-        stepNumber: 1,
-        title: "Prep Foil Pan",
-        instruction: "Preheat oven or air fryer to 400°F. Line a tray with foil. Put 1-2 frozen salmon fillets and 2 cups frozen broccoli on the foil.",
-        timerSeconds: 0
-      },
-      {
-        stepNumber: 2,
-        title: "Season & Bake",
-        instruction: "Top salmon and broccoli with 1 tablespoon butter (or oil) and 1 teaspoon garlic powder or lemon pepper. Bake 12-14 minutes until salmon flakes easily with a fork.",
-        timerSeconds: 780
-      }
-    ],
-    whyItWorks: "Frozen fish fillets cook straight from frozen on foil—omega-3 rich dinner with zero cleanup.",
-    rutAlternativeNote: "Restaurant-quality salmon dinner straight from your freezer."
-  },
-  {
-    id: "peanut-butter-banana-oatmeal",
-    title: "3-Minute Peanut Butter Berry Oatmeal",
-    tagline: "Microwave rolled oats with water or milk, swirl in peanut butter, and top with frozen berries.",
-    prepMinutes: 1,
-    cookMinutes: 2,
-    category: "microwave",
-    ingredients: [
-      { item: "Rolled oats or instant oatmeal", amount: "1/2 cup", walmartAisle: "Pantry / Canned" },
-      { item: "Peanut butter", amount: "2 tablespoons", walmartAisle: "Pantry / Canned" },
-      { item: "Frozen berries", amount: "1/2 cup", walmartAisle: "Frozen" },
-      { item: "Granola (optional crunch)", amount: "2 tablespoons", walmartAisle: "Pantry / Canned" }
-    ],
-    instructions: [
-      {
-        stepNumber: 1,
-        title: "Microwave Oats & Berries",
-        instruction: "Put 1/2 cup of rolled oats, 1 cup of water (or milk), and 1/2 cup of frozen berries in a large microwave-safe bowl. Microwave on HIGH for 2 minutes.",
-        timerSeconds: 120
-      },
-      {
-        stepNumber: 2,
-        title: "Swirl in Peanut Butter",
-        instruction: "Stir 2 tablespoons of peanut butter right into the hot oats until melted and creamy. Top with 2 tablespoons granola for crunch.",
-        timerSeconds: 0
-      }
-    ],
-    whyItWorks: "Uses 100% pantry and freezer staples—warm, filling fiber and healthy fats in 3 minutes.",
-    rutAlternativeNote: "Cozy, sweet-and-nutty bowl ready faster than toast."
-  },
-  {
     id: "waffle-egg-cheese-sandwich",
     title: "4-Minute Crispy Waffle Breakfast Sandwich",
     tagline: "Toast two frozen waffles, microwave a quick scrambled egg in a mug, and stack with cheddar.",
     prepMinutes: 1,
     cookMinutes: 3,
-    category: "microwave",
+    category: "one_skillet",
     ingredients: [
       { item: "Frozen waffles", amount: "2 waffles", walmartAisle: "Frozen" },
       { item: "Large eggs", amount: "2 eggs", walmartAisle: "Dairy & Eggs" },

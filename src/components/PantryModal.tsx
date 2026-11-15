@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { X, Plus, Minus, PackageCheck, Sparkles, Loader2, Trash2 } from "lucide-react";
-import { PantryItem } from "../types";
+import { KitchenMode, PantryItem } from "../types";
 import { PANTRY_STAPLE_GROUPS } from "../data/pantryStaples";
 
 interface PantryModalProps {
   pantryItems: PantryItem[];
   matchingMealCount: number;
   isSuggesting: boolean;
+  kitchenMode?: KitchenMode;
+  noFreezer?: boolean;
   onTogglePantryItem: (itemName: string) => void;
   onAddPantryItem: (itemName: string) => void;
   onUpdatePantryQuantity: (itemName: string, delta: number) => void;
@@ -19,6 +21,8 @@ export const PantryModal: React.FC<PantryModalProps> = ({
   pantryItems,
   matchingMealCount,
   isSuggesting,
+  kitchenMode = "microwave_only",
+  noFreezer = false,
   onTogglePantryItem,
   onAddPantryItem,
   onUpdatePantryQuantity,
@@ -61,7 +65,13 @@ export const PantryModal: React.FC<PantryModalProps> = ({
               <PackageCheck className="w-5 h-5 text-emerald-200" />
             </div>
             <div>
-              <h2 className="text-lg font-bold">My Pantry, Fridge &amp; Freezer</h2>
+              <h2 className="text-lg font-bold">
+                {noFreezer
+                  ? "My Pantry & Mini-Fridge"
+                  : kitchenMode === "microwave_only"
+                  ? "My Dorm Pantry & Fridge"
+                  : "My Pantry, Fridge & Freezer"}
+              </h2>
               <p className="text-xs text-emerald-200">
                 {pantryItems.length} items ({totalUnits} total qty) • {matchingMealCount} matching meal ideas ready
               </p>
@@ -89,7 +99,7 @@ export const PantryModal: React.FC<PantryModalProps> = ({
               type="text"
               value={customInput}
               onChange={(e) => setCustomInput(e.target.value)}
-              placeholder="Type anything in your kitchen (e.g., tofu, canned corn, pierogies)..."
+              placeholder="Type anything in your kitchen (e.g., buffalo sauce, pepperoni, mac cup)..."
               className="flex-1 px-3.5 py-2.5 rounded-xl border border-stone-300 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600/30 focus:border-emerald-600 text-stone-900"
             />
             <button
@@ -165,7 +175,9 @@ export const PantryModal: React.FC<PantryModalProps> = ({
 
           {/* Grouped Quick Tap Staples */}
           <div className="space-y-4">
-            {PANTRY_STAPLE_GROUPS.map((group) => (
+            {PANTRY_STAPLE_GROUPS.filter(
+              (group) => !(noFreezer && group.label === "Freezer")
+            ).map((group) => (
               <div key={group.label} className="space-y-2">
                 <div className="text-xs font-bold uppercase tracking-wider text-stone-500">
                   {group.label}:

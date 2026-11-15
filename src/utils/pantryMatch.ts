@@ -1,28 +1,34 @@
 import { Meal, MealIngredient, PantryItem } from "../types";
 
 const SYNONYM_GROUPS: string[][] = [
-  ["tortilla", "tortillas", "wrap", "wraps"],
+  ["tortilla", "tortillas", "flour tortilla", "flour tortillas", "wrap", "wraps"],
   ["egg", "eggs"],
   ["black bean", "black beans", "beans", "pinto beans", "kidney beans"],
-  ["rotisserie chicken", "shredded chicken", "chicken breast", "chicken", "deli chicken"],
-  ["shredded cheese", "cheese", "cheddar", "mozzarella", "mexican blend", "feta", "parmesan"],
-  ["salsa", "pico"],
-  ["frozen veggies", "frozen vegetable", "frozen broccoli", "frozen peas", "frozen corn", "frozen bell pepper", "mixed vegetables"],
+  ["rotisserie chicken", "shredded chicken", "grilled chicken", "chicken strips", "pouch chicken", "chicken breast", "chicken", "deli chicken"],
+  ["shredded cheese", "cheese", "cheddar", "mozzarella", "mexican blend", "provolone", "feta", "parmesan"],
+  ["salsa", "pico", "pico de gallo"],
+  ["frozen veggies", "frozen vegetable", "frozen broccoli", "steam in bag broccoli", "frozen peas", "frozen corn", "frozen bell pepper", "mixed vegetables"],
   ["microwave rice", "rice pouch", "rice", "jasmine rice", "brown rice"],
-  ["pasta", "tortellini", "macaroni", "penne", "spaghetti", "noodles", "ramen"],
-  ["pasta sauce", "marinara", "alfredo", "pesto"],
-  ["spinach", "greens", "salad", "salad kit", "coleslaw", "cabbage", "lettuce"],
+  ["pasta", "tortellini", "macaroni", "elbow macaroni", "mac cheese", "easy mac", "penne", "spaghetti", "noodles", "ramen"],
+  ["pasta sauce", "marinara", "pizza sauce", "alfredo", "pesto"],
+  ["spinach", "greens", "salad", "salad kit", "caesar salad", "coleslaw", "cabbage", "lettuce", "shredded lettuce"],
   ["ground beef", "ground turkey", "turkey", "beef", "pork"],
   ["sweet potato", "potato", "potatoes", "hashbrowns", "tater tots"],
   ["kielbasa", "sausage", "smoked sausage"],
   ["greek yogurt", "yogurt"],
-  ["naan", "flatbread", "pita", "bread", "toast", "english muffin", "english muffins", "bagel"],
-  ["tuna", "canned tuna"],
+  ["naan", "flatbread", "pita", "bread", "toast", "sub roll", "sub rolls", "hoagie", "hot dog buns", "burger buns", "buns", "bagel", "bagels", "english muffin", "english muffins"],
+  ["tuna", "canned tuna", "pouch tuna"],
   ["tomato soup", "soup"],
+  ["chili", "canned chili", "beef chili"],
   ["peanut butter"],
   ["avocado", "guacamole"],
-  ["soy sauce", "teriyaki"],
+  ["soy sauce", "teriyaki", "teriyaki sauce"],
   ["bbq sauce"],
+  ["buffalo sauce", "hot sauce", "sriracha"],
+  ["ranch", "ranch dressing", "caesar dressing", "dressing", "mayo", "mayonnaise"],
+  ["queso", "nacho cheese", "jarred queso"],
+  ["tortilla chips", "chips", "fritos", "doritos", "crackers"],
+  ["pepperoni", "sliced pepperoni"],
   ["meatball", "meatballs", "frozen meatballs"],
   ["potsticker", "potstickers", "dumpling", "dumplings"],
   ["chicken tender", "chicken tenders", "chicken nugget", "chicken nuggets"],
@@ -35,7 +41,7 @@ const SYNONYM_GROUPS: string[][] = [
   ["hummus"],
   ["berries", "frozen berries", "strawberries", "blueberries"],
   ["waffle", "waffles", "frozen waffles"],
-  ["bacon", "pre-cooked bacon"],
+  ["bacon", "pre-cooked bacon", "bacon bits"],
 ];
 
 function normalizeText(text: string): string {
@@ -137,3 +143,37 @@ export function getPantryMatchStats(meal: Meal, pantryItems: PantryItem[]) {
 export function getMissingIngredients(meal: Meal, pantryItems: PantryItem[]): MealIngredient[] {
   return meal.ingredients.filter((ing) => !ingredientMatchesPantry(ing, pantryItems));
 }
+
+const FROZEN_TEXT_REGEX = /\bfrozen\b|\bfreezer\b/i;
+
+export function mealRequiresFreezer(meal: Meal): boolean {
+  return meal.ingredients.some(
+    (ing) => ing.walmartAisle === "Frozen" || FROZEN_TEXT_REGEX.test(ing.item)
+  );
+}
+
+const NON_MICROWAVE_KEYWORDS =
+  /\b(skillet|frying pan|stovetop|stove top|burner|boil in a pot|boiling pot|preheat oven|baking sheet|sheet pan|sheet-pan|broiler|toaster oven|pop .* in the toaster|electric kettle)\b/i;
+
+export function isMealAllowedInKitchenMode(
+  meal: Meal,
+  kitchenMode: "microwave_only" | "full_kitchen",
+  noFreezer = false
+): boolean {
+  if (noFreezer && mealRequiresFreezer(meal)) {
+    return false;
+  }
+  if (kitchenMode === "full_kitchen") {
+    return true;
+  }
+  if (meal.category !== "microwave" && meal.category !== "assembly") {
+    return false;
+  }
+  // Extra safeguard against any custom or saved meal whose instructions require stove/oven/toaster/kettle
+  const stepText = meal.instructions.map((s) => `${s.title} ${s.instruction}`).join(" ");
+  if (NON_MICROWAVE_KEYWORDS.test(stepText)) {
+    return false;
+  }
+  return true;
+}
+

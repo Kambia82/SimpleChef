@@ -9,7 +9,7 @@ import {
   writeBatch,
   serverTimestamp
 } from "firebase/firestore";
-import { Meal, MealAddon, RutMeal, GroceryItem, WalmartAisle, PantryItem } from "./types";
+import { Meal, MealAddon, RutMeal, GroceryItem, WalmartAisle, PantryItem, KitchenMode } from "./types";
 import { DEFAULT_MEALS } from "./data/defaultMeals";
 import { MealCard } from "./components/MealCard";
 import { CookingFocusMode } from "./components/CookingFocusMode";
@@ -24,7 +24,8 @@ import { OfflineIndicator } from "./components/OfflineIndicator";
 import {
   getMissingIngredients,
   getPantryMatchStats,
-  normalizePantryList
+  normalizePantryList,
+  isMealAllowedInKitchenMode
 } from "./utils/pantryMatch";
 import {
   auth,
@@ -54,7 +55,8 @@ import {
   Cloud,
   Users,
   ShoppingCart,
-  ShoppingBag
+  ShoppingBag,
+  X
 } from "lucide-react";
 
 const DEFAULT_RUTS: RutMeal[] = [
@@ -70,14 +72,22 @@ function mergeMealsWithDefaults(customMeals: Meal[]): Meal[] {
   return [...uniqueCustom, ...DEFAULT_MEALS];
 }
 
+function capApiStrings(items: string[]): string[] {
+  return items
+    .filter((s): s is string => typeof s === "string")
+    .map((s) => s.trim().slice(0, 100))
+    .filter((s) => s.length > 0)
+    .slice(0, 25);
+}
+
 export default function App() {
   // Persistence state: keep custom/AI meals and merge latest curated default meals
   const [meals, setMeals] = useState<Meal[]>(() => {
     try {
       const saved = localStorage.getItem("easy_meals_list");
       if (saved) {
-        const parsed: Meal[] = JSON.parse(saved);
-        return mergeMealsWithDefaults(parsed);
+        const parsed = JSON.parse(saved);
+        return mergeMealsWithDefaults(sanitizeCustomMealsForCloud(parsed));
       }
     } catch {}
     return DEFAULT_MEALS;
@@ -86,7 +96,7 @@ export default function App() {
   const [favorites, setFavorites] = useState<string[]>(() => {
     try {
       const saved = localStorage.getItem("easy_meals_favorites");
-      if (saved) return JSON.parse(saved);
+      if (saved) return sanitizeFavoritesForCloud(JSON.parse(saved));
     } catch {}
     return ["black-bean-salsa-bowl"];
   });
@@ -94,7 +104,7 @@ export default function App() {
   const [rutMeals, setRutMeals] = useState<RutMeal[]>(() => {
     try {
       const saved = localStorage.getItem("easy_meals_ruts");
-      if (saved) return JSON.parse(saved);
+      if (saved) return sanitizeRutForCloud(JSON.parse(saved));
     } catch {}
     return DEFAULT_RUTS;
   });
@@ -102,7 +112,7 @@ export default function App() {
   const [groceryItems, setGroceryItems] = useState<GroceryItem[]>(() => {
     try {
       const saved = localStorage.getItem("easy_meals_grocery");
-      if (saved) return JSON.parse(saved);
+      if (saved) return sanitizeGroceryForCloud(JSON.parse(saved));
     } catch {}
     return [];
   });
@@ -125,6 +135,93 @@ export default function App() {
   const [isSyncingAction, setIsSyncingAction] = useState<boolean>(false);
   const [syncError, setSyncError] = useState<string | null>(null);
 
+  // Kitchen hardware preferences (stored locally so Firestore schema stays untouched)
+  const [kitchenMode, setKitchenMode] = useState<KitchenMode>(() => {
+    try {
+      const saved = localStorage.getItem("easy_meals_kitchen_mode");
+      if (saved === "full_kitchen" || saved === "microwave_only") return saved;
+    } catch {}
+    return "microwave_only";
+  });
+
+  const [noFreezer, setNoFreezer] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem("easy_meals_no_freezer") === "true";
+    } catch {}
+    return false;
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("easy_meals_kitchen_mode", kitchenMode);
+    } catch {}
+  }, [kitchenMode]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("easy_meals_no_freezer", String(noFreezer));
+    } catch {}
+  }, [noFreezer]);
+
+  const triggerResultsFeedback = (nextMode: KitchenMode, nextNoFreezer: boolean) => {
+    setModePulse(true);
+    window.setTimeout(() => setModePulse(false), 900);
+    setRecentSuggestions((prev) =>
+      prev.filter((m) => isMealAllowedInKitchenMode(m, nextMode, nextNoFreezer))
+    );
+    window.requestAnimationFrame(() => {
+      resultsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    });
+  };
+
+  const handleChangeKitchenMode = (nextMode: KitchenMode) => {
+    setKitchenMode(nextMode);
+    if (nextMode === "microwave_only" && activeFilter === "one_skillet") {
+      setActiveFilter("all");
+    } else if (nextMode === "full_kitchen" && activeFilter === "assembly") {
+      setActiveFilter("all");
+    }
+
+    // Make the Spotlight visibly change to match the newly picked kitchen mode
+    const nextAllowed = meals.filter((m) =>
+      isMealAllowedInKitchenMode(m, nextMode, noFreezer)
+    );
+    const nextNonRut = nextAllowed.filter(
+      (m) => !rutMeals.some((r) => m.title.toLowerCase().includes(r.name.toLowerCase()))
+    );
+    const pool = nextNonRut.length > 0 ? nextNonRut : nextAllowed;
+    if (nextMode === "full_kitchen") {
+      const firstStoveIdx = pool.findIndex(
+        (m) => m.category === "one_skillet" || m.category === "sheet_pan"
+      );
+      setSpotlightIndex(firstStoveIdx >= 0 ? firstStoveIdx : 0);
+    } else {
+      setSpotlightIndex(0);
+    }
+
+    triggerResultsFeedback(nextMode, noFreezer);
+    showToast(
+      nextMode === "microwave_only"
+        ? `Showing ${nextAllowed.length} Microwave & No-Cook Dorm Meals`
+        : `Showing all ${nextAllowed.length} Full-Kitchen Meals`
+    );
+  };
+
+  const handleToggleNoFreezer = () => {
+    const next = !noFreezer;
+    setNoFreezer(next);
+    setSpotlightIndex(0);
+    triggerResultsFeedback(kitchenMode, next);
+    const nextCount = meals.filter((m) =>
+      isMealAllowedInKitchenMode(m, kitchenMode, next)
+    ).length;
+    showToast(
+      next
+        ? `No-Freezer active — showing ${nextCount} shelf & mini-fridge meals`
+        : `Freezer items included — showing ${nextCount} meals`
+    );
+  };
+
   // UI state
   const [activeFilter, setActiveFilter] = useState<string>("all");
   const [cookingMeal, setCookingMeal] = useState<Meal | null>(null);
@@ -138,8 +235,11 @@ export default function App() {
   const [isSuggestingFromPantry, setIsSuggestingFromPantry] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [spotlightIndex, setSpotlightIndex] = useState<number>(0);
+  const [recentSuggestions, setRecentSuggestions] = useState<Meal[]>([]);
+  const [modePulse, setModePulse] = useState<boolean>(false);
 
   const toastTimerRef = useRef<number | null>(null);
+  const resultsSectionRef = useRef<HTMLDivElement | null>(null);
   const rescueAbortRef = useRef<AbortController | null>(null);
   const rescueCancelledByUserRef = useRef<boolean>(false);
   const pantryAbortRef = useRef<AbortController | null>(null);
@@ -279,11 +379,11 @@ export default function App() {
 
         const data = snapshot.data();
         const remoteHouseholdId = typeof data.householdId === "string" ? data.householdId : "";
-        const remotePantry = sanitizePantryForCloud(normalizePantryList(data.pantryItems));
-        const remoteGrocery = sanitizeGroceryForCloud(Array.isArray(data.groceryItems) ? data.groceryItems : []);
-        const remoteRut = sanitizeRutForCloud(Array.isArray(data.rutMeals) ? data.rutMeals : []);
-        const remoteFavs = sanitizeFavoritesForCloud(Array.isArray(data.favorites) ? data.favorites : []);
-        const remoteCustom = sanitizeCustomMealsForCloud(Array.isArray(data.customMeals) ? data.customMeals : []);
+        const remotePantry = sanitizePantryForCloud(data.pantryItems);
+        const remoteGrocery = sanitizeGroceryForCloud(data.groceryItems);
+        const remoteRut = sanitizeRutForCloud(data.rutMeals);
+        const remoteFavs = sanitizeFavoritesForCloud(data.favorites);
+        const remoteCustom = sanitizeCustomMealsForCloud(data.customMeals);
 
         lastPrivateSnapshotRef.current = {
           pantry: JSON.stringify(remotePantry),
@@ -348,8 +448,8 @@ export default function App() {
       (snap) => {
         if (!snap.exists()) return;
         const data = snap.data();
-        const remotePantry = sanitizePantryForCloud(normalizePantryList(data.pantryItems));
-        const remoteGrocery = sanitizeGroceryForCloud(Array.isArray(data.groceryItems) ? data.groceryItems : []);
+        const remotePantry = sanitizePantryForCloud(data.pantryItems);
+        const remoteGrocery = sanitizeGroceryForCloud(data.groceryItems);
 
         lastSharedSnapshotRef.current = {
           pantry: JSON.stringify(remotePantry),
@@ -848,7 +948,11 @@ export default function App() {
   // AI Meal Generator (1 fresh idea)
   const handleGenerateMeal = async (energyFilter: string) => {
     const inferredCategory: Meal["category"] =
-      energyFilter === "microwave"
+      kitchenMode === "microwave_only"
+        ? energyFilter === "assembly"
+          ? "assembly"
+          : "microwave"
+        : energyFilter === "microwave"
         ? "microwave"
         : energyFilter === "one_skillet"
         ? "one_skillet"
@@ -860,17 +964,23 @@ export default function App() {
         activeFilter === "pantry" ||
         activeFilter === "healthy_boost" ||
         (activeFilter === "microwave" && createdMeal.category !== "microwave" && createdMeal.category !== "assembly") ||
+        (activeFilter === "assembly" && createdMeal.category !== "assembly") ||
         (activeFilter === "one_skillet" && createdMeal.category !== "one_skillet" && createdMeal.category !== "sheet_pan")
       ) {
         setActiveFilter("all");
       }
     };
 
-    const pickLocalFallback = () => {
-      const freshOptions = DEFAULT_MEALS.filter(
+    const pickLocalFallback = (customToast?: string) => {
+      const hardwareAllowed = DEFAULT_MEALS.filter((m) =>
+        isMealAllowedInKitchenMode(m, kitchenMode, noFreezer)
+      );
+      const basePool = hardwareAllowed.length > 0 ? hardwareAllowed : DEFAULT_MEALS;
+      const freshOptions = basePool.filter(
         (m) => !rutMeals.some((r) => m.title.toLowerCase().includes(r.name.toLowerCase()))
       );
-      const randomMeal = freshOptions[Math.floor(Math.random() * freshOptions.length)] || DEFAULT_MEALS[0];
+      const pool = freshOptions.length > 0 ? freshOptions : basePool;
+      const randomMeal = pool[Math.floor(Math.random() * pool.length)] || DEFAULT_MEALS[0];
       const cloned: Meal = {
         ...randomMeal,
         id: `fresh-pick-${Date.now()}`,
@@ -879,7 +989,7 @@ export default function App() {
       setMeals((prev) => [cloned, ...prev]);
       ensureVisibleInFilter(cloned);
       setSpotlightIndex(0);
-      showToast(`Selected easy meal: "${cloned.title}"!`);
+      showToast(customToast || `Selected easy meal: "${cloned.title}"!`);
     };
 
     if (typeof navigator !== "undefined" && !navigator.onLine) {
@@ -890,20 +1000,27 @@ export default function App() {
     setGeneratingMode("single");
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 16000);
+    let rateLimited = false;
     try {
-      const rutNames = rutMeals.map((r) => r.name);
       const res = await fetch("/api/generate-meal", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         signal: controller.signal,
         body: JSON.stringify({
-          rutMeals: rutNames,
-          existingTitles: meals.map((m) => m.title),
-          pantryItems: pantryItems.map((p) => p.name),
+          rutMeals: capApiStrings(rutMeals.map((r) => r.name)),
+          existingTitles: capApiStrings(meals.map((m) => m.title)),
+          pantryItems: capApiStrings(pantryItems.map((p) => p.name)),
           energyLevel: energyFilter,
-          timeLimit: 12
+          timeLimit: 12,
+          kitchenMode,
+          noFreezer
         })
       });
+
+      if (res.status === 429) {
+        rateLimited = true;
+        throw new Error("Rate limited");
+      }
 
       if (!res.ok) {
         throw new Error("Server could not generate AI meal");
@@ -917,14 +1034,16 @@ export default function App() {
       const newMeal: Meal = {
         ...data.meal,
         id: `ai-meal-${Date.now()}`,
-        category: inferredCategory
+        category: data.meal.category || inferredCategory
       };
       setMeals((prev) => [newMeal, ...prev]);
       ensureVisibleInFilter(newMeal);
       setSpotlightIndex(0);
       showToast(`Created fresh idea: "${newMeal.title}"!`);
     } catch {
-      pickLocalFallback();
+      pickLocalFallback(
+        rateLimited ? "Taking a breather — try again in a few minutes" : undefined
+      );
     } finally {
       clearTimeout(timeoutId);
       setGeneratingMode(null);
@@ -934,7 +1053,11 @@ export default function App() {
   // AI Batch Generator (3 diverse ideas across freezer, pantry, and fridge)
   const handleGenerateBatch = async (energyFilter: string) => {
     const inferredCategory: Meal["category"] =
-      energyFilter === "microwave"
+      kitchenMode === "microwave_only"
+        ? energyFilter === "assembly"
+          ? "assembly"
+          : "microwave"
+        : energyFilter === "microwave"
         ? "microwave"
         : energyFilter === "one_skillet"
         ? "one_skillet"
@@ -950,22 +1073,28 @@ export default function App() {
       }
     };
 
-    const promoteLocalBatchFallback = () => {
-      const nonRut = DEFAULT_MEALS.filter(
+    const promoteLocalBatchFallback = (customToast?: string) => {
+      const hardwareAllowed = DEFAULT_MEALS.filter((m) =>
+        isMealAllowedInKitchenMode(m, kitchenMode, noFreezer)
+      );
+      const basePool = hardwareAllowed.length > 0 ? hardwareAllowed : DEFAULT_MEALS;
+      const nonRut = basePool.filter(
         (m) => !rutMeals.some((r) => m.title.toLowerCase().includes(r.name.toLowerCase()))
       );
-      const shuffled = [...(nonRut.length >= 3 ? nonRut : DEFAULT_MEALS)].sort(
+      const shuffled = [...(nonRut.length >= 3 ? nonRut : basePool)].sort(
         () => Math.random() - 0.5
       );
-      const pickedIds = new Set(shuffled.slice(0, 3).map((m) => m.id));
+      const pickedSlice = shuffled.slice(0, 3);
+      const pickedIds = new Set(pickedSlice.map((m) => m.id));
       setMeals((prev) => {
         const promoted = prev.filter((m) => pickedIds.has(m.id));
         const rest = prev.filter((m) => !pickedIds.has(m.id));
         return [...promoted, ...rest];
       });
+      setRecentSuggestions(pickedSlice);
       ensureBatchVisible();
       setSpotlightIndex(0);
-      showToast("Surfaced 3 fresh meal picks from your library!");
+      showToast(customToast || "Surfaced 3 fresh meal picks — compare their ingredients below!");
     };
 
     if (typeof navigator !== "undefined" && !navigator.onLine) {
@@ -976,18 +1105,26 @@ export default function App() {
     setGeneratingMode("batch");
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 18000);
+    let rateLimited = false;
     try {
       const res = await fetch("/api/generate-batch", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         signal: controller.signal,
         body: JSON.stringify({
-          rutMeals: rutMeals.map((r) => r.name),
-          existingTitles: meals.map((m) => m.title),
-          pantryItems: pantryItems.map((p) => p.name),
-          energyLevel: energyFilter
+          rutMeals: capApiStrings(rutMeals.map((r) => r.name)),
+          existingTitles: capApiStrings(meals.map((m) => m.title)),
+          pantryItems: capApiStrings(pantryItems.map((p) => p.name)),
+          energyLevel: energyFilter,
+          kitchenMode,
+          noFreezer
         })
       });
+
+      if (res.status === 429) {
+        rateLimited = true;
+        throw new Error("Rate limited");
+      }
 
       if (!res.ok) throw new Error("Batch generation failed");
       const data = await res.json();
@@ -1005,11 +1142,14 @@ export default function App() {
         const unique = stamped.filter((s) => !existingLower.has(s.title.toLowerCase()));
         return [...unique, ...prev];
       });
+      setRecentSuggestions(stamped);
       ensureBatchVisible();
       setSpotlightIndex(0);
-      showToast(`Added ${stamped.length} brand-new meal ideas!`);
+      showToast(`Added ${stamped.length} brand-new meal ideas — check their ingredients below!`);
     } catch {
-      promoteLocalBatchFallback();
+      promoteLocalBatchFallback(
+        rateLimited ? "Taking a breather — try again in a few minutes" : undefined
+      );
     } finally {
       clearTimeout(timeoutId);
       setGeneratingMode(null);
@@ -1023,51 +1163,187 @@ export default function App() {
     setIsRescuing(false);
   };
 
-  // Turn random ingredients into meal
-  const handleRescueIngredients = async (ingredients: string[]) => {
-    const buildFallbackRescue = (): Meal => ({
-      id: `rescue-fallback-${Date.now()}`,
-      title: `Quick ${ingredients.slice(0, 2).join(" & ")} Skillet`,
-      tagline: "Throw your selected ingredients together in a pan for 6 minutes.",
-      prepMinutes: 2,
-      cookMinutes: 6,
-      category: "one_skillet",
-      ingredients: ingredients.map((item) => ({
+  // Turn random ingredients into 3 distinct meal options so the user sees what they are making first
+  const handleRescueIngredients = async (
+    ingredients: string[],
+    excludeTitles: string[] = []
+  ): Promise<Meal[]> => {
+    const cleanIngredients = capApiStrings(ingredients);
+    const excludeLower = new Set(excludeTitles.map((t) => t.toLowerCase()));
+    const ingLabel = cleanIngredients.slice(0, 2).join(" & ");
+    const ingAll = cleanIngredients.join(", ");
+
+    const buildFallbackRescueOptions = (): Meal[] => {
+      const baseIngs: Meal["ingredients"] = cleanIngredients.slice(0, 5).map((item) => ({
         item,
         amount: "1 portion",
         walmartAisle: "Pantry / Canned"
-      })),
-      instructions: [
+      }));
+
+      // Include overlapping meals from the user's library first if any match (respecting kitchen setup!)
+      const matchingLibrary = meals
+        .filter(
+          (m) =>
+            !excludeLower.has(m.title.toLowerCase()) &&
+            isMealAllowedInKitchenMode(m, kitchenMode, noFreezer)
+        )
+        .map((m) => {
+          const overlap = m.ingredients.filter((ing) =>
+            cleanIngredients.some(
+              (c) =>
+                ing.item.toLowerCase().includes(c.toLowerCase()) ||
+                c.toLowerCase().includes(ing.item.toLowerCase())
+            )
+          ).length;
+          return { meal: m, overlap };
+        })
+        .filter((x) => x.overlap > 0)
+        .sort((a, b) => b.overlap - a.overlap)
+        .slice(0, 2)
+        .map((x) => x.meal);
+
+      const now = Date.now();
+      const secondOption: Meal =
+        kitchenMode === "microwave_only"
+          ? {
+              id: `rescue-nocook-${now}-2`,
+              title: `2-Min No-Cook ${ingLabel} Mix`,
+              tagline: `Zero heat or microwave wait—toss ${ingAll} together on a plate or bowl right now.`,
+              prepMinutes: 2,
+              cookMinutes: 0,
+              category: "assembly",
+              ingredients: baseIngs,
+              instructions: [
+                {
+                  stepNumber: 1,
+                  title: "Combine in Bowl or Wrap",
+                  instruction: `Put ${ingAll} together in a bowl (or fold into a tortilla if you have one).`,
+                  timerSeconds: 0
+                },
+                {
+                  stepNumber: 2,
+                  title: "Season & Eat",
+                  instruction: "Add a pinch of salt, pepper, or your favorite sauce/dressing and eat immediately.",
+                  timerSeconds: 0
+                }
+              ],
+              whyItWorks: "Works even when the dorm microwave has a line or zero dishes are clean.",
+              rutAlternativeNote: "Fastest zero-appliance meal from what you already have."
+            }
+          : {
+              id: `rescue-skillet-${now}-2`,
+              title: `Quick ${ingLabel} Skillet Toss`,
+              tagline: `A warm, lightly crisped 1-pan meal made with ${ingAll} in about 7 minutes.`,
+              prepMinutes: 2,
+              cookMinutes: 5,
+              category: "one_skillet",
+              ingredients: baseIngs,
+              instructions: [
+                {
+                  stepNumber: 1,
+                  title: "Heat Pan & Add Ingredients",
+                  instruction: `Warm a non-stick skillet over medium heat with 1 tablespoon of oil or butter. Add ${ingAll}.`,
+                  timerSeconds: 0
+                },
+                {
+                  stepNumber: 2,
+                  title: "Sizzle & Season",
+                  instruction: "Toss and stir for 5 minutes until heated through and lightly browned, adding salt and pepper.",
+                  timerSeconds: 300
+                },
+                {
+                  stepNumber: 3,
+                  title: "Plate & Serve",
+                  instruction: "Scoop onto a plate or into a bowl and enjoy hot.",
+                  timerSeconds: 0
+                }
+              ],
+              whyItWorks: "Pan heat makes simple staples taste like a cooked dinner with minimal effort.",
+              rutAlternativeNote: "Beats plain snacks while cleaning out the fridge before food spoils."
+            };
+
+      const syntheticOptions: Meal[] = [
         {
-          stepNumber: 1,
-          title: "Heat Skillet & Add Ingredients",
-          instruction: `Warm a medium non-stick skillet over medium heat with 1 tablespoon of oil. Dump in ${ingredients.join(" and ")}.`,
-          timerSeconds: 0
+          id: `rescue-micro-${now}-1`,
+          title: `3-Min ${ingLabel} Warm Bowl`,
+          tagline: `A fast, no-pan microwave bowl combining ${ingAll} with zero cleanup.`,
+          prepMinutes: 1,
+          cookMinutes: 2,
+          category: "microwave",
+          ingredients: baseIngs,
+          instructions: [
+            {
+              stepNumber: 1,
+              title: "Combine in Bowl",
+              instruction: `Add ${ingAll} into a microwave-safe bowl with a splash of water or pinch of salt.`,
+              timerSeconds: 0
+            },
+            {
+              stepNumber: 2,
+              title: "Microwave Hot",
+              instruction: "Cover loosely with a paper towel and microwave for 90 seconds to 2 minutes until steaming hot.",
+              timerSeconds: 120
+            },
+            {
+              stepNumber: 3,
+              title: "Stir & Eat",
+              instruction: "Give it one quick stir and eat straight from the bowl.",
+              timerSeconds: 0
+            }
+          ],
+          whyItWorks: "Zero pans to wash and uses exactly what you picked right now.",
+          rutAlternativeNote: "Turns loose kitchen items into a warm bowl faster than boiling ramen."
         },
+        secondOption,
         {
-          stepNumber: 2,
-          title: "Warm & Season",
-          instruction: "Stir for 5 minutes until steaming and heated through. Add a pinch of salt and pepper.",
-          timerSeconds: 300
-        },
-        {
-          stepNumber: 3,
-          title: "Plate & Eat",
-          instruction: "Scoop directly into a bowl. Zero wasted groceries!",
-          timerSeconds: 0
+          id: `rescue-plate-${now}-3`,
+          title: `Easy ${ingLabel} Plate Mash-Up`,
+          tagline: `A simple, customizable comfort plate pairing ${ingAll} together with zero fuss.`,
+          prepMinutes: 3,
+          cookMinutes: 2,
+          category: "microwave",
+          ingredients: baseIngs,
+          instructions: [
+            {
+              stepNumber: 1,
+              title: "Prep on One Plate",
+              instruction: `Arrange ${ingAll} together on a large microwave-safe plate or shallow bowl.`,
+              timerSeconds: 0
+            },
+            {
+              stepNumber: 2,
+              title: "Warm If Needed",
+              instruction: "Cover lightly with a paper towel and microwave 90 seconds until warm, keeping cold toppings on the side.",
+              timerSeconds: 90
+            },
+            {
+              stepNumber: 3,
+              title: "Season & Dig In",
+              instruction: "Sprinkle with a pinch of salt, pepper, or your favorite condiment and eat right away.",
+              timerSeconds: 0
+            }
+          ],
+          whyItWorks: "Keeps ingredients balanced on one plate without extra cookware.",
+          rutAlternativeNote: "Gives you a filling meal without defaulting to packaged snacks."
         }
-      ],
-      whyItWorks: "Uses up what is in your fridge before it turns without complicated recipes.",
-      rutAlternativeNote: "Turns ingredients you already have into a warm, satisfying meal in minutes."
-    });
+      ];
+
+      const picked: Meal[] = [...matchingLibrary];
+      const usedTitles = new Set(picked.map((m) => m.title.toLowerCase()));
+      for (const opt of syntheticOptions) {
+        if (picked.length >= 3) break;
+        if (!usedTitles.has(opt.title.toLowerCase())) {
+          usedTitles.add(opt.title.toLowerCase());
+          picked.push(opt);
+        }
+      }
+      return picked.slice(0, 3);
+    };
 
     if (typeof navigator !== "undefined" && !navigator.onLine) {
-      const offlineMeal = buildFallbackRescue();
-      setMeals((prev) => [offlineMeal, ...prev]);
-      setShowRescueModal(false);
-      setCookingMeal(offlineMeal);
-      showToast("Created quick meal from your ingredients!");
-      return;
+      const offlineOptions = buildFallbackRescueOptions();
+      showToast("Here are 3 quick meal options from your ingredients!");
+      return offlineOptions;
     }
 
     rescueAbortRef.current?.abort();
@@ -1076,46 +1352,63 @@ export default function App() {
     rescueCancelledByUserRef.current = false;
     setIsRescuing(true);
     const timeoutId = setTimeout(() => controller.abort(), 16000);
+    let rateLimited = false;
 
     try {
-      const rutNames = rutMeals.map((r) => r.name);
       const res = await fetch("/api/ingredients-to-meal", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         signal: controller.signal,
         body: JSON.stringify({
-          ingredients,
-          rutMeals: rutNames
+          ingredients: cleanIngredients,
+          rutMeals: capApiStrings(rutMeals.map((r) => r.name)),
+          existingTitles: capApiStrings(excludeTitles),
+          kitchenMode,
+          noFreezer
         })
       });
+
+      if (res.status === 429) {
+        rateLimited = true;
+        throw new Error("Rate limited");
+      }
 
       if (!res.ok) throw new Error("Could not process ingredients");
       const data = await res.json();
 
-      if (rescueCancelledByUserRef.current) return;
+      if (rescueCancelledByUserRef.current) return [];
 
-      if (!data.meal || !data.meal.title) {
-        throw new Error("Incomplete meal returned");
+      const rawList: Meal[] = Array.isArray(data?.meals)
+        ? data.meals
+        : data?.meal?.title
+        ? [data.meal]
+        : [];
+
+      const now = Date.now();
+      const stamped = sanitizeCustomMealsForCloud(
+        rawList.map((m, idx) => ({
+          ...m,
+          id: m.id || `rescue-${now}-${idx}`,
+          category: m.category || "one_skillet"
+        }))
+      );
+
+      if (stamped.length === 0) {
+        throw new Error("Incomplete meal options returned");
       }
 
-      const newMeal: Meal = {
-        ...data.meal,
-        id: `rescue-${Date.now()}`,
-        category: "one_skillet"
-      };
-      setMeals((prev) => [newMeal, ...prev]);
-      setShowRescueModal(false);
-      setCookingMeal(newMeal);
-      showToast(`Ingredients rescued! Starting: "${newMeal.title}"`);
+      return stamped;
     } catch {
       if (rescueCancelledByUserRef.current) {
-        return;
+        return [];
       }
-      const fallbackRescue = buildFallbackRescue();
-      setMeals((prev) => [fallbackRescue, ...prev]);
-      setShowRescueModal(false);
-      setCookingMeal(fallbackRescue);
-      showToast(`Created quick meal from your ingredients!`);
+      const fallbackOptions = buildFallbackRescueOptions();
+      showToast(
+        rateLimited
+          ? "Taking a breather — try again in a few minutes"
+          : "Showing 3 quick options made from your ingredients!"
+      );
+      return fallbackOptions;
     } finally {
       clearTimeout(timeoutId);
       if (rescueAbortRef.current === controller) {
@@ -1123,6 +1416,39 @@ export default function App() {
       }
       setIsRescuing(false);
     }
+  };
+
+  const saveRescueSelectionToLibrary = (chosen: Meal, allOptions: Meal[]) => {
+    setMeals((prev) => {
+      const existingIds = new Set(prev.map((m) => m.id));
+      const newOnes = [chosen, ...allOptions.filter((m) => m.id !== chosen.id)].filter(
+        (m) => !existingIds.has(m.id)
+      );
+      const rest = prev.filter((m) => m.id !== chosen.id);
+      const promotedChosen = existingIds.has(chosen.id) ? [chosen] : [];
+      return [...newOnes, ...promotedChosen, ...rest];
+    });
+    if (
+      activeFilter === "favorites" ||
+      activeFilter === "pantry" ||
+      activeFilter === "healthy_boost"
+    ) {
+      setActiveFilter("all");
+    }
+    setSpotlightIndex(0);
+  };
+
+  const handleCookRescueOption = (meal: Meal, allOptions: Meal[]) => {
+    saveRescueSelectionToLibrary(meal, allOptions);
+    setShowRescueModal(false);
+    setCookingMeal(meal);
+    showToast(`Starting: "${meal.title}"`);
+  };
+
+  const handleViewRescueOption = (meal: Meal, allOptions: Meal[]) => {
+    saveRescueSelectionToLibrary(meal, allOptions);
+    setShowRescueModal(false);
+    showToast(`"${meal.title}" is ready in Today's Spotlight!`);
   };
 
   // Suggest new meals from pantry items
@@ -1140,6 +1466,7 @@ export default function App() {
     pantryAbortRef.current = controller;
     setIsSuggestingFromPantry(true);
     const timeoutId = setTimeout(() => controller.abort(), 16000);
+    let rateLimited = false;
 
     try {
       const res = await fetch("/api/pantry-suggestions", {
@@ -1147,11 +1474,18 @@ export default function App() {
         headers: { "Content-Type": "application/json" },
         signal: controller.signal,
         body: JSON.stringify({
-          pantryItems: itemsToUse.map((i) => i.name),
-          existingTitles: meals.map((m) => m.title),
-          rutMeals: rutMeals.map((r) => r.name)
+          pantryItems: capApiStrings(itemsToUse.map((i) => i.name)),
+          existingTitles: capApiStrings(meals.map((m) => m.title)),
+          rutMeals: capApiStrings(rutMeals.map((r) => r.name)),
+          kitchenMode,
+          noFreezer
         })
       });
+
+      if (res.status === 429) {
+        rateLimited = true;
+        throw new Error("Rate limited");
+      }
 
       if (!res.ok) throw new Error("Failed pantry suggestions");
       const data = await res.json();
@@ -1160,19 +1494,24 @@ export default function App() {
         const stamped: Meal[] = suggested.map((m, idx) => ({
           ...m,
           id: `pantry-meal-${Date.now()}-${idx}`,
-          category: m.category || "one_skillet"
+          category: m.category || (kitchenMode === "microwave_only" ? "microwave" : "one_skillet")
         }));
         setMeals((prev) => {
           const existingTitlesLower = new Set(prev.map((p) => p.title.toLowerCase()));
           const uniqueNew = stamped.filter((s) => !existingTitlesLower.has(s.title.toLowerCase()));
           return [...uniqueNew, ...prev];
         });
+        if (!silent) {
+          setRecentSuggestions(stamped);
+        }
         showToast(`Added ${stamped.length} new meal ideas from your pantry!`);
       } else if (!silent) {
         showToast("Updated matches using your saved meal library.");
       }
     } catch {
-      if (!silent) {
+      if (rateLimited) {
+        showToast("Taking a breather — try again in a few minutes");
+      } else if (!silent) {
         showToast("Updated matches using your saved meal library.");
       }
     } finally {
@@ -1199,14 +1538,20 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pantryItems]);
 
+  // Meals allowed by the active kitchen hardware setup (Microwave-Only / No-Freezer vs Full Kitchen)
+  const hardwareAllowedMeals = meals.filter((m) =>
+    isMealAllowedInKitchenMode(m, kitchenMode, noFreezer)
+  );
+  const visibleMealBase = hardwareAllowedMeals.length > 0 ? hardwareAllowedMeals : meals;
+
   // Meals matching pantry
   const minMatchThreshold = pantryItems.length >= 2 ? 2 : 1;
   const pantryMatchedMeals = pantryItems.length > 0
-    ? meals.filter((m) => getPantryMatchStats(m, pantryItems).matchCount >= minMatchThreshold)
+    ? visibleMealBase.filter((m) => getPantryMatchStats(m, pantryItems).matchCount >= minMatchThreshold)
     : [];
 
   // Filtered & sorted meals (prioritizing pantry matches when pantry has items)
-  const filteredMeals = meals
+  const filteredMeals = visibleMealBase
     .filter((meal) => {
       if (activeFilter === "pantry") {
         return getPantryMatchStats(meal, pantryItems).matchCount >= 1;
@@ -1215,7 +1560,12 @@ export default function App() {
         return favorites.includes(meal.id);
       }
       if (activeFilter === "microwave") {
-        return meal.category === "microwave" || meal.category === "assembly";
+        return kitchenMode === "microwave_only"
+          ? meal.category === "microwave"
+          : meal.category === "microwave" || meal.category === "assembly";
+      }
+      if (activeFilter === "assembly") {
+        return meal.category === "assembly";
       }
       if (activeFilter === "one_skillet") {
         return meal.category === "one_skillet" || meal.category === "sheet_pan";
@@ -1237,8 +1587,8 @@ export default function App() {
       return statsB.ratio - statsA.ratio;
     });
 
-  // Cycle Shuffle Pick through all non-rut meals (pantry matches first, then full diverse library)
-  const spotlightPool = [...meals]
+  // Cycle Shuffle Pick through all non-rut meals allowed in the current kitchen setup
+  const spotlightPool = [...visibleMealBase]
     .filter((m) => !rutMeals.some((r) => m.title.toLowerCase().includes(r.name.toLowerCase())))
     .sort((a, b) => {
       if (pantryItems.length === 0) return 0;
@@ -1249,8 +1599,8 @@ export default function App() {
       }
       return statsB.ratio - statsA.ratio;
     });
-  const activeSpotlightPool = spotlightPool.length > 0 ? spotlightPool : meals;
-  const spotlightMeal = activeSpotlightPool[spotlightIndex % Math.max(1, activeSpotlightPool.length)] || meals[0];
+  const activeSpotlightPool = spotlightPool.length > 0 ? spotlightPool : visibleMealBase;
+  const spotlightMeal = activeSpotlightPool[spotlightIndex % Math.max(1, activeSpotlightPool.length)] || visibleMealBase[0];
 
   return (
     <div className="min-h-screen bg-stone-100/70 text-stone-900 flex flex-col font-sans">
@@ -1357,10 +1707,15 @@ export default function App() {
               <span>Zero-Cognitive-Load Promise</span>
             </div>
             <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-emerald-50">
-              Easy, balanced meals without the guesswork.
+              {kitchenMode === "microwave_only"
+                ? "Microwave & no-cook meals without the guesswork."
+                : "Easy, balanced meals without the guesswork."}
             </h2>
             <p className="text-emerald-200/90 text-xs sm:text-sm leading-relaxed">
-              Every meal uses <strong>3 to 5 everyday Walmart ingredients</strong>, cooks in under 15 minutes, and puts the exact amounts right inside each step. Update your pantry anytime to unlock more ideas.
+              Every meal uses <strong>3 to 5 everyday Walmart ingredients</strong>, takes under 15 minutes, and puts the exact amounts right inside each step.{" "}
+              {kitchenMode === "microwave_only"
+                ? "Defaulting to Dorm / Microwave-Only (no stove, kettle, or hot plate required)."
+                : "Update your pantry anytime to unlock more ideas."}
             </p>
           </div>
 
@@ -1377,6 +1732,10 @@ export default function App() {
 
         {/* Brain-Free Generator & Filter Bar */}
         <MealGeneratorBar
+          kitchenMode={kitchenMode}
+          onChangeKitchenMode={handleChangeKitchenMode}
+          noFreezer={noFreezer}
+          onToggleNoFreezer={handleToggleNoFreezer}
           onGenerateMeal={handleGenerateMeal}
           onGenerateBatch={handleGenerateBatch}
           generatingMode={generatingMode}
@@ -1392,18 +1751,190 @@ export default function App() {
           onOpenPantryModal={() => setShowPantryModal(true)}
         />
 
-        {/* Quick Spotlight "What Should I Eat Right Now?" Card */}
-        {spotlightMeal && (
-          <div className="bg-white border-2 border-emerald-700/30 rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-5 relative overflow-hidden">
-            <div className="absolute top-0 left-0 bg-emerald-700 text-white text-[10px] font-bold uppercase tracking-wider px-3 py-0.5 rounded-br-lg">
-              Today's Recommended Rut-Buster
+        {/* Active Kitchen Window Summary + Live Results Anchor */}
+        <div
+          ref={resultsSectionRef}
+          className={`rounded-2xl border px-4 py-3 flex flex-wrap items-center justify-between gap-2 transition-all duration-300 ${
+            modePulse
+              ? "bg-emerald-100 border-emerald-500 ring-2 ring-emerald-400/50"
+              : kitchenMode === "microwave_only"
+              ? "bg-amber-50/80 border-amber-200"
+              : "bg-stone-50 border-stone-200"
+          }`}
+        >
+          <div className="text-xs sm:text-sm font-semibold text-stone-800">
+            {kitchenMode === "microwave_only" ? (
+              <span>
+                Microwave &amp; No-Cook Window: Showing{" "}
+                <strong className="text-emerald-900">{hardwareAllowedMeals.length} dorm-safe meals</strong>
+                {meals.length > hardwareAllowedMeals.length && (
+                  <span className="text-stone-600 font-normal">
+                    {" "}
+                    ({meals.length - hardwareAllowedMeals.length} stove, oven &amp; skillet meals hidden
+                    {noFreezer ? ", freezer items hidden" : ""})
+                  </span>
+                )}
+              </span>
+            ) : (
+              <span>
+                Full Kitchen Window: Showing all{" "}
+                <strong className="text-stone-900">{hardwareAllowedMeals.length} meals</strong>
+                {noFreezer && (
+                  <span className="text-stone-600 font-normal"> (freezer items hidden)</span>
+                )}
+              </span>
+            )}
+          </div>
+          <span className="text-xs text-stone-500">
+            Every meal below lists what you need to buy before cooking
+          </span>
+        </div>
+
+        {/* Side-by-Side Comparison Strip When New Suggestions Arrive */}
+        {recentSuggestions.length > 0 && (
+          <div className="bg-white border-2 border-amber-300 rounded-2xl p-4 sm:p-5 shadow-sm space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <h3 className="text-sm sm:text-base font-bold text-stone-900">
+                  Compare Your {recentSuggestions.length} New Ideas (See What Each Needs)
+                </h3>
+                <p className="text-xs text-stone-600">
+                  Check the ingredients below to pick whichever one you have or are willing to grab at Walmart.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setRecentSuggestions([])}
+                className="p-1.5 text-stone-400 hover:text-stone-700 hover:bg-stone-100 rounded-lg transition-colors"
+                aria-label="Dismiss suggestions comparison"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
 
-            <div className="space-y-2 max-w-2xl pt-2">
-              <div className="flex items-center gap-2 text-xs text-stone-500">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {recentSuggestions.map((item) => {
+                const missing = getMissingIngredients(item, pantryItems);
+                const totalMins = item.prepMinutes + item.cookMinutes;
+                const methodLabel =
+                  item.category === "assembly"
+                    ? "No-Cook"
+                    : item.category === "microwave"
+                    ? "Microwave Only"
+                    : item.category === "sheet_pan"
+                    ? "Sheet Pan"
+                    : item.category === "comfort"
+                    ? "Cozy Meal"
+                    : "1 Skillet";
+                return (
+                  <div
+                    key={item.id}
+                    className="rounded-xl border border-stone-200 bg-stone-50/70 p-3.5 flex flex-col justify-between gap-3"
+                  >
+                    <div className="space-y-2">
+                      <div>
+                        <h4 className="text-sm font-bold text-stone-900 leading-snug">
+                          {item.title}
+                        </h4>
+                        <div className="text-[11px] text-stone-500 font-medium mt-0.5">
+                          {methodLabel} · {totalMins} min · {item.ingredients.length} items
+                          {pantryItems.length > 0 && (
+                            <span className="text-emerald-700 font-semibold">
+                              {" "}
+                              · {missing.length === 0 ? "Have all" : `Buy ${missing.length}`}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <p className="text-xs text-stone-600 leading-relaxed">{item.tagline}</p>
+
+                      <div className="space-y-1 pt-1 border-t border-stone-200/70">
+                        <div className="text-[11px] font-bold uppercase tracking-wider text-stone-500">
+                          What You Need:
+                        </div>
+                        <ul className="space-y-0.5">
+                          {item.ingredients.map((ing, i) => {
+                            const inPantry =
+                              pantryItems.length > 0 &&
+                              !missing.some((m) => m.item === ing.item);
+                            return (
+                              <li key={i} className="text-xs text-stone-700 flex items-start gap-1.5">
+                                <span
+                                  className={`w-1.5 h-1.5 rounded-full shrink-0 mt-1.5 ${
+                                    inPantry ? "bg-emerald-600" : "bg-stone-300"
+                                  }`}
+                                />
+                                <span>
+                                  <strong className="font-semibold text-stone-900">{ing.amount}</strong>{" "}
+                                  {ing.item}
+                                  {inPantry && (
+                                    <span className="text-[10px] text-emerald-700 font-semibold ml-1">
+                                      (have)
+                                    </span>
+                                  )}
+                                </span>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setRecentSuggestions([]);
+                          setCookingMeal(item);
+                        }}
+                        className="flex-1 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold px-3 py-2 rounded-lg transition-colors"
+                      >
+                        Cook This
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          pantryItems.length > 0
+                            ? handleAddMissingToGrocery(item)
+                            : handleAddToGrocery(item)
+                        }
+                        className="bg-white hover:bg-emerald-50 text-emerald-900 border border-emerald-300 text-xs font-semibold px-3 py-2 rounded-lg transition-colors"
+                      >
+                        {pantryItems.length > 0 ? "+ Missing" : "+ List"}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Quick Spotlight "What Should I Eat Right Now?" Card */}
+        {spotlightMeal && (
+          <div className="bg-white border-2 border-emerald-700/30 rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col lg:flex-row items-start lg:items-center justify-between gap-5 relative overflow-hidden">
+            <div className="absolute top-0 left-0 bg-emerald-700 text-white text-[10px] font-bold uppercase tracking-wider px-3 py-0.5 rounded-br-lg">
+              {kitchenMode === "microwave_only"
+                ? "Today's Dorm Pick (Microwave / No-Cook)"
+                : "Today's Recommended Rut-Buster"}
+            </div>
+
+            <div className="space-y-2.5 max-w-2xl pt-2 flex-1 w-full">
+              <div className="flex flex-wrap items-center gap-2 text-xs text-stone-500 font-medium">
                 <Clock className="w-3.5 h-3.5 text-emerald-700" />
                 <span>{spotlightMeal.prepMinutes + spotlightMeal.cookMinutes} minutes total</span>
-                <span>•</span>
+                <span>·</span>
+                <span>
+                  {spotlightMeal.category === "assembly"
+                    ? "No-Cook"
+                    : spotlightMeal.category === "microwave"
+                    ? "Microwave Only"
+                    : spotlightMeal.category === "sheet_pan"
+                    ? "Sheet Pan / Oven"
+                    : "1 Skillet"}
+                </span>
+                <span>·</span>
                 <span>{spotlightMeal.ingredients.length} items from Walmart</span>
               </div>
 
@@ -1414,13 +1945,67 @@ export default function App() {
                 {spotlightMeal.tagline}
               </p>
 
+              {/* Visible Ingredient Checklist on Spotlight so user knows what to buy before cooking */}
+              <div className="bg-stone-50 border border-stone-200 rounded-xl p-3 space-y-1.5">
+                <div className="flex items-center justify-between gap-2 text-xs">
+                  <span className="font-bold uppercase tracking-wider text-stone-600">
+                    What This Meal Needs:
+                  </span>
+                  {pantryItems.length > 0 && (
+                    <span className="font-semibold text-emerald-700">
+                      {(() => {
+                        const mCount = getMissingIngredients(spotlightMeal, pantryItems).length;
+                        return mCount === 0
+                          ? "All in pantry"
+                          : `Need to buy ${mCount} of ${spotlightMeal.ingredients.length}`;
+                      })()}
+                    </span>
+                  )}
+                </div>
+                <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
+                  {spotlightMeal.ingredients.map((ing, idx) => {
+                    const stats =
+                      pantryItems.length > 0
+                        ? getPantryMatchStats(spotlightMeal, pantryItems)
+                        : null;
+                    const inPantry = stats?.matchedIngredients[idx] ?? false;
+                    return (
+                      <li
+                        key={idx}
+                        className="text-xs text-stone-700 flex items-start justify-between gap-2"
+                      >
+                        <span className="flex items-start gap-1.5 min-w-0">
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full shrink-0 mt-1.5 ${
+                              inPantry ? "bg-emerald-600 ring-2 ring-emerald-200" : "bg-stone-300"
+                            }`}
+                          />
+                          <span>
+                            <strong className="font-semibold text-stone-900">{ing.amount}</strong>{" "}
+                            {ing.item}
+                            {inPantry && (
+                              <span className="ml-1 text-[10px] font-semibold text-emerald-700">
+                                (have)
+                              </span>
+                            )}
+                          </span>
+                        </span>
+                        <span className="text-[11px] text-stone-400 shrink-0">
+                          {ing.walmartAisle}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+
               <div className="text-xs text-emerald-900 bg-emerald-50/70 p-2.5 rounded-lg border border-emerald-100 flex items-center gap-2">
                 <span className="font-bold">Why eat this:</span>
                 <span>{spotlightMeal.whyItWorks}</span>
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full md:w-auto shrink-0">
+            <div className="flex flex-col sm:flex-row lg:flex-col items-stretch gap-2.5 w-full lg:w-auto shrink-0">
               <button
                 onClick={() => setCookingMeal(spotlightMeal)}
                 className="bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-sm px-5 py-3 rounded-xl shadow-sm flex items-center justify-center gap-2 transition-colors"
@@ -1436,7 +2021,7 @@ export default function App() {
                       ? handleAddMissingToGrocery(spotlightMeal)
                       : handleAddToGrocery(spotlightMeal)
                   }
-                  className="flex-1 sm:flex-initial bg-emerald-50 hover:bg-emerald-100 text-emerald-900 font-medium text-xs px-3.5 py-3 rounded-xl border border-emerald-200 flex items-center justify-center gap-1.5 transition-colors"
+                  className="flex-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 font-medium text-xs px-3.5 py-3 rounded-xl border border-emerald-200 flex items-center justify-center gap-1.5 transition-colors"
                   title={
                     pantryItems.length > 0
                       ? "Add missing ingredients to Walmart list"
@@ -1449,7 +2034,7 @@ export default function App() {
 
                 <button
                   onClick={() => setSpotlightIndex((prev) => prev + 1)}
-                  className="flex-1 sm:flex-initial bg-stone-100 hover:bg-stone-200 text-stone-700 font-medium text-xs px-3.5 py-3 rounded-xl border border-stone-200 flex items-center justify-center gap-1.5 transition-colors"
+                  className="flex-1 bg-stone-100 hover:bg-stone-200 text-stone-700 font-medium text-xs px-3.5 py-3 rounded-xl border border-stone-200 flex items-center justify-center gap-1.5 transition-colors"
                   title="Shuffle recommendation"
                 >
                   <Shuffle className="w-3.5 h-3.5" />
@@ -1470,14 +2055,20 @@ export default function App() {
                   : activeFilter === "favorites"
                   ? "Saved Favorites"
                   : activeFilter === "microwave"
-                  ? "Microwave & No-Cook Meals"
+                  ? kitchenMode === "microwave_only"
+                    ? "Microwave-Only Meals"
+                    : "Microwave & No-Cook Meals"
+                  : activeFilter === "assembly"
+                  ? "No-Cook Meals (Zero Heat)"
                   : activeFilter === "one_skillet"
                   ? "One-Skillet & Sheet-Pan Meals"
                   : activeFilter === "healthy_boost"
                   ? "Veggie-Boosted Easy Meals"
                   : pantryItems.length > 0
                   ? "Suggested Meals (Best Pantry Matches First)"
-                  : "All Low-Cognitive-Load Meals"}
+                  : kitchenMode === "microwave_only"
+                  ? "Dorm-Safe Meals (Microwave & No-Cook)"
+                  : "All Easy Meals (Full Kitchen)"}
               </h3>
               <span className="text-xs text-stone-500 font-medium">
                 ({filteredMeals.length})
@@ -1644,6 +2235,8 @@ export default function App() {
           pantryItems={pantryItems}
           matchingMealCount={pantryMatchedMeals.length}
           isSuggesting={isSuggestingFromPantry}
+          kitchenMode={kitchenMode}
+          noFreezer={noFreezer}
           onTogglePantryItem={handleTogglePantryItem}
           onAddPantryItem={handleAddPantryItem}
           onUpdatePantryQuantity={handleUpdatePantryQuantity}
@@ -1656,7 +2249,11 @@ export default function App() {
       {/* Ingredient Rescue Modal */}
       {showRescueModal && (
         <IngredientRescueModal
-          onRescue={handleRescueIngredients}
+          kitchenMode={kitchenMode}
+          noFreezer={noFreezer}
+          onGenerateOptions={handleRescueIngredients}
+          onCookOption={handleCookRescueOption}
+          onViewOption={handleViewRescueOption}
           onCancel={handleCancelRescue}
           onClose={() => {
             handleCancelRescue();

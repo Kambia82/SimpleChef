@@ -11,7 +11,7 @@ import {
   getDocFromServer
 } from "firebase/firestore";
 import firebaseConfig from "../firebase-applet-config.json";
-import { GroceryItem, Meal, PantryItem, RutMeal } from "./types";
+import { GroceryItem, Meal, PantryItem, RutMeal, WalmartAisle } from "./types";
 
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
@@ -90,64 +90,282 @@ export async function signOutUser() {
   return firebaseSignOut(auth);
 }
 
-// Payload sanitization aligned strictly with firebase-blueprint.json & firestore.rules
-export function sanitizePantryForCloud(items: PantryItem[]): PantryItem[] {
-  return items
-    .map((item) => ({
-      name: String(item.name || "").trim().slice(0, 100),
-      quantity: Math.max(1, Math.min(999, Math.round(Number(item.quantity) || 1)))
-    }))
-    .filter((item) => item.name.length > 0)
-    .slice(0, 150);
+const VALID_AISLES = new Set<WalmartAisle>([
+  "Produce",
+  "Meat & Deli",
+  "Dairy & Eggs",
+  "Pantry / Canned",
+  "Frozen",
+  "Bakery",
+  "Spices & Condiments"
+]);
+
+const VALID_CATEGORIES = new Set<Meal["category"]>([
+  "assembly",
+  "microwave",
+  "one_skillet",
+  "sheet_pan",
+  "comfort"
+]);
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-export function sanitizeGroceryForCloud(items: GroceryItem[]): GroceryItem[] {
-  return items
-    .map((item) => ({
-      id: String(item.id || `g-${Date.now()}`).slice(0, 128),
-      name: String(item.name || "").trim().slice(0, 120),
-      amount: String(item.amount || "1").slice(0, 60),
-      aisle: item.aisle,
-      mealTitle: String(item.mealTitle || "Easy Meal").slice(0, 120),
-      completed: Boolean(item.completed)
-    }))
-    .filter((item) => item.id.length > 0 && item.name.length > 0)
-    .slice(0, 200);
+function normalizeAisle(raw: unknown): WalmartAisle | null {
+  if (typeof raw !== "string") return null;
+  const trimmed = raw.trim().slice(0, 40);
+  if (!trimmed) return null;
+  if (VALID_AISLES.has(trimmed as WalmartAisle)) {
+    return trimmed as WalmartAisle;
+  }
+  return "Pantry / Canned";
 }
 
-export function sanitizeRutForCloud(items: RutMeal[]): RutMeal[] {
-  return items
-    .map((item) => {
-      const cleaned: RutMeal = {
-        id: String(item.id || `rut-${Date.now()}`).slice(0, 128),
-        name: String(item.name || "").trim().slice(0, 100),
-        dateAdded: String(item.dateAdded || new Date().toISOString()).slice(0, 64)
-      };
-      if (item.category) {
-        cleaned.category = String(item.category).slice(0, 60);
+// Strict per-item validation & sanitization aligned with firebase-blueprint.json & firestore.rules.
+// Validates EVERY element (not just index 0) before writes and skips malformed entries on reads without crashing.
+export function sanitizePantryForCloud(items: unknown): PantryItem[] {
+  if (!Array.isArray(items)) return [];
+  const deduped = new Map<string, PantryItem>();
+
+  for (const entry of items) {
+    if (!isPlainObject(entry)) continue;
+    if (typeof entry.name !== "string") continue;
+    if (typeof entry.quantity !== "number" || !Number.isFinite(entry.quantity)) continue;
+
+    const name = entry.name.trim().slice(0, 100);
+    const quantity = Math.round(entry.quantity);
+    if (!name || quantity < 1) continue;
+
+    const clampedQty = Math.min(999, quantity);
+    const key = name.toLowerCase();
+    const existing = deduped.get(key);
+    if (existing) {
+      existing.quantity = Math.min(999, existing.quantity + clampedQty);
+    } else if (deduped.size < 150) {
+      deduped.set(key, { name, quantity: clampedQty });
+    }
+  }
+
+  return Array.from(deduped.values());
+}
+
+export function sanitizeGroceryForCloud(items: unknown): GroceryItem[] {
+  if (!Array.isArray(items)) return [];
+  const result: GroceryItem[] = [];
+  const seenIds = new Set<string>();
+
+  for (const entry of items) {
+    if (result.length >= 200) break;
+    if (!isPlainObject(entry)) continue;
+    if (
+      typeof entry.id !== "string" ||
+      typeof entry.name !== "string" ||
+      typeof entry.amount !== "string" ||
+      typeof entry.mealTitle !== "string" ||
+      typeof entry.completed !== "boolean"
+    ) {
+      continue;
+    }
+
+    const aisle = normalizeAisle(entry.aisle);
+    if (!aisle) continue;
+
+    const id = entry.id.trim().slice(0, 128);
+    const name = entry.name.trim().slice(0, 120);
+    if (!id || !name || seenIds.has(id)) continue;
+
+    seenIds.add(id);
+    result.push({
+      id,
+      name,
+      amount: entry.amount.trim().slice(0, 60),
+      aisle,
+      mealTitle: entry.mealTitle.trim().slice(0, 120),
+      completed: entry.completed
+    });
+  }
+
+  return result;
+}
+
+export function sanitizeRutForCloud(items: unknown): RutMeal[] {
+  if (!Array.isArray(items)) return [];
+  const result: RutMeal[] = [];
+  const seenIds = new Set<string>();
+
+  for (const entry of items) {
+    if (result.length >= 100) break;
+    if (!isPlainObject(entry)) continue;
+    if (
+      typeof entry.id !== "string" ||
+      typeof entry.name !== "string" ||
+      typeof entry.dateAdded !== "string"
+    ) {
+      continue;
+    }
+    if (entry.category !== undefined && typeof entry.category !== "string") {
+      continue;
+    }
+
+    const id = entry.id.trim().slice(0, 128);
+    const name = entry.name.trim().slice(0, 100);
+    const dateAdded = entry.dateAdded.trim().slice(0, 64);
+    if (!id || !name || !dateAdded || seenIds.has(id)) continue;
+
+    seenIds.add(id);
+    const cleaned: RutMeal = { id, name, dateAdded };
+    if (typeof entry.category === "string" && entry.category.trim()) {
+      cleaned.category = entry.category.trim().slice(0, 60);
+    }
+    result.push(cleaned);
+  }
+
+  return result;
+}
+
+export function sanitizeFavoritesForCloud(items: unknown): string[] {
+  if (!Array.isArray(items)) return [];
+  const result: string[] = [];
+  const seen = new Set<string>();
+
+  for (const entry of items) {
+    if (result.length >= 200) break;
+    if (typeof entry !== "string") continue;
+    const id = entry.trim().slice(0, 128);
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    result.push(id);
+  }
+
+  return result;
+}
+
+function sanitizeAddonList(raw: unknown) {
+  if (!Array.isArray(raw)) return undefined;
+  const list = [];
+  for (const entry of raw) {
+    if (list.length >= 6) break;
+    if (!isPlainObject(entry)) continue;
+    if (typeof entry.item !== "string" || typeof entry.howToUse !== "string") continue;
+    const aisle = normalizeAisle(entry.walmartAisle);
+    if (!aisle) continue;
+    const item = entry.item.trim().slice(0, 120);
+    const howToUse = entry.howToUse.trim().slice(0, 240);
+    if (!item || !howToUse) continue;
+    list.push({ item, howToUse, walmartAisle: aisle });
+  }
+  return list.length > 0 ? list : undefined;
+}
+
+export function sanitizeCustomMealsForCloud(items: unknown): Meal[] {
+  if (!Array.isArray(items)) return [];
+  const result: Meal[] = [];
+  const seenIds = new Set<string>();
+
+  for (const entry of items) {
+    if (result.length >= 100) break;
+    if (!isPlainObject(entry)) continue;
+    if (
+      typeof entry.id !== "string" ||
+      typeof entry.title !== "string" ||
+      typeof entry.tagline !== "string" ||
+      typeof entry.prepMinutes !== "number" ||
+      !Number.isFinite(entry.prepMinutes) ||
+      typeof entry.cookMinutes !== "number" ||
+      !Number.isFinite(entry.cookMinutes) ||
+      typeof entry.category !== "string" ||
+      !Array.isArray(entry.ingredients) ||
+      !Array.isArray(entry.instructions) ||
+      typeof entry.whyItWorks !== "string" ||
+      typeof entry.rutAlternativeNote !== "string"
+    ) {
+      continue;
+    }
+
+    const id = entry.id.trim().slice(0, 128);
+    const title = entry.title.trim().slice(0, 120);
+    if (!id || !title || seenIds.has(id)) continue;
+
+    const ingredients: Meal["ingredients"] = [];
+    for (const ing of entry.ingredients) {
+      if (ingredients.length >= 10) break;
+      if (!isPlainObject(ing)) continue;
+      if (typeof ing.item !== "string" || typeof ing.amount !== "string") continue;
+      if (ing.tip !== undefined && typeof ing.tip !== "string") continue;
+      const walmartAisle = normalizeAisle(ing.walmartAisle);
+      if (!walmartAisle) continue;
+      const item = ing.item.trim().slice(0, 120);
+      const amount = ing.amount.trim().slice(0, 60);
+      if (!item || !amount) continue;
+      ingredients.push({
+        item,
+        amount,
+        walmartAisle,
+        ...(typeof ing.tip === "string" && ing.tip.trim()
+          ? { tip: ing.tip.trim().slice(0, 140) }
+          : {})
+      });
+    }
+
+    const instructions: Meal["instructions"] = [];
+    for (const step of entry.instructions) {
+      if (instructions.length >= 10) break;
+      if (!isPlainObject(step)) continue;
+      if (
+        typeof step.stepNumber !== "number" ||
+        !Number.isFinite(step.stepNumber) ||
+        typeof step.title !== "string" ||
+        typeof step.instruction !== "string"
+      ) {
+        continue;
       }
-      return cleaned;
-    })
-    .filter((item) => item.id.length > 0 && item.name.length > 0)
-    .slice(0, 100);
-}
+      if (
+        step.timerSeconds !== undefined &&
+        (typeof step.timerSeconds !== "number" || !Number.isFinite(step.timerSeconds))
+      ) {
+        continue;
+      }
+      const stepTitle = step.title.trim().slice(0, 120);
+      const instruction = step.instruction.trim().slice(0, 500);
+      if (!stepTitle || !instruction) continue;
+      instructions.push({
+        stepNumber: Math.max(1, Math.round(step.stepNumber)),
+        title: stepTitle,
+        instruction,
+        ...(typeof step.timerSeconds === "number" && step.timerSeconds > 0
+          ? { timerSeconds: Math.min(3600, Math.round(step.timerSeconds)) }
+          : {})
+      });
+    }
 
-export function sanitizeFavoritesForCloud(items: string[]): string[] {
-  return items
-    .map((id) => String(id || "").trim().slice(0, 128))
-    .filter((id) => id.length > 0)
-    .slice(0, 200);
-}
+    if (ingredients.length === 0 || instructions.length === 0) continue;
 
-export function sanitizeCustomMealsForCloud(items: Meal[]): Meal[] {
-  return items
-    .map((m) => ({
-      ...m,
-      id: String(m.id || `meal-${Date.now()}`).slice(0, 128),
-      title: String(m.title || "Easy Meal").trim().slice(0, 120)
-    }))
-    .filter((m) => m.id.length > 0 && m.title.length > 0)
-    .slice(0, 100);
+    const category: Meal["category"] = VALID_CATEGORIES.has(entry.category as Meal["category"])
+      ? (entry.category as Meal["category"])
+      : "one_skillet";
+
+    const optionalAddons = sanitizeAddonList(entry.optionalAddons);
+    const sidePairings = sanitizeAddonList(entry.sidePairings);
+
+    seenIds.add(id);
+    result.push({
+      id,
+      title,
+      tagline: entry.tagline.trim().slice(0, 300),
+      prepMinutes: Math.max(0, Math.min(180, Math.round(entry.prepMinutes))),
+      cookMinutes: Math.max(0, Math.min(180, Math.round(entry.cookMinutes))),
+      category,
+      ingredients,
+      instructions,
+      whyItWorks: entry.whyItWorks.trim().slice(0, 400),
+      rutAlternativeNote: entry.rutAlternativeNote.trim().slice(0, 400),
+      ...(optionalAddons ? { optionalAddons } : {}),
+      ...(sidePairings ? { sidePairings } : {})
+    });
+  }
+
+  return result;
 }
 
 export function generateHouseholdCode(): string {

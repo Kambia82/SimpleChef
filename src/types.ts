@@ -64,3 +64,6 @@ export interface PantryItem {
   quantity: number;
 }
 
+export type KitchenMode = "microwave_only" | "full_kitchen";
+
+

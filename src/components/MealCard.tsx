@@ -148,8 +148,17 @@ export const MealCard: React.FC<MealCardProps> = ({
 
         {/* Ingredients Quick List */}
         <div className="space-y-2 pt-1">
-          <div className="text-xs font-bold uppercase tracking-wider text-stone-500">
-            Ingredients ({meal.ingredients.length}):
+          <div className="flex items-center justify-between gap-2">
+            <div className="text-xs font-bold uppercase tracking-wider text-stone-600">
+              What You Need ({meal.ingredients.length} items)
+            </div>
+            {pantryMatch && pantryMatch.matchCount > 0 && (
+              <span className="text-[11px] font-semibold text-emerald-700">
+                {missingCount === 0
+                  ? "Have everything"
+                  : `Need to buy ${missingCount}`}
+              </span>
+            )}
           </div>
           <ul className="space-y-1.5">
             {meal.ingredients.map((ing, idx) => {
@@ -159,13 +168,13 @@ export const MealCard: React.FC<MealCardProps> = ({
                   key={idx}
                   className="text-xs sm:text-sm text-stone-700 flex items-start justify-between gap-2"
                 >
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-start gap-2 min-w-0">
                     <span
-                      className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                      className={`w-1.5 h-1.5 rounded-full shrink-0 mt-1.5 ${
                         hasInPantry ? "bg-emerald-600 ring-2 ring-emerald-200" : "bg-stone-300"
                       }`}
                     />
-                    <span>
+                    <span className="min-w-0">
                       <strong className="text-stone-900 font-semibold">{ing.amount}</strong> {ing.item}
                       {hasInPantry && (
                         <span className="ml-1.5 text-[10px] font-semibold text-emerald-700">
@@ -174,7 +183,7 @@ export const MealCard: React.FC<MealCardProps> = ({
                       )}
                     </span>
                   </div>
-                  <span className="text-[11px] text-stone-400 whitespace-nowrap hidden sm:inline">
+                  <span className="text-[11px] text-stone-400 whitespace-nowrap shrink-0">
                     {ing.walmartAisle}
                   </span>
                 </li>

@@ -8,10 +8,16 @@ import {
   ShieldAlert,
   ShoppingCart,
   ChefHat,
-  PackageCheck
+  PackageCheck,
+  Snowflake
 } from "lucide-react";
+import { KitchenMode } from "../types";
 
 interface MealGeneratorBarProps {
+  kitchenMode: KitchenMode;
+  onChangeKitchenMode: (mode: KitchenMode) => void;
+  noFreezer: boolean;
+  onToggleNoFreezer: () => void;
   onGenerateMeal: (energy: string) => Promise<void>;
   onGenerateBatch: (energy: string) => Promise<void>;
   generatingMode: "single" | "batch" | null;
@@ -28,6 +34,10 @@ interface MealGeneratorBarProps {
 }
 
 export const MealGeneratorBar: React.FC<MealGeneratorBarProps> = ({
+  kitchenMode,
+  onChangeKitchenMode,
+  noFreezer,
+  onToggleNoFreezer,
   onGenerateMeal,
   onGenerateBatch,
   generatingMode,
@@ -42,6 +52,8 @@ export const MealGeneratorBar: React.FC<MealGeneratorBarProps> = ({
   onOpenRescueModal,
   onOpenPantryModal
 }) => {
+  const isDormMode = kitchenMode === "microwave_only";
+
   return (
     <div className="bg-white border border-stone-200 rounded-2xl p-4 sm:p-6 shadow-sm space-y-4">
       {/* Top row: Brain-Free AI Generator Call-to-Action & Quick Actions */}
@@ -54,7 +66,9 @@ export const MealGeneratorBar: React.FC<MealGeneratorBarProps> = ({
             </h2>
           </div>
           <p className="text-xs sm:text-sm text-stone-600">
-            Tell me what to eat that takes under 10 minutes and isn't on my Walmart rut list.
+            {isDormMode
+              ? "Dorm-friendly meals using only a microwave or zero heat — no stove, kettle, or hot plate."
+              : "Tell me what to eat that takes under 15 minutes and isn't on my Walmart rut list."}
           </p>
         </div>
 
@@ -63,7 +77,7 @@ export const MealGeneratorBar: React.FC<MealGeneratorBarProps> = ({
           <button
             onClick={onOpenPantryModal}
             className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold px-3.5 py-2.5 rounded-xl flex items-center gap-1.5 transition-colors shadow-xs"
-            title="Update what you have at home to unlock more meal suggestions"
+            title="Update what you have on hand to unlock more meal suggestions"
           >
             <PackageCheck className="w-4 h-4 text-emerald-200" />
             <span>My Pantry</span>
@@ -76,7 +90,7 @@ export const MealGeneratorBar: React.FC<MealGeneratorBarProps> = ({
           <button
             onClick={onOpenRescueModal}
             className="bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 text-xs font-semibold px-3.5 py-2.5 rounded-xl flex items-center gap-1.5 transition-colors"
-            title="Turn ingredients you have into a quick 3-step meal"
+            title="See 3 quick meal options from ingredients you have"
           >
             <ChefHat className="w-4 h-4 text-amber-700" />
             <span>Quick Ingredient Rescue</span>
@@ -109,6 +123,54 @@ export const MealGeneratorBar: React.FC<MealGeneratorBarProps> = ({
         </div>
       </div>
 
+      {/* Kitchen Setup Strip */}
+      <div className="pt-2 border-t border-stone-100 flex flex-wrap items-center justify-between gap-2.5">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-semibold text-stone-500">Kitchen Setup:</span>
+          <div className="inline-flex items-center p-1 bg-stone-100 rounded-xl border border-stone-200">
+            <button
+              type="button"
+              onClick={() => onChangeKitchenMode("microwave_only")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors ${
+                isDormMode
+                  ? "bg-white text-emerald-900 shadow-xs"
+                  : "text-stone-600 hover:text-stone-900"
+              }`}
+            >
+              <Zap className="w-3.5 h-3.5 text-amber-500" />
+              <span>Microwave Only (Dorm)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onChangeKitchenMode("full_kitchen")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors ${
+                !isDormMode
+                  ? "bg-white text-stone-900 shadow-xs"
+                  : "text-stone-600 hover:text-stone-900"
+              }`}
+            >
+              <Flame className="w-3.5 h-3.5 text-rose-500" />
+              <span>Full Kitchen</span>
+            </button>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={onToggleNoFreezer}
+          aria-pressed={noFreezer}
+          className={`px-3 py-1.5 rounded-xl text-xs font-semibold border flex items-center gap-1.5 transition-colors ${
+            noFreezer
+              ? "bg-sky-800 text-white border-sky-800"
+              : "bg-stone-50 text-stone-700 border-stone-200 hover:bg-stone-100"
+          }`}
+          title="Hide meals that require frozen foods when you only have a mini-fridge or pantry"
+        >
+          <Snowflake className={`w-3.5 h-3.5 ${noFreezer ? "text-sky-200" : "text-sky-600"}`} />
+          <span>{noFreezer ? "No Freezer (Active)" : "No Freezer / Mini-Fridge Only"}</span>
+        </button>
+      </div>
+
       {/* Main Generator Action Buttons */}
       <div className="pt-2 border-t border-stone-100 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
         {/* Filter categories */}
@@ -121,7 +183,7 @@ export const MealGeneratorBar: React.FC<MealGeneratorBarProps> = ({
                 : "bg-stone-100 text-stone-600 hover:bg-stone-200"
             }`}
           >
-            All Easy Meals
+            {isDormMode ? "All Dorm Meals" : "All Easy Meals"}
           </button>
 
           <button
@@ -145,20 +207,33 @@ export const MealGeneratorBar: React.FC<MealGeneratorBarProps> = ({
             }`}
           >
             <Zap className="w-3 h-3 text-amber-500" />
-            <span>Microwave / No-Cook</span>
+            <span>{isDormMode ? "Microwave" : "Microwave / No-Cook"}</span>
           </button>
 
-          <button
-            onClick={() => onSelectFilter("one_skillet")}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1 transition-colors ${
-              activeFilter === "one_skillet"
-                ? "bg-stone-900 text-white"
-                : "bg-stone-100 text-stone-600 hover:bg-stone-200"
-            }`}
-          >
-            <Flame className="w-3 h-3 text-rose-500" />
-            <span>1 Skillet / Sheet Pan</span>
-          </button>
+          {isDormMode ? (
+            <button
+              onClick={() => onSelectFilter("assembly")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                activeFilter === "assembly"
+                  ? "bg-stone-900 text-white"
+                  : "bg-stone-100 text-stone-600 hover:bg-stone-200"
+              }`}
+            >
+              No-Cook Only
+            </button>
+          ) : (
+            <button
+              onClick={() => onSelectFilter("one_skillet")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1 transition-colors ${
+                activeFilter === "one_skillet"
+                  ? "bg-stone-900 text-white"
+                  : "bg-stone-100 text-stone-600 hover:bg-stone-200"
+              }`}
+            >
+              <Flame className="w-3 h-3 text-rose-500" />
+              <span>1 Skillet / Sheet Pan</span>
+            </button>
+          )}
 
           <button
             onClick={() => onSelectFilter("healthy_boost")}
@@ -197,7 +272,11 @@ export const MealGeneratorBar: React.FC<MealGeneratorBarProps> = ({
             onClick={() => onGenerateBatch(activeFilter)}
             disabled={generatingMode !== null}
             className="bg-emerald-50 hover:bg-emerald-100 disabled:opacity-50 text-emerald-900 border border-emerald-300 text-xs sm:text-sm font-semibold px-4 py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-all"
-            title="Create 3 brand-new meal ideas across freezer, pantry, and fridge styles"
+            title={
+              isDormMode
+                ? "Create 3 brand-new microwave or no-cook dorm meal ideas"
+                : "Create 3 brand-new meal ideas across freezer, pantry, and fridge styles"
+            }
           >
             {generatingMode === "batch" ? (
               <>
