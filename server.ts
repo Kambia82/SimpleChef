@@ -48,7 +48,7 @@ async function aiRateLimiter(
 }
 
 // Claude model used for recipe generation. Override with CLAUDE_MODEL in the environment.
-const CLAUDE_MODEL = process.env.CLAUDE_MODEL || "claude-opus-5-5";
+const CLAUDE_MODEL = process.env.CLAUDE_MODEL || "claude-haiku-5-5";
 // Per-request ceiling for a single recipe generation call.
 const GENERATION_TIMEOUT_MS = Number(process.env.GENERATION_TIMEOUT_MS) || 45000;
 
@@ -70,12 +70,10 @@ async function generateRecipeJson(
   prompt: string,
   timeoutMs = GENERATION_TIMEOUT_MS
 ): Promise<Record<string, unknown>> {
-  const response = await client.beta.messages.create(
+  const response = await client.messages.create(
     {
       model: CLAUDE_MODEL,
       max_tokens: 8000,
-      betas: ["server-side-fallback-2026-07-01"],
-      fallbacks: "default",
       output_config: {
         effort: "low",
         format: { type: "json_schema", schema: recipeSchema },
@@ -90,7 +88,7 @@ async function generateRecipeJson(
   }
 
   const text = response.content
-    .filter((b): b is Anthropic.Beta.BetaTextBlock => b.type === "text")
+    .filter((b): b is Anthropic.TextBlock => b.type === "text")
     .map((b) => b.text)
     .join("");
   return JSON.parse(text || "{}") as Record<string, unknown>;
