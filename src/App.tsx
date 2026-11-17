@@ -29,6 +29,7 @@ import {
 } from "./types";
 import { DEFAULT_MEALS } from "./data/defaultMeals";
 import { MealCard } from "./components/MealCard";
+import StorageTag from "./components/StorageTag";
 import { CookingFocusMode } from "./components/CookingFocusMode";
 import { RutManagerModal } from "./components/RutManagerModal";
 import { IngredientRescueModal } from "./components/IngredientRescueModal";
@@ -54,7 +55,6 @@ import {
   getEffectiveEquipment,
   getMealEligibility,
   getMealStorageProfile,
-  inferIngredientStorage,
   inferMealRequirements,
   isMealDormCompatible,
   isMealEquipmentCompatible,
@@ -2702,7 +2702,6 @@ export default function App() {
                     const isExact = res?.tier === "exact";
                     const isSub = res?.tier === "substitution";
                     const isRelated = res?.tier === "related_not_equivalent";
-                    const ingStorage = inferIngredientStorage(ing);
                     return (
                       <li
                         key={idx}
@@ -2748,13 +2747,11 @@ export default function App() {
                             )}
                           </span>
                         </span>
-                        <span className="text-[11px] text-stone-500 shrink-0">
-                          {ing.walmartAisle}
-                          {ingStorage === "fridge"
-                            ? " · Fridge"
-                            : ingStorage === "freezer"
-                            ? " · Freezer"
-                            : ""}
+                        <span className="flex flex-col items-end gap-0.5 shrink-0">
+                          <span className="text-[11px] text-stone-500 whitespace-nowrap">
+                            {ing.walmartAisle}
+                          </span>
+                          <StorageTag ingredient={ing} />
                         </span>
                       </li>
                     );

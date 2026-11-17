@@ -13,14 +13,14 @@ import {
   Refrigerator,
   Snowflake
 } from "lucide-react";
+import StorageTag from "./StorageTag";
 import { KitchenProfile, Meal } from "../types";
 import { PANTRY_STAPLE_GROUPS } from "../data/pantryStaples";
 import {
   EFFORT_PRESETS,
   ENVIRONMENT_PRESETS,
   getEffectiveEquipment,
-  getMealStorageProfile,
-  inferIngredientStorage
+  getMealStorageProfile
 } from "../utils/kitchenProfile";
 
 interface IngredientRescueModalProps {
@@ -229,7 +229,6 @@ export const IngredientRescueModal: React.FC<IngredientRescueModalProps> = ({
                       </div>
                       <ul className="space-y-1">
                         {option.ingredients.map((ing, i) => {
-                          const ingStorage = inferIngredientStorage(ing);
                           return (
                             <li
                               key={i}
@@ -244,9 +243,11 @@ export const IngredientRescueModal: React.FC<IngredientRescueModalProps> = ({
                                   {ing.item}
                                 </span>
                               </span>
-                              <span className="text-[10px] text-stone-500 shrink-0">
-                                {ing.walmartAisle}
-                                {ingStorage !== "shelf_stable" ? ` · ${ingStorage}` : ""}
+                              <span className="flex flex-col items-end gap-0.5 shrink-0">
+                                <span className="text-[10px] text-stone-500">
+                                  {ing.walmartAisle}
+                                </span>
+                                <StorageTag ingredient={ing} />
                               </span>
                             </li>
                           );
