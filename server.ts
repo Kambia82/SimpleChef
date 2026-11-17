@@ -19,7 +19,7 @@ import { Meal } from "./src/types";
 dotenv.config();
 
 const app = express();
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;
 
 app.set("trust proxy", 1);
 app.use(express.json({ limit: "64kb" }));
@@ -47,19 +47,15 @@ async function aiRateLimiter(
   next();
 }
 
+// Gemini model used for recipe generation (free tier). Override with GEMINI_MODEL.
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.1-flash-lite";
+
 const getGeminiClient = () => {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     return null;
   }
-  return new GoogleGenAI({
-    apiKey,
-    httpOptions: {
-      headers: {
-        "User-Agent": "aistudio-build",
-      },
-    },
-  });
+  return new GoogleGenAI({ apiKey });
 };
 
 function getStylePoolForProfile(
@@ -139,7 +135,7 @@ app.post("/api/generate-meal", aiRateLimiter, async (req, res) => {
 
     const response = await Promise.race([
       ai.models.generateContent({
-        model: "gemini-3.1-flash-lite",
+        model: GEMINI_MODEL,
         contents: prompt,
         config: {
           responseMimeType: "application/json",
@@ -258,7 +254,7 @@ INGREDIENT RESCUE FOCUS:
     const fetchOption = async (angle: (typeof formatAngles)[number]) => {
       const response = await Promise.race([
         ai.models.generateContent({
-          model: "gemini-3.1-flash-lite",
+          model: GEMINI_MODEL,
           contents: buildRescuePrompt(angle.style),
           config: {
             responseMimeType: "application/json",
@@ -344,7 +340,7 @@ app.post("/api/pantry-suggestions", aiRateLimiter, async (req, res) => {
       const prompt = buildAdaptiveRecipePrompt(request, angle.label);
       const response = await Promise.race([
         ai.models.generateContent({
-          model: "gemini-3.1-flash-lite",
+          model: GEMINI_MODEL,
           contents: prompt,
           config: {
             responseMimeType: "application/json",
@@ -416,7 +412,7 @@ app.post("/api/generate-batch", aiRateLimiter, async (req, res) => {
       const prompt = buildAdaptiveRecipePrompt(request, angle.label);
       const response = await Promise.race([
         ai.models.generateContent({
-          model: "gemini-3.1-flash-lite",
+          model: GEMINI_MODEL,
           contents: prompt,
           config: {
             responseMimeType: "application/json",
@@ -468,6 +464,7 @@ app.get("/api/health", (_req, res) => {
   res.json({
     status: "ok",
     hasApiKey: Boolean(process.env.GEMINI_API_KEY),
+    model: GEMINI_MODEL,
   });
 });
 
