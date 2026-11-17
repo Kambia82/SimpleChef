@@ -50,7 +50,7 @@ async function aiRateLimiter(
 // Claude model used for recipe generation. Override with CLAUDE_MODEL in the environment.
 const CLAUDE_MODEL = process.env.CLAUDE_MODEL || "claude-haiku-5-5";
 // Per-request ceiling for a single recipe generation call.
-const GENERATION_TIMEOUT_MS = Number(process.env.GENERATION_TIMEOUT_MS) || 45000;
+const GENERATION_TIMEOUT_MS = Number(process.env.GENERATION_TIMEOUT_MS) || 14000;
 
 let anthropicClient: Anthropic | null = null;
 const getClaudeClient = () => {
