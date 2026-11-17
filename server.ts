@@ -2,7 +2,7 @@ import express from "express";
 import http from "http";
 import path from "path";
 import { createServer as createViteServer } from "vite";
-import { GoogleGenAI, ThinkingLevel } from "@google/genai";
+import Anthropic from "@anthropic-ai/sdk";
 import dotenv from "dotenv";
 import {
   DistributedRateLimiter,
@@ -19,7 +19,7 @@ import { Meal } from "./src/types";
 dotenv.config();
 
 const app = express();
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;
 
 app.set("trust proxy", 1);
 app.use(express.json({ limit: "64kb" }));
@@ -47,20 +47,54 @@ async function aiRateLimiter(
   next();
 }
 
-const getGeminiClient = () => {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
+// Claude model used for recipe generation. Override with CLAUDE_MODEL in the environment.
+const CLAUDE_MODEL = process.env.CLAUDE_MODEL || "claude-opus-5-5";
+// Per-request ceiling for a single recipe generation call.
+const GENERATION_TIMEOUT_MS = Number(process.env.GENERATION_TIMEOUT_MS) || 45000;
+
+let anthropicClient: Anthropic | null = null;
+const getClaudeClient = () => {
+  if (!process.env.ANTHROPIC_API_KEY) {
     return null;
   }
-  return new GoogleGenAI({
-    apiKey,
-    httpOptions: {
-      headers: {
-        "User-Agent": "aistudio-build",
-      },
-    },
-  });
+  anthropicClient ??= new Anthropic({ maxRetries: 1 });
+  return anthropicClient;
 };
+
+/**
+ * Asks Claude for one recipe as JSON constrained to `recipeSchema`.
+ * Returns the parsed object, or throws on refusal / truncation / timeout.
+ */
+async function generateRecipeJson(
+  client: Anthropic,
+  prompt: string,
+  timeoutMs = GENERATION_TIMEOUT_MS
+): Promise<Record<string, unknown>> {
+  const response = await client.beta.messages.create(
+    {
+      model: CLAUDE_MODEL,
+      max_tokens: 8000,
+      betas: ["server-side-fallback-2026-07-01"],
+      fallbacks: "default",
+      output_config: {
+        effort: "low",
+        format: { type: "json_schema", schema: recipeSchema },
+      },
+      messages: [{ role: "user", content: prompt }],
+    },
+    { timeout: timeoutMs }
+  );
+
+  if (response.stop_reason === "refusal" || response.stop_reason === "max_tokens") {
+    throw new Error(`Generation stopped: ${response.stop_reason}`);
+  }
+
+  const text = response.content
+    .filter((b): b is Anthropic.Beta.BetaTextBlock => b.type === "text")
+    .map((b) => b.text)
+    .join("");
+  return JSON.parse(text || "{}") as Record<string, unknown>;
+}
 
 function getStylePoolForProfile(
   equipment: string[],
@@ -125,7 +159,7 @@ app.post("/api/generate-meal", aiRateLimiter, async (req, res) => {
     }
 
     const request = parsed.value;
-    const ai = getGeminiClient();
+    const ai = getClaudeClient();
     if (!ai) {
       return res.status(503).json({
         error: "Meal generation is temporarily unavailable. Using built-in meals.",
@@ -137,22 +171,7 @@ app.post("/api/generate-meal", aiRateLimiter, async (req, res) => {
     const pickedStyle = pool[Math.floor(Math.random() * pool.length)];
     const prompt = buildAdaptiveRecipePrompt(request, pickedStyle.label);
 
-    const response = await Promise.race([
-      ai.models.generateContent({
-        model: "gemini-3.1-flash-lite",
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: recipeSchema,
-          thinkingConfig: { thinkingLevel: ThinkingLevel.MINIMAL },
-        },
-      }),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("Meal generation timed out")), 15000)
-      ),
-    ]);
-
-    const rawMeal = JSON.parse(response.text || "{}") as Record<string, unknown>;
+    const rawMeal = await generateRecipeJson(ai, prompt);
     const verifiedMeal = finalizeAndVerifyGeneratedMeal(
       rawMeal,
       request.profile,
@@ -191,7 +210,7 @@ app.post("/api/ingredients-to-meal", aiRateLimiter, async (req, res) => {
     }
 
     const request = parsed.value;
-    const ai = getGeminiClient();
+    const ai = getClaudeClient();
     if (!ai) {
       return res.status(503).json({
         error: "Meal generation is temporarily unavailable.",
@@ -256,21 +275,7 @@ INGREDIENT RESCUE FOCUS:
     };
 
     const fetchOption = async (angle: (typeof formatAngles)[number]) => {
-      const response = await Promise.race([
-        ai.models.generateContent({
-          model: "gemini-3.1-flash-lite",
-          contents: buildRescuePrompt(angle.style),
-          config: {
-            responseMimeType: "application/json",
-            responseSchema: recipeSchema,
-            thinkingConfig: { thinkingLevel: ThinkingLevel.MINIMAL },
-          },
-        }),
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error("Ingredient rescue timed out")), 15000)
-        ),
-      ]);
-      const rawMeal = JSON.parse(response.text || "{}") as Record<string, unknown>;
+      const rawMeal = await generateRecipeJson(ai, buildRescuePrompt(angle.style));
       return finalizeAndVerifyGeneratedMeal(
         rawMeal,
         request.profile,
@@ -330,7 +335,7 @@ app.post("/api/pantry-suggestions", aiRateLimiter, async (req, res) => {
       return res.json({ meals: [] });
     }
 
-    const ai = getGeminiClient();
+    const ai = getClaudeClient();
     if (!ai) {
       return res.status(503).json({
         error: "Meal generation is temporarily unavailable.",
@@ -342,21 +347,7 @@ app.post("/api/pantry-suggestions", aiRateLimiter, async (req, res) => {
 
     const fetchOne = async (angle: (typeof pool)[number]) => {
       const prompt = buildAdaptiveRecipePrompt(request, angle.label);
-      const response = await Promise.race([
-        ai.models.generateContent({
-          model: "gemini-3.1-flash-lite",
-          contents: prompt,
-          config: {
-            responseMimeType: "application/json",
-            responseSchema: recipeSchema,
-            thinkingConfig: { thinkingLevel: ThinkingLevel.MINIMAL },
-          },
-        }),
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error("Pantry suggestion timed out")), 12000)
-        ),
-      ]);
-      const rawMeal = JSON.parse(response.text || "{}") as Record<string, unknown>;
+      const rawMeal = await generateRecipeJson(ai, prompt);
       return finalizeAndVerifyGeneratedMeal(
         rawMeal,
         request.profile,
@@ -401,7 +392,7 @@ app.post("/api/generate-batch", aiRateLimiter, async (req, res) => {
     }
 
     const request = parsed.value;
-    const ai = getGeminiClient();
+    const ai = getClaudeClient();
     if (!ai) {
       return res.status(503).json({
         error: "Meal generation is temporarily unavailable.",
@@ -414,21 +405,7 @@ app.post("/api/generate-batch", aiRateLimiter, async (req, res) => {
 
     const fetchOne = async (angle: (typeof chosenAngles)[number]) => {
       const prompt = buildAdaptiveRecipePrompt(request, angle.label);
-      const response = await Promise.race([
-        ai.models.generateContent({
-          model: "gemini-3.1-flash-lite",
-          contents: prompt,
-          config: {
-            responseMimeType: "application/json",
-            responseSchema: recipeSchema,
-            thinkingConfig: { thinkingLevel: ThinkingLevel.MINIMAL },
-          },
-        }),
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error("Batch meal timed out")), 12000)
-        ),
-      ]);
-      const rawMeal = JSON.parse(response.text || "{}") as Record<string, unknown>;
+      const rawMeal = await generateRecipeJson(ai, prompt);
       return finalizeAndVerifyGeneratedMeal(
         rawMeal,
         request.profile,
@@ -467,7 +444,8 @@ app.post("/api/generate-batch", aiRateLimiter, async (req, res) => {
 app.get("/api/health", (_req, res) => {
   res.json({
     status: "ok",
-    hasApiKey: Boolean(process.env.GEMINI_API_KEY),
+    hasApiKey: Boolean(process.env.ANTHROPIC_API_KEY),
+    model: CLAUDE_MODEL,
   });
 });
 

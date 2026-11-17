@@ -1,7 +1,6 @@
 import fs from "fs";
 import os from "os";
 import path from "path";
-import { Type } from "@google/genai";
 import {
   CookingEffort,
   CookingEnvironment,
@@ -455,100 +454,106 @@ STEP & INGREDIENT CLARITY RULES:
 `.trim();
 }
 
+/** JSON Schema for Claude structured outputs (output_config.format). */
 export const recipeSchema = {
-  type: Type.OBJECT,
+  type: "object",
+  additionalProperties: false,
   properties: {
-    title: { type: Type.STRING, description: "Clear, appetizing meal title" },
-    tagline: { type: Type.STRING, description: "One crisp sentence describing what the dish is" },
-    prepMinutes: { type: Type.INTEGER },
-    cookMinutes: { type: Type.INTEGER },
+    title: { type: "string", description: "Clear, appetizing meal title" },
+    tagline: { type: "string", description: "One crisp sentence describing what the dish is" },
+    prepMinutes: { type: "integer" },
+    cookMinutes: { type: "integer" },
     effortLevel: {
-      type: Type.STRING,
+      type: "string",
       description: "One of: very_low, low, moderate, normal",
     },
     mealType: {
-      type: Type.STRING,
+      type: "string",
       description: "One of: breakfast, lunch, dinner, snack",
     },
     requiredEquipment: {
-      type: Type.ARRAY,
-      items: { type: Type.STRING },
+      type: "array",
+      items: { type: "string" },
       description: "Equipment used from: stove, oven, microwave, toaster, air_fryer, fridge, freezer",
     },
     ingredients: {
-      type: Type.ARRAY,
+      type: "array",
       items: {
-        type: Type.OBJECT,
+        type: "object",
+        additionalProperties: false,
         properties: {
-          item: { type: Type.STRING },
-          amount: { type: Type.STRING },
+          item: { type: "string" },
+          amount: { type: "string" },
           walmartAisle: {
-            type: Type.STRING,
+            type: "string",
             description:
               "Produce, Meat & Deli, Dairy & Eggs, Pantry / Canned, Frozen, Bakery, or Spices & Condiments",
           },
-          tip: { type: Type.STRING },
-          optional: { type: Type.BOOLEAN },
+          tip: { type: "string" },
+          optional: { type: "boolean" },
         },
         required: ["item", "amount", "walmartAisle"],
       },
     },
     ownedIngredients: {
-      type: Type.ARRAY,
-      items: { type: Type.STRING },
+      type: "array",
+      items: { type: "string" },
       description: "Ingredients already covered by user's pantry list",
     },
     missingIngredients: {
-      type: Type.ARRAY,
-      items: { type: Type.STRING },
+      type: "array",
+      items: { type: "string" },
       description: "Ingredients the user would need to buy",
     },
     optionalIngredients: {
-      type: Type.ARRAY,
-      items: { type: Type.STRING },
+      type: "array",
+      items: { type: "string" },
     },
     possibleSubstitutions: {
-      type: Type.ARRAY,
-      items: { type: Type.STRING },
+      type: "array",
+      items: { type: "string" },
     },
     instructions: {
-      type: Type.ARRAY,
+      type: "array",
       items: {
-        type: Type.OBJECT,
+        type: "object",
+        additionalProperties: false,
         properties: {
-          stepNumber: { type: Type.INTEGER },
-          title: { type: Type.STRING },
-          instruction: { type: Type.STRING },
-          timerSeconds: { type: Type.INTEGER },
+          stepNumber: { type: "integer" },
+          title: { type: "string" },
+          instruction: { type: "string" },
+          timerSeconds: { type: "integer" },
         },
         required: ["stepNumber", "title", "instruction"],
       },
     },
-    whyItWorks: { type: Type.STRING },
+    whyItWorks: { type: "string" },
     rutAlternativeNote: {
-      type: Type.STRING,
+      type: "string",
       description: "Helpful positive note on flavor/nutrition or comfort variation (no shaming)",
     },
     optionalAddons: {
-      type: Type.ARRAY,
+      type: "array",
       items: {
-        type: Type.OBJECT,
+        type: "object",
+        additionalProperties: false,
         properties: {
-          item: { type: Type.STRING },
-          howToUse: { type: Type.STRING },
-          walmartAisle: { type: Type.STRING },
+          item: { type: "string" },
+          howToUse: { type: "string" },
+          walmartAisle: { type: "string" },
         },
         required: ["item", "howToUse", "walmartAisle"],
       },
     },
     sidePairings: {
-      type: Type.ARRAY,
+      type: "array",
       items: {
-        type: Type.OBJECT,
+        type: "object",
+        additionalProperties: false,
         properties: {
-          item: { type: Type.STRING },
-          howToUse: { type: Type.STRING },
-          walmartAisle: { type: Type.STRING },
+          item: { type: "string" },
+          howToUse: { type: "string" },
+          walmartAisle: { type: "string" },
         },
         required: ["item", "howToUse", "walmartAisle"],
       },

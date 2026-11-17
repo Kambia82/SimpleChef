@@ -1,6 +1,0 @@
-{
-  "name": "Easy Low-Effort Meals",
-  "description": "Simple, low-cognitive-load meal ideas and step-by-step cooking guides to prevent eating ruts and make healthy eating effortless.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}
