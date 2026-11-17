@@ -1,5 +1,5 @@
 # Firebase App Hosting config (runs the Express server: `npm run build` then `npm start`).
-# One-time setup:  firebase apphosting:secrets:set ANTHROPIC_API_KEY
+# One-time setup:  firebase apphosting:secrets:set GEMINI_API_KEY
 runConfig:
   minInstances: 0
   maxInstances: 2
@@ -10,7 +10,7 @@ runConfig:
 env:
   - variable: NODE_ENV
     value: production
-  - variable: ANTHROPIC_API_KEY
-    secret: ANTHROPIC_API_KEY
+  - variable: GEMINI_API_KEY
+    secret: GEMINI_API_KEY
     availability:
       - RUNTIME
