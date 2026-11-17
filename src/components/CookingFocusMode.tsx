@@ -23,6 +23,7 @@ import {
   AlertTriangle,
   ListChecks
 } from "lucide-react";
+import StorageTag from "./StorageTag";
 import { playChime } from "../utils/sound";
 import {
   evaluateMealIngredients,
@@ -34,7 +35,6 @@ import {
   EFFORT_PRESETS,
   getEffectiveEquipment,
   getMealStorageProfile,
-  inferIngredientStorage,
   inferMealRequirements,
   isMealEquipmentCompatible
 } from "../utils/kitchenProfile";
@@ -536,7 +536,6 @@ export const CookingFocusMode: React.FC<CookingFocusModeProps> = ({
                     </div>
                     <ul className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                       {ingredientEval.resolutions.map((res, i) => {
-                        const ingStorage = inferIngredientStorage(res.ingredient);
                         return (
                           <li
                             key={i}
@@ -564,9 +563,11 @@ export const CookingFocusMode: React.FC<CookingFocusModeProps> = ({
                                 <span className="text-stone-500 ml-1">(needed)</span>
                               )}
                             </span>
-                            <span className="text-[10px] text-stone-500 shrink-0 text-right">
-                              {res.ingredient.walmartAisle}
-                              {ingStorage !== "shelf_stable" ? ` · ${ingStorage}` : ""}
+                            <span className="flex flex-col items-end gap-0.5 shrink-0 text-right">
+                              <span className="text-[10px] text-stone-500">
+                                {res.ingredient.walmartAisle}
+                              </span>
+                              <StorageTag ingredient={res.ingredient} />
                             </span>
                           </li>
                         );

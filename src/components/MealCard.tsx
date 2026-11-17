@@ -19,11 +19,11 @@ import {
 } from "lucide-react";
 import { evaluateMealIngredients } from "../utils/pantryMatch";
 import { getMealExtras } from "../utils/mealExtras";
+import StorageTag from "./StorageTag";
 import {
   EFFORT_PRESETS,
   getEffectiveEquipment,
   getMealStorageProfile,
-  inferIngredientStorage,
   inferMealRequirements
 } from "../utils/kitchenProfile";
 
@@ -282,7 +282,6 @@ export const MealCard: React.FC<MealCardProps> = ({
                   </div>
                   <ul className="space-y-1">
                     {neededResolutions.map((res, idx) => {
-                      const ingStorage = inferIngredientStorage(res.ingredient);
                       return (
                         <li
                           key={`need-${idx}`}
@@ -311,13 +310,11 @@ export const MealCard: React.FC<MealCardProps> = ({
                               )}
                             </span>
                           </div>
-                          <span className="text-[11px] text-stone-500 whitespace-nowrap shrink-0">
-                            {res.ingredient.walmartAisle}
-                            {ingStorage === "fridge"
-                              ? " · Fridge"
-                              : ingStorage === "freezer"
-                              ? " · Freezer"
-                              : ""}
+                          <span className="flex flex-col items-end gap-0.5 shrink-0">
+                            <span className="text-[11px] text-stone-500 whitespace-nowrap">
+                              {res.ingredient.walmartAisle}
+                            </span>
+                            <StorageTag ingredient={res.ingredient} />
                           </span>
                         </li>
                       );
@@ -331,7 +328,6 @@ export const MealCard: React.FC<MealCardProps> = ({
               {meal.ingredients.map((ing, idx) => {
                 const res = evalResult?.resolutions[idx];
                 const isRelatedOnly = res?.tier === "related_not_equivalent";
-                const ingStorage = inferIngredientStorage(ing);
                 return (
                   <li
                     key={idx}
@@ -358,13 +354,11 @@ export const MealCard: React.FC<MealCardProps> = ({
                         )}
                       </span>
                     </div>
-                    <span className="text-[11px] text-stone-500 whitespace-nowrap shrink-0">
-                      {ing.walmartAisle}
-                      {ingStorage === "fridge"
-                        ? " · Fridge"
-                        : ingStorage === "freezer"
-                        ? " · Freezer"
-                        : ""}
+                    <span className="flex flex-col items-end gap-0.5 shrink-0">
+                      <span className="text-[11px] text-stone-500 whitespace-nowrap">
+                        {ing.walmartAisle}
+                      </span>
+                      <StorageTag ingredient={ing} />
                     </span>
                   </li>
                 );

@@ -223,7 +223,7 @@ const BASE_MEALS: Meal[] = [
         timerSeconds: 0
       }
     ],
-    whyItWorks: "No freezer needed, keeps for months in a dorm closet, and delivers 30g+ protein after late classes or workouts.",
+    whyItWorks: "No freezer needed—the chili, rice, and chips keep for months in a dorm closet (only the cheese needs the mini-fridge), and it delivers 30g+ protein after late classes or workouts.",
     rutAlternativeNote: "Hearty, filling hot bowl made purely in a shared dorm microwave."
   },
   {
@@ -1903,7 +1903,7 @@ const BASE_MEALS: Meal[] = [
   {
     id: "dorm-shelf-apple-cinnamon-pb-oats",
     title: "3-Minute Apple Cinnamon Peanut Butter Oatmeal Mug",
-    tagline: "Hot rolled oats microwaved with cinnamon, diced apple or applesauce, and creamy peanut butter.",
+    tagline: "Hot rolled oats microwaved with cinnamon, an applesauce cup (or diced apple), and creamy peanut butter.",
     prepMinutes: 1,
     cookMinutes: 2,
     category: "microwave",
@@ -1914,7 +1914,7 @@ const BASE_MEALS: Meal[] = [
     dietaryTags: ["vegetarian", "dairy_free", "high_protein"],
     ingredients: [
       { item: "Quick rolled oats", amount: "1/2 cup", walmartAisle: "Pantry / Canned" },
-      { item: "Apple or unsweetened applesauce cup", amount: "1 small apple or 1 cup", walmartAisle: "Produce" },
+      { item: "Unsweetened applesauce cup (or 1 small fresh apple)", amount: "1 cup (4 oz)", walmartAisle: "Pantry / Canned" },
       { item: "Creamy peanut butter", amount: "2 tablespoons", walmartAisle: "Pantry / Canned" },
       { item: "Ground cinnamon (optional)", amount: "1/2 teaspoon", walmartAisle: "Spices & Condiments", optional: true }
     ],
@@ -1934,11 +1934,11 @@ const BASE_MEALS: Meal[] = [
       {
         stepNumber: 3,
         title: "Swirl Peanut Butter & Apple",
-        instruction: "Stir 2 tablespoons creamy peanut butter, diced apple or 1 applesauce cup, and 1/2 teaspoon cinnamon into the hot oats.",
+        instruction: "Stir 2 tablespoons creamy peanut butter, 1 applesauce cup (4 oz) or 1 small diced apple, and 1/2 teaspoon cinnamon into the hot oats.",
         timerSeconds: 0
       }
     ],
-    whyItWorks: "Warm, filling breakfast made in one mug with ingredients that sit safely in a dorm drawer for weeks.",
+    whyItWorks: "Warm, filling breakfast made in one mug. Oats, peanut butter, and applesauce cups keep for months in a dorm drawer (a fresh apple lasts about 1–2 weeks without a fridge).",
     rutAlternativeNote: "Cozy 3-minute breakfast with slow-burn oats and peanut butter protein."
   },
   {

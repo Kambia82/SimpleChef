@@ -683,3 +683,23 @@ export function inferMealType(meal: Meal): Exclude<MealType, "any"> {
   }
   return "dinner";
 }
+
+// Jarred/cartoned items that are shelf-stable sealed but need a fridge once opened.
+const FRIDGE_AFTER_OPENING_REGEX =
+  /\b(salsa|marinara|pasta sauce|pizza sauce|queso|alfredo|simmer sauce|tikka|curry sauce|broth|olives|ranch|mayo|mayonnaise|pesto)\b/i;
+// Single-serve packaging gets used up in one go, so no leftovers to refrigerate.
+const SINGLE_SERVE_REGEX = /\b(cups?|snack cup|packets?|single-serve|pouch)\b/i;
+
+/**
+ * True for a shelf-stable ingredient that must be refrigerated after opening
+ * (e.g. a jar of salsa) — important for no-fridge dorm setups.
+ */
+export function needsFridgeAfterOpening(ing: MealIngredient): boolean {
+  if (inferIngredientStorage(ing) !== "shelf_stable") return false;
+  const text = ing.item;
+  if (FRIDGE_AFTER_OPENING_REGEX.test(text) && !SINGLE_SERVE_REGEX.test(text)) return true;
+  // Part of a can (e.g. "1/2 cup canned black beans") leaves an opened can behind.
+  const isCanned = /\bcanned\b/i.test(text);
+  const usesWholeCan = /\bcans?\b|\bpouch\b/i.test(ing.amount);
+  return isCanned && !usesWholeCan;
+}
