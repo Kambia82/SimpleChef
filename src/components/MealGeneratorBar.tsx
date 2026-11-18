@@ -182,6 +182,37 @@ export const MealGeneratorBar: React.FC<MealGeneratorBarProps> = ({
     <div className="bg-white border border-stone-200 rounded-2xl p-4 sm:p-6 shadow-sm space-y-5">
       {mode === "today" && (
         <div className="space-y-3">
+          <div className="space-y-1.5">
+            <div className="text-xs font-bold uppercase tracking-wider text-stone-600">
+              What meal?
+            </div>
+            <div className="grid grid-cols-5 gap-1.5" role="group" aria-label="Meal type">
+              {(
+                [
+                  { id: "any", label: "Any" },
+                  { id: "breakfast", label: "Breakfast" },
+                  { id: "lunch", label: "Lunch" },
+                  { id: "dinner", label: "Dinner" },
+                  { id: "snack", label: "Snack" },
+                ] as Array<{ id: MealType; label: string }>
+              ).map((opt) => (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => onChangeMealTypeFilter(opt.id)}
+                  aria-pressed={mealTypeFilter === opt.id}
+                  className={`min-h-[40px] px-1 rounded-lg text-xs font-semibold transition-colors ${
+                    mealTypeFilter === opt.id
+                      ? "bg-stone-900 text-white"
+                      : "bg-stone-100 text-stone-700 hover:bg-stone-200"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-2.5">
             <button
               type="button"
