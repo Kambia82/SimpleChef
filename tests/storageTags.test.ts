@@ -34,3 +34,25 @@ describe("per-ingredient storage tags", () => {
     expect(needsFridgeAfterOpening(cheese)).toBe(false);
   });
 });
+
+import { FLAVOR_DIRECTIONS, buildAdaptiveRecipePrompt, normalizeGenerationRequest, pickDistinctFlavors } from "../serverLogic";
+
+describe("AI idea variety", () => {
+  it("never repeats a flavor direction within a batch", () => {
+    for (let run = 0; run < 50; run++) {
+      const picked = pickDistinctFlavors(3);
+      expect(picked).toHaveLength(3);
+      expect(new Set(picked).size).toBe(3);
+      picked.forEach((f) => expect(FLAVOR_DIRECTIONS).toContain(f));
+    }
+  });
+
+  it("puts the flavor direction and variety rule into the prompt", () => {
+    const parsed = normalizeGenerationRequest({});
+    if (!parsed.ok) throw new Error("expected default request to parse");
+    const prompt = buildAdaptiveRecipePrompt(parsed.value, "noodle bowl", "smoky BBQ");
+    expect(prompt).toContain("Flavor Direction: smoky BBQ");
+    expect(prompt).toContain("black beans + corn + salsa");
+    expect(buildAdaptiveRecipePrompt(parsed.value, "noodle bowl")).not.toContain("Flavor Direction");
+  });
+});

@@ -24,6 +24,7 @@ import {
   EFFORT_PRESETS,
   getEffectiveEquipment,
   getMealStorageProfile,
+  needsFridgeAfterOpening,
   inferMealRequirements
 } from "../utils/kitchenProfile";
 
@@ -66,6 +67,7 @@ export const MealCard: React.FC<MealCardProps> = ({
 
   const reqs = inferMealRequirements(meal);
   const storageProfile = getMealStorageProfile(meal);
+  const fridgeOnceOpenedCount = meal.ingredients.filter(needsFridgeAfterOpening).length;
   const effectiveEquipment = profile ? Array.from(getEffectiveEquipment(profile)) : undefined;
   const { addons, sides } = getMealExtras(meal, {
     equipment: effectiveEquipment,
@@ -226,7 +228,11 @@ export const MealCard: React.FC<MealCardProps> = ({
               </span>
             ) : (
               <span className="text-[11px] text-stone-500">
-                {storageProfile.isShelfStable ? "All shelf-stable" : storageLabel}
+                {storageProfile.isShelfStable
+                  ? fridgeOnceOpenedCount > 0
+                    ? `Shelf-stable · ${fridgeOnceOpenedCount} need fridge once opened`
+                    : "All shelf-stable"
+                  : storageLabel}
               </span>
             )}
           </div>

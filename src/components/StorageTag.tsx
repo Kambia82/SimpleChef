@@ -2,7 +2,11 @@ import { Package, Refrigerator, Snowflake } from "lucide-react";
 import { MealIngredient } from "../types";
 import { inferIngredientStorage, needsFridgeAfterOpening } from "../utils/kitchenProfile";
 
-/** Small per-ingredient badge: Shelf-Stable / Fridge once opened / Needs Fridge / Needs Freezer. */
+/**
+ * Per-ingredient storage badge, shown only for exceptions: Fridge once opened / Needs Fridge /
+ * Needs Freezer. Plain shelf-stable items get no badge — the card header already says so,
+ * and tagging every row made the lists look like a wall of identical labels.
+ */
 export default function StorageTag({ ingredient }: { ingredient: MealIngredient }) {
   const storage = inferIngredientStorage(ingredient);
   const base =
@@ -35,10 +39,5 @@ export default function StorageTag({ ingredient }: { ingredient: MealIngredient 
       </span>
     );
   }
-  return (
-    <span className={`${base} bg-emerald-50 text-emerald-800`}>
-      <Package className="w-2.5 h-2.5" aria-hidden="true" />
-      Shelf-Stable
-    </span>
-  );
+  return null;
 }
