@@ -103,7 +103,9 @@ import {
   AlertTriangle,
   Package,
   Refrigerator,
-  Snowflake
+  Snowflake,
+  Home,
+  LayoutGrid
 } from "lucide-react";
 
 const DEFAULT_ID_SET = new Set(DEFAULT_MEALS.map((m) => m.id));
@@ -274,6 +276,9 @@ export default function App() {
   });
   const [currentSpotlightId, setCurrentSpotlightId] = useState<string | null>(null);
   const [recentSuggestions, setRecentSuggestions] = useState<Meal[]>([]);
+  // Main navigation: "today" = pick/generate a meal, "browse" = filterable meal list.
+  const [activeTab, setActiveTab] = useState<"today" | "browse">("today");
+  const [showSetupSheet, setShowSetupSheet] = useState(false);
   const [resultsRefreshTick, setResultsRefreshTick] = useState<number>(0);
   const [pulseHighlight, setPulseHighlight] = useState<boolean>(false);
 
@@ -2246,6 +2251,72 @@ export default function App() {
         })`
       : ENVIRONMENT_PRESETS[profile.environment].label;
 
+  const generatorBarProps = {
+    profile: profile,
+    eligibleCount: eligibleMeals.length,
+    onChangeEnvironment: handleChangeEnvironment,
+    onToggleCustomEquipment: handleToggleCustomEquipment,
+    onChangeOtherEquipmentLabel: handleChangeOtherEquipmentLabel,
+    onChangeEffort: handleChangeEffort,
+    onChangeLivingSituation: handleChangeLivingSituation,
+    onToggleDormConstraint: handleToggleDormConstraint,
+    onChangeSharedKitchen: handleChangeSharedKitchen,
+    onToggleDietary: handleToggleDietary,
+    onPickForMe: () => handleGenerateMeal(),
+    onGenerateBatch: handleGenerateBatch,
+    onUseWhatIHave: () => {
+      setActiveFilter((prev) => (prev === "pantry" ? "all" : "pantry"));
+      setCurrentSpotlightId(null);
+      flashResultsUpdated();
+      setActiveTab("browse");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    },
+    onBrowseMeals: () => {
+      setActiveFilter("all");
+      setCurrentSpotlightId(null);
+      flashResultsUpdated();
+      setActiveTab("browse");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    },
+    onOpenFavorites: () => {
+      setActiveFilter((prev) => (prev === "favorites" ? "all" : "favorites"));
+      setCurrentSpotlightId(null);
+      flashResultsUpdated();
+      setActiveTab("browse");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    },
+    generatingMode: generatingMode,
+    activeMethodFilter: activeFilter,
+    onSelectMethodFilter: (nextFilter) => {
+      setActiveFilter(nextFilter);
+      setCurrentSpotlightId(null);
+      flashResultsUpdated();
+    },
+    mealTypeFilter: mealTypeFilter,
+    onChangeMealTypeFilter: (nextType) => {
+      setMealTypeFilter(nextType);
+      triggerPreferenceRefresh(profile, nextType);
+    },
+    maxTimeFilter: maxTimeFilter,
+    onChangeMaxTimeFilter: (nextMax) => {
+      setMaxTimeFilter(nextMax);
+      setCurrentSpotlightId(null);
+      flashResultsUpdated();
+    },
+    pantryCount: pantryItems.length,
+    pantryMatchCount: pantryMatchedMeals.length,
+    groceryCount: groceryItems.length,
+    favoritesCount: favorites.length,
+    lessFrequentCount: rutMeals.length,
+    onOpenPreferencesModal: () => setShowRutModal(true),
+    onOpenGroceryModal: () => setShowGroceryModal(true),
+    onOpenRescueModal: () => setShowRescueModal(true),
+    onOpenPantryModal: () => setShowPantryModal(true),
+    spotlightTitle: spotlightMeal?.title ?? null,
+    resultsRefreshTick: resultsRefreshTick,
+    onOpenSetup: () => setShowSetupSheet(true),
+  };
+
   return (
     <div className="min-h-screen bg-stone-100/70 text-stone-900 flex flex-col font-sans">
       {/* Toast Notification */}
@@ -2318,177 +2389,28 @@ export default function App() {
             </button>
 
             <button
-              onClick={() => setShowRutModal(true)}
+              onClick={() => setShowSetupSheet(true)}
               className="text-xs font-semibold px-2.5 sm:px-3 py-1.5 rounded-lg border border-stone-300 bg-white text-stone-700 hover:bg-stone-50 flex items-center gap-1.5 transition-colors"
-              title="Meal variety & comfort preferences"
+              title="Your kitchen setup"
             >
               <SlidersHorizontal className="w-3.5 h-3.5 text-emerald-700" />
-              <span className="hidden sm:inline">Variety</span>
-              {rutMeals.length > 0 && (
-                <span className="bg-stone-200 text-stone-800 px-1.5 py-0.2 rounded text-[10px]">
-                  {rutMeals.length}
-                </span>
-              )}
-            </button>
-
-            <button
-              onClick={() => setShowGroceryModal(true)}
-              className="text-xs font-semibold px-2.5 sm:px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white flex items-center gap-1.5 shadow-xs transition-colors"
-            >
-              <ShoppingCart className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Walmart List</span>
-              <span className="sm:hidden">List</span>
-              {groceryItems.length > 0 && (
-                <span className="bg-emerald-900 text-white px-1.5 py-0.2 rounded-full text-[10px]">
-                  {groceryItems.length}
-                </span>
-              )}
+              <span>Setup</span>
             </button>
           </div>
         </div>
       </header>
 
       {/* Main Container */}
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-6 flex-1 w-full">
-        {/* Adaptive Welcome Banner */}
-        <div className="bg-emerald-950 text-white rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div className="space-y-1.5 max-w-2xl">
-            <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-emerald-50">
-              Meals that fit your kitchen, energy, and pantry.
-            </h2>
-            <p className="text-emerald-200/90 text-xs sm:text-sm leading-relaxed">
-              Pick your cooking equipment and desired effort level independently below — from zero-prep microwave dorm meals to full-kitchen cooking, with exact measurements inline inside every step.
-            </p>
-          </div>
-
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full md:w-auto shrink-0">
-            <button
-              onClick={() => setShowPantryModal(true)}
-              className="bg-white text-emerald-950 hover:bg-emerald-50 text-xs sm:text-sm font-bold px-4 py-2.5 rounded-xl shadow-xs transition-colors flex items-center justify-center gap-2"
-            >
-              <PackageCheck className="w-4 h-4 text-emerald-800" />
-              <span>My Pantry ({pantryItems.length})</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Adaptive Hubs, Environment, Effort & Filter Bar */}
-        <MealGeneratorBar
-          profile={profile}
-          eligibleCount={eligibleMeals.length}
-          onChangeEnvironment={handleChangeEnvironment}
-          onToggleCustomEquipment={handleToggleCustomEquipment}
-          onChangeOtherEquipmentLabel={handleChangeOtherEquipmentLabel}
-          onChangeEffort={handleChangeEffort}
-          onChangeLivingSituation={handleChangeLivingSituation}
-          onToggleDormConstraint={handleToggleDormConstraint}
-          onChangeSharedKitchen={handleChangeSharedKitchen}
-          onToggleDietary={handleToggleDietary}
-          onPickForMe={() => handleGenerateMeal()}
-          onGenerateBatch={handleGenerateBatch}
-          onUseWhatIHave={() => {
-            setActiveFilter((prev) => (prev === "pantry" ? "all" : "pantry"));
-            setCurrentSpotlightId(null);
-            flashResultsUpdated();
-            resultsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-          }}
-          onBrowseMeals={() => {
-            setActiveFilter("all");
-            setCurrentSpotlightId(null);
-            flashResultsUpdated();
-            resultsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-          }}
-          onOpenFavorites={() => {
-            setActiveFilter((prev) => (prev === "favorites" ? "all" : "favorites"));
-            setCurrentSpotlightId(null);
-            flashResultsUpdated();
-            resultsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-          }}
-          generatingMode={generatingMode}
-          activeMethodFilter={activeFilter}
-          onSelectMethodFilter={(nextFilter) => {
-            setActiveFilter(nextFilter);
-            setCurrentSpotlightId(null);
-            flashResultsUpdated();
-          }}
-          mealTypeFilter={mealTypeFilter}
-          onChangeMealTypeFilter={(nextType) => {
-            setMealTypeFilter(nextType);
-            triggerPreferenceRefresh(profile, nextType);
-          }}
-          maxTimeFilter={maxTimeFilter}
-          onChangeMaxTimeFilter={(nextMax) => {
-            setMaxTimeFilter(nextMax);
-            setCurrentSpotlightId(null);
-            flashResultsUpdated();
-          }}
-          pantryCount={pantryItems.length}
-          pantryMatchCount={pantryMatchedMeals.length}
-          groceryCount={groceryItems.length}
-          favoritesCount={favorites.length}
-          lessFrequentCount={rutMeals.length}
-          onOpenPreferencesModal={() => setShowRutModal(true)}
-          onOpenGroceryModal={() => setShowGroceryModal(true)}
-          onOpenRescueModal={() => setShowRescueModal(true)}
-          onOpenPantryModal={() => setShowPantryModal(true)}
-          spotlightTitle={spotlightMeal?.title ?? null}
-          resultsRefreshTick={resultsRefreshTick}
-          onJumpToResults={() =>
-            resultsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
-          }
-        />
-
-        {/* Active Setup Summary Window */}
-        <div
-          ref={resultsSectionRef}
-          className={`scroll-mt-20 rounded-2xl border px-4 py-3 flex flex-wrap items-center justify-between gap-2 transition-all duration-300 ${
-            pulseHighlight
-              ? "border-emerald-500 bg-emerald-50/70 ring-2 ring-emerald-500/30"
-              : "border-stone-200 bg-white"
-          }`}
-        >
-          <div className="text-xs sm:text-sm font-semibold text-stone-800">
-            <span>
-              {activeEnvLabel} · {EFFORT_PRESETS[profile.effort].label}
-              {profile.livingSituation === "dorm"
-                ? profile.sharedKitchen === "available_use"
-                  ? " · Dorm Setup (Shared Kitchen)"
-                  : " · Dorm Setup"
-                : ""}
-              :{" "}
-              <strong className="text-emerald-800">
-                {filteredMeals.length} matching meal{filteredMeals.length === 1 ? "" : "s"}
-              </strong>
-            </span>
-            {profile.environment === "microwave_only" && (
-              <span className="text-stone-500 font-normal ml-2">
-                (Shelf-stable microwave &amp; no-cook only — pick Micro + Mini-Fridge for chilled items)
-              </span>
-            )}
-          </div>
-          <div className="flex items-center gap-3">
-            {(activeFilter !== "all" ||
-              mealTypeFilter !== "any" ||
-              maxTimeFilter !== null ||
-              profile.dietaryRestrictions.length > 0) && (
-              <button
-                type="button"
-                onClick={() => handleSpotlightAdjustment("reset_filters")}
-                className="text-xs font-semibold text-emerald-800 hover:text-emerald-950 underline underline-offset-2"
-              >
-                Reset Filters
-              </button>
-            )}
-            <span className="text-xs text-stone-500">
-              {pantryItems.length > 0
-                ? `${pantryMatchedMeals.length} match your pantry`
-                : "Add pantry items to see what you already own"}
-            </span>
-          </div>
-        </div>
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-5 space-y-5 flex-1 w-full">
+        {activeTab === "today" && (
+          <MealGeneratorBar
+            mode="today"
+            {...generatorBarProps}
+          />
+        )}
 
         {/* Side-by-Side Comparison Strip When New Suggestions Arrive */}
-        {recentSuggestions.length > 0 && (
+        {activeTab === "today" && recentSuggestions.length > 0 && (
           <div className="bg-white border-2 border-amber-300 rounded-2xl p-4 sm:p-5 shadow-sm space-y-3">
             <div className="flex items-center justify-between gap-2">
               <div>
@@ -2636,7 +2558,7 @@ export default function App() {
         )}
 
         {/* Adaptive Spotlight Card (or Clear Empty Explanation + Adjustment Buttons) */}
-        {spotlightMeal && spotlightEval && spotlightReqs && spotlightStorage ? (
+        {activeTab !== "today" || recentSuggestions.length > 0 ? null : spotlightMeal && spotlightEval && spotlightReqs && spotlightStorage ? (
           <div
             className={`bg-white border-2 rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col lg:flex-row items-start lg:items-center justify-between gap-5 transition-all duration-300 ${
               pulseHighlight
@@ -2834,6 +2756,39 @@ export default function App() {
           </div>
         )}
 
+        {activeTab === "browse" && (
+          <>
+            <MealGeneratorBar mode="browse" {...generatorBarProps} />
+        {/* Active Setup Summary Window */}
+        <div
+          ref={resultsSectionRef}
+          className={`scroll-mt-20 rounded-xl border px-3.5 py-2 flex flex-wrap items-center justify-between gap-2 transition-all duration-300 ${
+            pulseHighlight
+              ? "border-emerald-500 bg-emerald-50/70 ring-2 ring-emerald-500/30"
+              : "border-stone-200 bg-white"
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            {(activeFilter !== "all" ||
+              mealTypeFilter !== "any" ||
+              maxTimeFilter !== null ||
+              profile.dietaryRestrictions.length > 0) && (
+              <button
+                type="button"
+                onClick={() => handleSpotlightAdjustment("reset_filters")}
+                className="text-xs font-semibold text-emerald-800 hover:text-emerald-950 underline underline-offset-2"
+              >
+                Reset Filters
+              </button>
+            )}
+            <span className="text-xs text-stone-500">
+              {pantryItems.length > 0
+                ? `${pantryMatchedMeals.length} match your pantry`
+                : "Add pantry items to see what you already own"}
+            </span>
+          </div>
+        </div>
+
         {/* Meals Grid Section */}
         <div className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -2924,7 +2879,10 @@ export default function App() {
                 ) : (
                   <>
                     <button
-                      onClick={() => handleGenerateMeal()}
+                      onClick={() => {
+                        setActiveTab("today");
+                        handleGenerateMeal();
+                      }}
                       disabled={generatingMode !== null}
                       className="text-xs font-semibold bg-emerald-700 text-white px-4 py-2 rounded-xl"
                     >
@@ -2958,15 +2916,89 @@ export default function App() {
                   onToggleFavorite={handleToggleFavorite}
                   isFavorite={favorites.includes(meal.id)}
                   pantryItems={pantryItems}
+                  compact
                 />
               ))}
             </div>
           )}
         </div>
+          </>
+        )}
       </main>
 
+      {/* Bottom Tab Bar */}
+      <nav
+        className="fixed bottom-0 inset-x-0 z-30 bg-white border-t border-stone-200 pb-[env(safe-area-inset-bottom)]"
+        aria-label="Main"
+      >
+        <div className="max-w-6xl mx-auto grid grid-cols-4">
+          {[
+            { key: "today", label: "Today", icon: <Home className="w-5 h-5" />, active: activeTab === "today", onClick: () => { setActiveTab("today"); window.scrollTo({ top: 0 }); } },
+            { key: "browse", label: "Browse", icon: <LayoutGrid className="w-5 h-5" />, active: activeTab === "browse", onClick: () => { setActiveTab("browse"); window.scrollTo({ top: 0 }); } },
+            { key: "pantry", label: `Pantry${pantryItems.length ? ` (${pantryItems.length})` : ""}`, icon: <PackageCheck className="w-5 h-5" />, active: showPantryModal, onClick: () => setShowPantryModal(true) },
+            { key: "list", label: `List${groceryItems.length ? ` (${groceryItems.length})` : ""}`, icon: <ShoppingCart className="w-5 h-5" />, active: showGroceryModal, onClick: () => setShowGroceryModal(true) },
+          ].map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={tab.onClick}
+              aria-current={tab.active ? "page" : undefined}
+              className={`min-h-[60px] flex flex-col items-center justify-center gap-0.5 text-[11px] font-semibold transition-colors ${
+                tab.active ? "text-emerald-800" : "text-stone-500 hover:text-stone-800"
+              }`}
+            >
+              {tab.icon}
+              <span>{tab.label}</span>
+            </button>
+          ))}
+        </div>
+      </nav>
+
+      {/* Setup Sheet: equipment, effort, living situation */}
+      {showSetupSheet && (
+        <div
+          className="fixed inset-0 z-40 bg-stone-900/50 flex items-end sm:items-center justify-center"
+          onClick={() => setShowSetupSheet(false)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Your kitchen setup"
+            className="bg-white w-full sm:max-w-2xl max-h-[90vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="sticky top-0 bg-white border-b border-stone-200 px-4 sm:px-6 py-3 flex items-center justify-between z-10">
+              <div>
+                <h2 className="text-base font-bold text-stone-900">Your Kitchen Setup</h2>
+                <p className="text-xs text-stone-500">{eligibleMeals.length} meals match this setup</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowSetupSheet(false)}
+                className="min-h-[40px] px-4 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-semibold"
+              >
+                Done
+              </button>
+            </div>
+            <div className="p-4 sm:p-6 space-y-4">
+              <MealGeneratorBar mode="setup" {...generatorBarProps} />
+              <button
+                type="button"
+                onClick={() => {
+                  setShowSetupSheet(false);
+                  setShowRutModal(true);
+                }}
+                className="w-full min-h-[44px] text-sm font-semibold text-emerald-900 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-xl"
+              >
+                Variety &amp; comfort preferences{rutMeals.length > 0 ? ` (${rutMeals.length})` : ""}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Footer */}
-      <footer className="bg-white border-t border-stone-200 mt-12 py-6 text-center text-xs text-stone-500">
+      <footer className="bg-white border-t border-stone-200 mt-12 pt-6 pb-24 text-center text-xs text-stone-500">
         <div className="max-w-6xl mx-auto px-4 space-y-1">
           <p>
             Simple Chef · Adaptive meal planning for dorms, busy nights, and full kitchens.

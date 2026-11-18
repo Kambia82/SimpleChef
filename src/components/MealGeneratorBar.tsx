@@ -73,6 +73,13 @@ interface MealGeneratorBarProps {
   spotlightTitle?: string | null;
   resultsRefreshTick?: number;
   onJumpToResults?: () => void;
+  /**
+   * today: main actions + one-line setup summary.
+   * browse: filter chips for the meal list.
+   * setup: the equipment / effort / living-situation panel (shown in the Setup sheet).
+   */
+  mode: "today" | "browse" | "setup";
+  onOpenSetup?: () => void;
 }
 
 const ENVIRONMENTS: Array<{
@@ -148,9 +155,10 @@ export const MealGeneratorBar: React.FC<MealGeneratorBarProps> = ({
   onOpenPantryModal,
   spotlightTitle,
   resultsRefreshTick = 0,
-  onJumpToResults
+  mode,
+  onOpenSetup
 }) => {
-  const [setupExpanded, setSetupExpanded] = useState(true);
+  const [showDietFilters, setShowDietFilters] = useState(profile.dietaryRestrictions.length > 0);
   const effectiveEq = getEffectiveEquipment(profile);
   const hasStoveOrOven = effectiveEq.has("stove") || effectiveEq.has("oven");
   const hasToasterOrAirFryer =
@@ -172,177 +180,90 @@ export const MealGeneratorBar: React.FC<MealGeneratorBarProps> = ({
 
   return (
     <div className="bg-white border border-stone-200 rounded-2xl p-4 sm:p-6 shadow-sm space-y-5">
-      {/* Primary Task Hub (8 clear workflows) */}
-      <div className="space-y-2.5">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-          <button
-            type="button"
-            onClick={onPickForMe}
-            disabled={generatingMode !== null}
-            className="min-h-[44px] bg-emerald-700 hover:bg-emerald-800 disabled:opacity-60 text-white text-xs sm:text-sm font-bold px-3.5 py-2.5 rounded-xl shadow-xs flex items-center justify-center gap-2 transition-colors"
-          >
-            {generatingMode === "single" ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Picking...</span>
-              </>
-            ) : (
-              <>
-                <Sparkles className="w-4 h-4 text-emerald-200 shrink-0" />
-                <span>Pick Something for Me</span>
-              </>
-            )}
-          </button>
-
-          <button
-            type="button"
-            onClick={onUseWhatIHave}
-            className={`min-h-[44px] text-xs sm:text-sm font-semibold px-3 py-2.5 rounded-xl border flex items-center justify-center gap-1.5 transition-colors ${
-              activeMethodFilter === "pantry"
-                ? "bg-emerald-900 text-white border-emerald-900"
-                : "bg-emerald-50 hover:bg-emerald-100 text-emerald-950 border-emerald-200"
-            }`}
-          >
-            <PackageCheck className="w-4 h-4 shrink-0" />
-            <span>Use What I Have ({pantryMatchCount})</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={onOpenRescueModal}
-            className="min-h-[44px] bg-amber-50 hover:bg-amber-100 text-amber-950 border border-amber-200 text-xs sm:text-sm font-semibold px-3 py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-colors"
-          >
-            <ChefHat className="w-4 h-4 text-amber-700 shrink-0" />
-            <span>Ingredient Rescue</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={onBrowseMeals}
-            className="min-h-[44px] bg-stone-50 hover:bg-stone-100 text-stone-800 border border-stone-200 text-xs sm:text-sm font-semibold px-3 py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-colors"
-          >
-            <LayoutGrid className="w-4 h-4 text-stone-600 shrink-0" />
-            <span>Browse Meals ({eligibleCount})</span>
-          </button>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          <button
-            type="button"
-            onClick={onOpenPantryModal}
-            className="min-h-[44px] bg-stone-50 hover:bg-stone-100 text-stone-800 border border-stone-200 text-xs font-semibold px-3 py-2 rounded-xl flex items-center justify-center gap-1.5 transition-colors"
-          >
-            <Refrigerator className="w-4 h-4 text-stone-600 shrink-0" />
-            <span>My Pantry ({pantryCount})</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={onOpenGroceryModal}
-            className="min-h-[44px] bg-stone-50 hover:bg-stone-100 text-stone-800 border border-stone-200 text-xs font-semibold px-3 py-2 rounded-xl flex items-center justify-center gap-1.5 transition-colors"
-          >
-            <ShoppingCart className="w-4 h-4 text-emerald-700 shrink-0" />
-            <span>My Grocery List ({groceryCount})</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={onOpenFavorites}
-            className={`min-h-[44px] text-xs font-semibold px-3 py-2 rounded-xl border flex items-center justify-center gap-1.5 transition-colors ${
-              activeMethodFilter === "favorites"
-                ? "bg-rose-700 text-white border-rose-700"
-                : "bg-stone-50 hover:bg-stone-100 text-stone-800 border-stone-200"
-            }`}
-          >
-            <Heart
-              className={`w-4 h-4 shrink-0 ${
-                activeMethodFilter === "favorites" ? "fill-white text-white" : "text-rose-500"
-              }`}
-            />
-            <span>Favorites ({favoritesCount})</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setSetupExpanded((prev) => !prev)}
-            aria-expanded={setupExpanded}
-            className={`min-h-[44px] text-xs font-semibold px-3 py-2 rounded-xl border flex items-center justify-center gap-1.5 transition-colors ${
-              setupExpanded
-                ? "bg-stone-900 text-white border-stone-900"
-                : "bg-stone-50 hover:bg-stone-100 text-stone-800 border-stone-200"
-            }`}
-          >
-            <SlidersHorizontal className="w-4 h-4 shrink-0" />
-            <span>Cooking Preferences</span>
-            {setupExpanded ? (
-              <ChevronUp className="w-3.5 h-3.5" />
-            ) : (
-              <ChevronDown className="w-3.5 h-3.5" />
-            )}
-          </button>
-        </div>
-      </div>
-
-      {/* Active Setup Status Line (with live count & instant top-pick preview) */}
-      <div
-        key={`setup-status-${resultsRefreshTick}`}
-        className="bg-stone-50 border border-stone-200 rounded-xl px-3.5 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs transition-colors"
-      >
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-stone-700 min-w-0">
-          <span className="font-bold text-stone-900">Active Setup:</span>
-          <span>{envLabel}</span>
-          <span aria-hidden="true">·</span>
-          <span>
-            {profile.livingSituation === "dorm"
-              ? "Dorm / College Living"
-              : "Standard Kitchen Setup"}
-          </span>
-          <span aria-hidden="true">·</span>
-          <span>{EFFORT_PRESETS[profile.effort].label}</span>
-          {profile.sharedKitchen === "available_use" && (
-            <>
-              <span aria-hidden="true">·</span>
-              <span className="text-emerald-800 font-semibold">Shared Kitchen Included</span>
-            </>
-          )}
-          <span aria-hidden="true">·</span>
-          <span className="font-bold text-emerald-800">
-            {eligibleCount} matching meal{eligibleCount === 1 ? "" : "s"}
-          </span>
-          {spotlightTitle && (
-            <>
-              <span aria-hidden="true">·</span>
-              <span className="text-stone-600 truncate max-w-[260px]">
-                Top Pick: <strong className="text-stone-900">{spotlightTitle}</strong>
-              </span>
-            </>
-          )}
-        </div>
-        <div className="flex items-center gap-3 shrink-0">
-          {onJumpToResults && (
+      {mode === "today" && (
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-2.5">
             <button
               type="button"
-              onClick={onJumpToResults}
-              className="text-emerald-800 hover:text-emerald-950 font-semibold underline underline-offset-2"
+              onClick={onPickForMe}
+              disabled={generatingMode !== null}
+              className="min-h-[52px] bg-emerald-700 hover:bg-emerald-800 disabled:opacity-60 text-white text-sm font-bold px-3.5 py-2.5 rounded-xl shadow-xs flex items-center justify-center gap-2 transition-colors"
             >
-              View Meals ↓
+              {generatingMode === "single" ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Picking...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4 text-emerald-200 shrink-0" />
+                  <span>Pick Something for Me</span>
+                </>
+              )}
             </button>
-          )}
+
+            <button
+              type="button"
+              onClick={onGenerateBatch}
+              disabled={generatingMode !== null}
+              className="min-h-[52px] bg-emerald-50 hover:bg-emerald-100 disabled:opacity-50 text-emerald-950 border border-emerald-300 text-sm font-semibold px-3 py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-colors"
+            >
+              {generatingMode === "batch" ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin text-emerald-700" />
+                  <span>Creating 3 Ideas...</span>
+                </>
+              ) : (
+                <>
+                  <LayoutGrid className="w-4 h-4 text-emerald-700 shrink-0" />
+                  <span>Show Me 3 Ideas</span>
+                </>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={onUseWhatIHave}
+              className="min-h-[48px] bg-white hover:bg-stone-50 text-stone-800 border border-stone-200 text-xs sm:text-sm font-semibold px-3 py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-colors"
+            >
+              <PackageCheck className="w-4 h-4 text-emerald-700 shrink-0" />
+              <span>Use What I Have ({pantryMatchCount})</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={onOpenRescueModal}
+              className="min-h-[48px] bg-amber-50 hover:bg-amber-100 text-amber-950 border border-amber-200 text-xs sm:text-sm font-semibold px-3 py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-colors"
+            >
+              <ChefHat className="w-4 h-4 text-amber-700 shrink-0" />
+              <span>Ingredient Rescue</span>
+            </button>
+          </div>
+
           <button
             type="button"
-            onClick={onOpenPreferencesModal}
-            className="text-emerald-800 hover:text-emerald-950 font-semibold underline underline-offset-2"
+            onClick={onOpenSetup}
+            className="w-full text-left bg-stone-50 hover:bg-stone-100 border border-stone-200 rounded-xl px-3.5 py-2.5 flex items-center justify-between gap-3 text-xs transition-colors"
           >
-            Variety &amp; Comfort{lessFrequentCount > 0 ? ` (${lessFrequentCount})` : ""}
+            <span className="min-w-0 text-stone-700">
+              <span className="font-bold text-stone-900">Your setup: </span>
+              {envLabel} ·{" "}
+              {profile.livingSituation === "dorm" ? "Dorm" : "Standard"} ·{" "}
+              {EFFORT_PRESETS[profile.effort].label}
+            </span>
+            <span className="flex items-center gap-1 font-semibold text-emerald-800 shrink-0">
+              <SlidersHorizontal className="w-3.5 h-3.5" />
+              Change
+            </span>
           </button>
         </div>
-      </div>
+      )}
 
       {/* Decoupled 3-Axis Cooking Preferences Panel */}
-      {setupExpanded && (
+      {mode === "setup" && (
         <div
           id="cooking-preferences-panel"
-          className="space-y-4 pt-3 border-t border-stone-100"
+          className="space-y-4"
         >
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* Axis 1: Cooking Equipment */}
@@ -566,8 +487,9 @@ export const MealGeneratorBar: React.FC<MealGeneratorBarProps> = ({
         </div>
       )}
 
-      {/* Browse Filters & +3 Ideas */}
-      <div className="pt-3 border-t border-stone-100 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+      {/* Browse Filters */}
+      {mode === "browse" && (
+      <div className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-1.5">
           <button
             type="button"
@@ -579,6 +501,19 @@ export const MealGeneratorBar: React.FC<MealGeneratorBarProps> = ({
             }`}
           >
             All Matching
+          </button>
+
+          <button
+            type="button"
+            onClick={onOpenFavorites}
+            className={`min-h-[36px] px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1 transition-colors ${
+              activeMethodFilter === "favorites"
+                ? "bg-rose-700 text-white"
+                : "bg-stone-100 text-stone-600 hover:bg-stone-200"
+            }`}
+          >
+            <Heart className={`w-3 h-3 ${activeMethodFilter === "favorites" ? "fill-white" : "text-rose-500"}`} />
+            <span>Favorites ({favoritesCount})</span>
           </button>
 
           {effectiveEq.has("microwave") && (
@@ -664,7 +599,21 @@ export const MealGeneratorBar: React.FC<MealGeneratorBarProps> = ({
             <span>{maxTimeFilter !== null ? `≤ ${maxTimeFilter}m` : "Any Time"}</span>
           </button>
 
-          {DIETARY_OPTIONS.map((tag) => {
+          <button
+            type="button"
+            onClick={() => setShowDietFilters((prev) => !prev)}
+            aria-expanded={showDietFilters}
+            className={`min-h-[36px] px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1 transition-colors ${
+              profile.dietaryRestrictions.length > 0
+                ? "bg-emerald-700 text-white"
+                : "bg-stone-100 text-stone-600 hover:bg-stone-200"
+            }`}
+          >
+            <span>Diet{profile.dietaryRestrictions.length > 0 ? ` (${profile.dietaryRestrictions.length})` : ""}</span>
+            {showDietFilters ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+          </button>
+
+          {showDietFilters && DIETARY_OPTIONS.map((tag) => {
             const active = profile.dietaryRestrictions.includes(tag.id);
             return (
               <button
@@ -682,26 +631,8 @@ export const MealGeneratorBar: React.FC<MealGeneratorBarProps> = ({
             );
           })}
         </div>
-
-        <button
-          type="button"
-          onClick={onGenerateBatch}
-          disabled={generatingMode !== null}
-          className="min-h-[44px] bg-emerald-50 hover:bg-emerald-100 disabled:opacity-50 text-emerald-950 border border-emerald-300 text-xs font-semibold px-4 py-2 rounded-xl flex items-center justify-center gap-1.5 transition-colors shrink-0"
-        >
-          {generatingMode === "batch" ? (
-            <>
-              <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-700" />
-              <span>Creating 3 Ideas...</span>
-            </>
-          ) : (
-            <>
-              <Sparkles className="w-3.5 h-3.5 text-emerald-700" />
-              <span>Generate 3 Ideas to Compare</span>
-            </>
-          )}
-        </button>
       </div>
+      )}
     </div>
   );
 };

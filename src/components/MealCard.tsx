@@ -38,6 +38,8 @@ interface MealCardProps {
   isFavorite?: boolean;
   pantryItems?: PantryItem[];
   profile?: KitchenProfile;
+  /** Start collapsed: title, tagline and a one-line summary until the user taps "Show details". */
+  compact?: boolean;
 }
 
 export const MealCard: React.FC<MealCardProps> = ({
@@ -49,8 +51,10 @@ export const MealCard: React.FC<MealCardProps> = ({
   onToggleFavorite,
   isFavorite = false,
   pantryItems = [],
-  profile
+  profile,
+  compact = false
 }) => {
+  const [expanded, setExpanded] = useState(!compact);
   const [showDetails, setShowDetails] = useState(false);
   const [showExtras, setShowExtras] = useState(false);
   const [addedExtras, setAddedExtras] = useState<Record<string, boolean>>({});
@@ -204,6 +208,32 @@ export const MealCard: React.FC<MealCardProps> = ({
           </p>
         </div>
 
+        {compact && (
+          <button
+            type="button"
+            onClick={() => setExpanded((prev) => !prev)}
+            aria-expanded={expanded}
+            className="w-full min-h-[40px] flex items-center justify-between gap-2 text-xs font-semibold text-stone-700 bg-stone-50 hover:bg-stone-100 border border-stone-200 rounded-xl px-3 py-2 transition-colors"
+          >
+            <span>
+              {meal.ingredients.length} ingredients · {meal.instructions.length} steps
+              {evalResult
+                ? missingCount === 0
+                  ? " · All in pantry"
+                  : ` · Need ${missingCount}`
+                : fridgeOnceOpenedCount > 0 || !storageProfile.isShelfStable
+                ? ` · ${storageProfile.isShelfStable ? `${fridgeOnceOpenedCount} need fridge once opened` : storageLabel}`
+                : ""}
+            </span>
+            <span className="flex items-center gap-1 text-emerald-800 shrink-0">
+              {expanded ? "Hide details" : "Show details"}
+              {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+            </span>
+          </button>
+        )}
+
+        {expanded && (
+          <>
         {/* Comfort / Idea note (non-judgmental) */}
         {meal.comfortVariationOf ? (
           <div className="bg-amber-50/70 border border-amber-200/70 rounded-xl px-3 py-2 text-xs text-amber-950">
@@ -514,6 +544,8 @@ export const MealCard: React.FC<MealCardProps> = ({
             </div>
           )}
         </div>
+          </>
+        )}
       </div>
 
       {/* Action Footer */}
