@@ -109,6 +109,10 @@ export interface Meal {
   instructions: MealStep[];
   whyItWorks: string;
   rutAlternativeNote: string;
+  /** Short formula to remember the meal, e.g. "Bagel + egg + cheese". */
+  rememberAs?: string;
+  /** An even easier way to make it. */
+  lazyVersion?: string;
   isFavorite?: boolean;
   optionalAddons?: MealAddon[];
   sidePairings?: MealAddon[];

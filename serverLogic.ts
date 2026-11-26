@@ -396,9 +396,39 @@ export function buildEquipmentPromptRules(profile: KitchenProfile): string {
   return lines.join("\n");
 }
 
+/**
+ * Distinct flavor directions handed to parallel generations so a batch of ideas doesn't
+ * converge on the same base (e.g. three black-bean-and-salsa dishes).
+ */
+export const FLAVOR_DIRECTIONS = [
+  "Italian (marinara, garlic, parmesan, Italian herbs)",
+  "Asian-style (soy sauce, sesame, ginger, teriyaki)",
+  "peanut / Thai-style (peanut butter, soy, chili, lime)",
+  "smoky BBQ",
+  "buffalo & ranch",
+  "Mediterranean (chickpeas, olive oil, lemon, oregano)",
+  "Indian-style curry (curry or tikka sauce, warm spices)",
+  "breakfast-for-dinner",
+  "Southwest / Tex-Mex",
+  "Cajun spice",
+  "Korean-style sweet-spicy (gochujang or sweet chili)",
+  "cozy diner comfort food",
+] as const;
+
+/** Picks `count` different flavor directions in random order (no repeats within a batch). */
+export function pickDistinctFlavors(count: number, random: () => number = Math.random): string[] {
+  const pool = [...FLAVOR_DIRECTIONS];
+  const picked: string[] = [];
+  while (picked.length < count && pool.length > 0) {
+    picked.push(pool.splice(Math.floor(random() * pool.length), 1)[0]);
+  }
+  return picked;
+}
+
 export function buildAdaptiveRecipePrompt(
   req: NormalizedGenerationRequest,
-  styleLabel: string
+  styleLabel: string,
+  flavorDirection?: string
 ): string {
   const {
     profile,
@@ -443,7 +473,7 @@ USER CONTEXT:
 - Max Prep Time: ${maxPrepMinutes} min | Max Cook Time: ${maxCookMinutes} min
 - Meal Type: ${mealType === "any" ? "flexible (lunch, dinner, or breakfast)" : mealType}
 - Style Direction: ${styleLabel}
-- ${pantryInstruction}
+${flavorDirection ? `- Flavor Direction: ${flavorDirection} — commit to this flavor profile, and choose the protein, sauce, and crunch to match it\n` : ""}- ${pantryInstruction}
 - ${varietyInstruction}
 - Existing titles NOT to duplicate: ${existingTitles.join(", ") || "none"}
 
@@ -452,6 +482,10 @@ STEP & INGREDIENT CLARITY RULES:
 2. State the ingredient name and measurement right inside each instruction step sentence so the cook doesn't have to flip back and forth.
 3. Populate ownedIngredients, missingIngredients, optionalIngredients, and possibleSubstitutions honestly based ONLY on the user's actual pantry list (never pretend ground beef is ground turkey, or ramen is penne).
 4. Include 2 optionalAddons and 2 sidePairings that ALSO strictly obey the available equipment and freezer rules!
+5. Variety: don't default to the black beans + corn + salsa combo unless the flavor direction is Southwest / Tex-Mex. Give the dish a specific, descriptive title and avoid filler words like "Zesty" or "Ultimate".
+6. SHORTCUT CLASSIC STYLE: Suggest a real dish people already crave (breakfast sandwich, shrimp scampi, fajitas, fried rice, tacos, pasta), made easy with store shortcuts (rotisserie chicken, cooked shrimp, bagged or microwave rice, jarred garlic, frozen veggies, mug eggs). No random "throw it in a bowl" combinations.
+7. Keep it memorable: at most 7 ingredients and steps simple enough to remember after making it once. Fill rememberAs with the ingredient formula and lazyVersion with an even easier shortcut.
+8. The title is the dish name only: no minute counts and no words like "Shelf-Stable", "Microwave" or "Dorm". The tagline describes taste and texture, not packaging.
 `.trim();
 }
 
@@ -525,6 +559,14 @@ export const recipeSchema = {
       },
     },
     whyItWorks: { type: Type.STRING },
+    rememberAs: {
+      type: Type.STRING,
+      description: "Easy-to-remember formula of the main ingredients joined by +, e.g. 'Bagel + egg + American cheese + tomato'",
+    },
+    lazyVersion: {
+      type: Type.STRING,
+      description: "One sentence: an even lazier way to make it (e.g. microwave the egg in a mug instead of a pan)",
+    },
     rutAlternativeNote: {
       type: Type.STRING,
       description: "Helpful positive note on flavor/nutrition or comfort variation (no shaming)",
@@ -629,6 +671,12 @@ export function finalizeAndVerifyGeneratedMeal(
       typeof rawMeal.rutAlternativeNote === "string"
         ? rawMeal.rutAlternativeNote.trim().slice(0, 400)
         : "",
+    ...(typeof rawMeal.rememberAs === "string" && rawMeal.rememberAs.trim()
+      ? { rememberAs: rawMeal.rememberAs.trim().slice(0, 160) }
+      : {}),
+    ...(typeof rawMeal.lazyVersion === "string" && rawMeal.lazyVersion.trim()
+      ? { lazyVersion: rawMeal.lazyVersion.trim().slice(0, 300) }
+      : {}),
     optionalAddons: Array.isArray(rawMeal.optionalAddons)
       ? (rawMeal.optionalAddons as Meal["optionalAddons"])
       : undefined,

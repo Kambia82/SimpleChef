@@ -11,6 +11,7 @@ import {
   finalizeAndVerifyGeneratedMeal,
   getIngredientBoundsForEffort,
   normalizeGenerationRequest,
+  pickDistinctFlavors,
   recipeSchema,
 } from "./serverLogic";
 import { getEffectiveEquipment } from "./src/utils/kitchenProfile";
@@ -131,7 +132,7 @@ app.post("/api/generate-meal", aiRateLimiter, async (req, res) => {
     const effectiveEquipment = Array.from(getEffectiveEquipment(request.profile));
     const pool = getStylePoolForProfile(effectiveEquipment, request.profile.effort);
     const pickedStyle = pool[Math.floor(Math.random() * pool.length)];
-    const prompt = buildAdaptiveRecipePrompt(request, pickedStyle.label);
+    const prompt = buildAdaptiveRecipePrompt(request, pickedStyle.label, pickDistinctFlavors(1)[0]);
 
     const response = await Promise.race([
       ai.models.generateContent({
@@ -241,8 +242,9 @@ app.post("/api/ingredients-to-meal", aiRateLimiter, async (req, res) => {
         : []),
     ].slice(0, 3);
 
-    const buildRescuePrompt = (style: string) => {
-      const base = buildAdaptiveRecipePrompt(request, style);
+    const rescueFlavors = pickDistinctFlavors(formatAngles.length);
+    const buildRescuePrompt = (style: string, flavor: string) => {
+      const base = buildAdaptiveRecipePrompt(request, style, flavor);
       return `${base}
 
 INGREDIENT RESCUE FOCUS:
@@ -251,11 +253,11 @@ INGREDIENT RESCUE FOCUS:
 - Build around those ingredients plus basics/supporting items within ${bounds.min}–${bounds.max} ingredients total.`;
     };
 
-    const fetchOption = async (angle: (typeof formatAngles)[number]) => {
+    const fetchOption = async (angle: (typeof formatAngles)[number], flavor: string) => {
       const response = await Promise.race([
         ai.models.generateContent({
           model: GEMINI_MODEL,
-          contents: buildRescuePrompt(angle.style),
+          contents: buildRescuePrompt(angle.style, flavor),
           config: {
             responseMimeType: "application/json",
             responseSchema: recipeSchema,
@@ -275,7 +277,7 @@ INGREDIENT RESCUE FOCUS:
       );
     };
 
-    const results = await Promise.allSettled(formatAngles.map((a) => fetchOption(a)));
+    const results = await Promise.allSettled(formatAngles.map((a, i) => fetchOption(a, rescueFlavors[i])));
     const seenTitles = new Set<string>(request.existingTitles.map((t) => t.toLowerCase()));
     const validMeals: Meal[] = [];
 
@@ -336,8 +338,9 @@ app.post("/api/pantry-suggestions", aiRateLimiter, async (req, res) => {
     const effectiveEquipment = Array.from(getEffectiveEquipment(request.profile));
     const pool = getStylePoolForProfile(effectiveEquipment, request.profile.effort).slice(0, 2);
 
-    const fetchOne = async (angle: (typeof pool)[number]) => {
-      const prompt = buildAdaptiveRecipePrompt(request, angle.label);
+    const pantryFlavors = pickDistinctFlavors(pool.length);
+    const fetchOne = async (angle: (typeof pool)[number], flavor: string) => {
+      const prompt = buildAdaptiveRecipePrompt(request, angle.label, flavor);
       const response = await Promise.race([
         ai.models.generateContent({
           model: GEMINI_MODEL,
@@ -361,7 +364,7 @@ app.post("/api/pantry-suggestions", aiRateLimiter, async (req, res) => {
       );
     };
 
-    const results = await Promise.allSettled(pool.map((angle) => fetchOne(angle)));
+    const results = await Promise.allSettled(pool.map((angle, i) => fetchOne(angle, pantryFlavors[i])));
     const seenTitles = new Set<string>(request.existingTitles.map((t) => t.toLowerCase()));
     const validMeals: Meal[] = [];
 
@@ -408,8 +411,9 @@ app.post("/api/generate-batch", aiRateLimiter, async (req, res) => {
     const pool = getStylePoolForProfile(effectiveEquipment, request.profile.effort);
     const chosenAngles = [...pool].sort(() => Math.random() - 0.5).slice(0, 3);
 
-    const fetchOne = async (angle: (typeof chosenAngles)[number]) => {
-      const prompt = buildAdaptiveRecipePrompt(request, angle.label);
+    const batchFlavors = pickDistinctFlavors(chosenAngles.length);
+    const fetchOne = async (angle: (typeof chosenAngles)[number], flavor: string) => {
+      const prompt = buildAdaptiveRecipePrompt(request, angle.label, flavor);
       const response = await Promise.race([
         ai.models.generateContent({
           model: GEMINI_MODEL,
@@ -433,7 +437,7 @@ app.post("/api/generate-batch", aiRateLimiter, async (req, res) => {
       );
     };
 
-    const results = await Promise.allSettled(chosenAngles.map((a) => fetchOne(a)));
+    const results = await Promise.allSettled(chosenAngles.map((a, i) => fetchOne(a, batchFlavors[i])));
     const seenTitles = new Set<string>(request.existingTitles.map((t) => t.toLowerCase()));
     const validMeals: Meal[] = [];
 
