@@ -483,6 +483,9 @@ STEP & INGREDIENT CLARITY RULES:
 3. Populate ownedIngredients, missingIngredients, optionalIngredients, and possibleSubstitutions honestly based ONLY on the user's actual pantry list (never pretend ground beef is ground turkey, or ramen is penne).
 4. Include 2 optionalAddons and 2 sidePairings that ALSO strictly obey the available equipment and freezer rules!
 5. Variety: don't default to the black beans + corn + salsa combo unless the flavor direction is Southwest / Tex-Mex. Give the dish a specific, descriptive title and avoid filler words like "Zesty" or "Ultimate".
+6. SHORTCUT CLASSIC STYLE: Suggest a real dish people already crave (breakfast sandwich, shrimp scampi, fajitas, fried rice, tacos, pasta), made easy with store shortcuts (rotisserie chicken, cooked shrimp, bagged or microwave rice, jarred garlic, frozen veggies, mug eggs). No random "throw it in a bowl" combinations.
+7. Keep it memorable: at most 7 ingredients and steps simple enough to remember after making it once. Fill rememberAs with the ingredient formula and lazyVersion with an even easier shortcut.
+8. The title is the dish name only: no minute counts and no words like "Shelf-Stable", "Microwave" or "Dorm". The tagline describes taste and texture, not packaging.
 `.trim();
 }
 
@@ -556,6 +559,14 @@ export const recipeSchema = {
       },
     },
     whyItWorks: { type: Type.STRING },
+    rememberAs: {
+      type: Type.STRING,
+      description: "Easy-to-remember formula of the main ingredients joined by +, e.g. 'Bagel + egg + American cheese + tomato'",
+    },
+    lazyVersion: {
+      type: Type.STRING,
+      description: "One sentence: an even lazier way to make it (e.g. microwave the egg in a mug instead of a pan)",
+    },
     rutAlternativeNote: {
       type: Type.STRING,
       description: "Helpful positive note on flavor/nutrition or comfort variation (no shaming)",
@@ -660,6 +671,12 @@ export function finalizeAndVerifyGeneratedMeal(
       typeof rawMeal.rutAlternativeNote === "string"
         ? rawMeal.rutAlternativeNote.trim().slice(0, 400)
         : "",
+    ...(typeof rawMeal.rememberAs === "string" && rawMeal.rememberAs.trim()
+      ? { rememberAs: rawMeal.rememberAs.trim().slice(0, 160) }
+      : {}),
+    ...(typeof rawMeal.lazyVersion === "string" && rawMeal.lazyVersion.trim()
+      ? { lazyVersion: rawMeal.lazyVersion.trim().slice(0, 300) }
+      : {}),
     optionalAddons: Array.isArray(rawMeal.optionalAddons)
       ? (rawMeal.optionalAddons as Meal["optionalAddons"])
       : undefined,
